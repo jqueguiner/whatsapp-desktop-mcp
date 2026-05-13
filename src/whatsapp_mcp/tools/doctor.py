@@ -16,6 +16,11 @@ advertises in ``tools/list``):
   payloads (modulo any TCC grant the user just changed in another window).
 - ``openWorldHint=False`` — all I/O is against the local machine; no
   external services contacted.
+- ``meta={"anthropic/maxResultSizeChars": 60000}`` — Plan 01-04 W1 lock:
+  every tool, including ``doctor``, advertises the 60k-char response
+  budget. ``DoctorReport`` is small (3 ``PermissionStatus`` rows), so the
+  budget is never close to being hit; the annotation is structural so
+  clients have a uniform contract across the entire tool surface.
 
 **Import-order invariant (P-PHASE0-06).** This module imports
 ``from whatsapp_mcp.server import mcp``, and ``server`` imports
@@ -54,6 +59,7 @@ from whatsapp_mcp.server import mcp
         idempotentHint=True,
         openWorldHint=False,
     ),
+    meta={"anthropic/maxResultSizeChars": 60_000},
 )
 async def doctor() -> DoctorReport:
     """Run the three permission probes and assemble the report."""

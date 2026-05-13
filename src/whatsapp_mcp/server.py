@@ -31,6 +31,15 @@ wires this; Phase 2 will gate its send tool import on
 is consulted only by Phase 2's ``send_message`` registration and by unit
 tests that assert tool-listing behavior. Read tools always carry
 ``readOnlyHint=True`` regardless of the flag.
+
+Phase 1 ships 7 additional read tools registered via the side-effect
+import block below the existing ``doctor`` import. The block is
+alphabetized so ``tools/list`` output is byte-stable across Phase 1
+(``doctor`` first per the Phase 0 import, then ``extract_recent``,
+``get_chat_metadata``, ``get_message_context``, ``list_chats``,
+``read_chat``, ``search_contacts``, ``search_messages``). Each tool
+advertises ``meta={"anthropic/maxResultSizeChars": 60000}`` (READ-09
++ W1 lock; ``doctor`` carries the same annotation for uniform contract).
 """
 
 from __future__ import annotations
@@ -59,11 +68,23 @@ read_only_mode: bool = True
 
 from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
 
-# --- Plan 01-04 tool import insertion point ---
-# Plan 01-04 will append 7 read tools below this marker (all unconditionally
-# registered; readOnlyHint=True is intrinsic to the read tools themselves).
-# Phase 2 will append its `if not read_only_mode:` send-tool import block
-# AFTER the Plan 01-04 read tools.
+# --- Plan 01-04 read-tool registration block (alphabetized) ---
+# Each import has the side effect of executing the module's
+# ``@mcp.tool(...)`` decorator at import time, which registers the tool
+# with the FastMCP instance above. The ``as _<name>`` aliasing keeps the
+# imports referenced for the linter, and the inline noqa pragma on each
+# line silences both the late-import (E402) and unused-name (F401) rules
+# because these imports must follow the ``logging.basicConfig`` block
+# above (the P-PHASE0-01 stdout-purity mitigation mandates that
+# ordering). Phase 2 will append its ``if not read_only_mode:`` send-tool
+# import block AFTER this read-tool block.
+from whatsapp_mcp.tools import extract_recent as _extract_recent  # noqa: E402, F401
+from whatsapp_mcp.tools import get_chat_metadata as _get_chat_metadata  # noqa: E402, F401
+from whatsapp_mcp.tools import get_message_context as _get_message_context  # noqa: E402, F401
+from whatsapp_mcp.tools import list_chats as _list_chats  # noqa: E402, F401
+from whatsapp_mcp.tools import read_chat as _read_chat  # noqa: E402, F401
+from whatsapp_mcp.tools import search_contacts as _search_contacts  # noqa: E402, F401
+from whatsapp_mcp.tools import search_messages as _search_messages  # noqa: E402, F401
 
 
 def run() -> None:
