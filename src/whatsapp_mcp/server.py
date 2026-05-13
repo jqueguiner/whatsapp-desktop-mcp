@@ -40,6 +40,16 @@ alphabetized so ``tools/list`` output is byte-stable across Phase 1
 ``read_chat``, ``search_contacts``, ``search_messages``). Each tool
 advertises ``meta={"anthropic/maxResultSizeChars": 60000}`` (READ-09
 + W1 lock; ``doctor`` carries the same annotation for uniform contract).
+
+Plan 02-03 appends a single read-only-gated import block immediately
+AFTER the Plan 01-04 read-tool block. The gated import is structurally
+tied to the ``read_only_mode`` module flag set by ``cli.main``; when
+the flag is True (the v0.1 default), the gated import never runs and
+``mcp.list_tools()`` advertises only the 8 Phase 0/1 tools
+(SETUP-06 satisfied). When the user launches with ``--no-read-only``,
+the CLI sets the flag to False before this module's load and the
+side-effect import triggers the ``@mcp.tool`` decoration on
+``tools/send_message`` — bringing the total tool count to 9.
 """
 
 from __future__ import annotations
@@ -85,6 +95,20 @@ from whatsapp_mcp.tools import list_chats as _list_chats  # noqa: E402, F401
 from whatsapp_mcp.tools import read_chat as _read_chat  # noqa: E402, F401
 from whatsapp_mcp.tools import search_contacts as _search_contacts  # noqa: E402, F401
 from whatsapp_mcp.tools import search_messages as _search_messages  # noqa: E402, F401
+
+# --- Plan 02-03 send-tool registration (read-only-gated) ---
+# SETUP-06 / D-19: send tools are registered ONLY when the server was
+# started with --no-read-only. Plan 01-03 ships read_only_mode default=True
+# (v0.1 conservative); the CLI sets read_only_mode BEFORE this server
+# module loads, so the `if not read_only_mode:` condition reflects the
+# user's choice. The side-effect import inside the if-block triggers
+# the @mcp.tool decoration on tools/send_message.py at module-load
+# time. When read_only_mode is True, mcp.list_tools() returns the
+# 8 Phase 0/1 tools and NEVER advertises send_message —
+# defense-in-depth on top of the runtime ReadOnlyMode check inside
+# the tool body itself (D-19).
+if not read_only_mode:
+    from whatsapp_mcp.tools import send_message as _send_message  # noqa: E402, F401
 
 
 def run() -> None:
