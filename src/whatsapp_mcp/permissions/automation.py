@@ -7,13 +7,11 @@ even when Automation is fully granted the probe returns exit-code 1 with
 trailing ``(-1708)`` (``errAEEventNotHandled``). That would mis-classify the
 granted state as denied (P-PHASE0-03).
 
-The corrected primary probe is::
-
-    id of application "WhatsApp"
-
-When the app is installed and Automation is granted to the requesting binary,
-``osascript`` exits 0 with stdout ``net.whatsapp.WhatsApp``. The error-code
-decision matrix below covers every other empirically-observed outcome.
+The corrected primary probe queries WhatsApp's bundle identifier (see the
+``_PROBE`` constant below for the literal AppleScript). When the app is
+installed and Automation is granted to the requesting binary, ``osascript``
+exits 0 with stdout ``net.whatsapp.WhatsApp``. The error-code decision matrix
+below covers every other empirically-observed outcome.
 
 | osascript outcome                                | Automation status            |
 | ------------------------------------------------ | ---------------------------- |
