@@ -28,6 +28,8 @@ from whatsapp_mcp.models.doctor import (
     PermissionBucket,
     PermissionState,
     PermissionStatus,
+    SchemaFingerprint,
+    SchemaState,
 )
 from whatsapp_mcp.models.group import GroupInfo, GroupMember
 from whatsapp_mcp.models.media import MediaRef
@@ -51,6 +53,8 @@ __all__ = [
     "PermissionBucket",
     "PermissionState",
     "PermissionStatus",
+    "SchemaFingerprint",
+    "SchemaState",
     "decode_cursor",
     "encode_cursor",
 ]
