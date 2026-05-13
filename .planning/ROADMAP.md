@@ -69,7 +69,7 @@ Plans:
 **Plans:** 5 plans
 Plans:
 - [x] 02-01-PLAN.md — Sender primitives — pyobjc deps, deeplink builder, osascript_send wrapper, AX preflight (Wave-0 spikes first) (02-01-SUMMARY.md, 2026-05-13)
-- [ ] 02-02-PLAN.md — Guardrails — persistent rate limiter, JSONL audit log, cross-chat-quote LRU, send models
+- [x] 02-02-PLAN.md — Guardrails — persistent rate limiter, JSONL audit log, cross-chat-quote LRU, send models (02-02-SUMMARY.md, 2026-05-13)
 - [ ] 02-03-PLAN.md — Send orchestration — ui_send (deeplink + group fallback), post-hoc verify, send_message MCP tool, server wiring
 - [ ] 02-04-PLAN.md — Read-tool integration — cross-chat-quote.record_bodies hook + test_isolation.py D-24 evolution
 - [ ] 02-05-PLAN.md — Tests — sender unit suite, 4 mandatory regression tests, RUN_LIVE=1 send smoke, send_message tool tests
