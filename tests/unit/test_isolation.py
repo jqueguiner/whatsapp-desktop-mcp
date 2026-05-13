@@ -127,26 +127,53 @@ def test_isolation_reader_does_not_import_sender() -> None:
 
 
 def test_isolation_sender_does_not_import_reader() -> None:
-    """No ``.py`` file under ``sender/`` references the Reader package.
+    """Sender package may import the read-side DB-connection helper ONLY.
 
-    Sender remains an empty placeholder package in Phase 1 (Phase 2 fills
-    it). The check stays in place so Phase 2 ships against an enforced
-    REL-05 contract, not a vacuous one. The string + AST layers mirror
-    :func:`test_isolation_reader_does_not_import_sender`.
+    D-24 EVOLVED REL-05 (Plan 02-03): the original Phase 0/1 invariant
+    ("sender MUST NOT import reader, period") is relaxed to permit a
+    SINGLE narrow edge — :mod:`whatsapp_mcp.sender.verify` imports
+    :func:`whatsapp_mcp.reader.connection.open_ro` for the post-hoc
+    DB poll. EVERY OTHER read-side import path stays forbidden in
+    ``sender/``.
+
+    The AST walk enumerates every read-side import across the sender
+    package; any dotted name starting with ``whatsapp_mcp.reader.``
+    that is not exactly ``whatsapp_mcp.reader.connection`` fails the
+    test. Importing the package-level ``whatsapp_mcp.reader`` (which
+    would pull the 14-accessor data-tier surface) is also forbidden.
+
+    Plan 02-04 may further tighten this test to assert the offending
+    file is exactly ``sender/verify.py`` (no other sender file may
+    take the connection edge). For now we enforce the type-of-import
+    invariant: only the narrow connection module is reachable from
+    ``sender/``.
     """
     sender_dir = _package_dir("whatsapp_mcp.sender")
     for py_file in sender_dir.rglob("*.py"):
+        # Layer 1: substring scan — forbid the package-level form
+        # ``from whatsapp_mcp.reader import ...`` (which would pull
+        # the 14-accessor data-tier re-export surface). The narrow
+        # ``from whatsapp_mcp.reader.connection import ...`` form is
+        # the only sanctioned shape and is checked at Layer 2.
         content = py_file.read_text(encoding="utf-8")
-        assert "from whatsapp_mcp.reader" not in content, (
-            f"REL-05 violation: {py_file} imports from whatsapp_mcp.reader"
+        assert "from whatsapp_mcp.reader import" not in content, (
+            f"REL-05 D-24 violation: {py_file} imports from the "
+            "read-side package-level surface; only "
+            "whatsapp_mcp.reader.connection is permitted"
         )
-        assert "import whatsapp_mcp.reader" not in content, (
-            f"REL-05 violation: {py_file} imports whatsapp_mcp.reader"
+        assert "import whatsapp_mcp.reader\n" not in content + "\n", (
+            f"REL-05 D-24 violation: {py_file} imports the read-side package as a whole"
         )
+
+        # Layer 2: AST walk — the only permitted read-side dotted name
+        # is exactly ``whatsapp_mcp.reader.connection``.
         for dotted in _imported_dotted_names(py_file):
-            assert not dotted.startswith("whatsapp_mcp.reader"), (
-                f"REL-05 violation (AST): {py_file} imports {dotted!r}"
-            )
+            if dotted.startswith("whatsapp_mcp.reader"):
+                assert dotted == "whatsapp_mcp.reader.connection", (
+                    f"REL-05 D-24 violation (AST): {py_file} imports "
+                    f"{dotted!r}; only whatsapp_mcp.reader.connection "
+                    "is permitted under the evolved D-24 invariant"
+                )
 
 
 def test_reader_imports_models_paths_time_only() -> None:
