@@ -23,15 +23,15 @@
 - [ ] **READ-05**: Tool `search_contacts` finds chats/contacts by name or phone fragment, deduplicating across `@s.whatsapp.net` and `@lid` representations of the same person
 - [ ] **READ-06**: Tool `get_chat_metadata` returns group description, member list (with display names and admin flags), mute status — for groups and 1:1s
 - [ ] **READ-07**: Tool `get_message_context` returns N messages before/after a `message_id`, plus the parent message if the target is a quote-reply (uses `ZPARENTMESSAGE` self-join)
-- [ ] **READ-08**: All read tools default `include_deleted=False`; tombstoned messages (`ZMESSAGETYPE=14`, deleted-for-everyone, deleted-for-me bit-flagged) are filtered unless caller opts in
+- [x] **READ-08**: All read tools default `include_deleted=False`; tombstoned messages (`ZMESSAGETYPE=14`, deleted-for-everyone, deleted-for-me bit-flagged) are filtered unless caller opts in *(reader-tier satisfied by Plan 01-02 — `is_tombstone` predicate + `TOMBSTONE_SQL_WHERE` SQL filter inlined into every `_SQL_*` window/since/context/search template; the `include_deleted=False` default in every reader accessor selects the tombstone-filtered template. Tool-tier `include_deleted` parameter wiring belongs to Plan 01-04.)*
 - [ ] **READ-09**: All read tool responses fit within MCP's per-result size cap (~60k chars); larger results paginate via opaque cursor; `_meta["anthropic/maxResultSizeChars"]` annotation set on every read tool
 
 ### Data Contracts
 
 - [ ] **DATA-01**: All tool returns are JSON conforming to a locked Pydantic schema for `Message`, `Chat`, `Contact`, `GroupInfo`, `MediaRef`, `Jid` (kind-tagged: `phone` / `lid` / `group`)
 - [ ] **DATA-02**: Each `Message` includes `message_id` (`ZSTANZAID`), `chat_id`, `sender_jid`, `timestamp` (Unix seconds, converted from Cocoa epoch), `body`, `kind` (text/media/system/etc), `is_outgoing`, `quoted_message_id` (nullable)
-- [ ] **DATA-03**: Attachments are surfaced as `MediaRef` with `filename`, `mime`, `local_path` (absolute), `size_bytes` — never inlined as binary in tool responses
-- [ ] **DATA-04**: Encrypted/protobuf BLOB columns (`ZMEDIAKEY`, `ZMETADATA`, `ZRECEIPTINFO`) are NOT parsed in v1; surfaced as opaque or omitted
+- [x] **DATA-03**: Attachments are surfaced as `MediaRef` with `filename`, `mime`, `local_path` (absolute), `size_bytes` — never inlined as binary in tool responses *(reader-tier satisfied by Plan 01-02 — `reader/media.py:resolve_media_ref` builds `MediaRef` with absolute path validated against `paths.resolve_media_root()` via `Path.resolve()` + separator-bounded prefix check, defending against the lharries#241 path-traversal threat class; never inlines bytes. Tool-tier surfacing belongs to Plan 01-04.)*
+- [x] **DATA-04**: Encrypted/protobuf BLOB columns (`ZMEDIAKEY`, `ZMETADATA`, `ZRECEIPTINFO`) are NOT parsed in v1; surfaced as opaque or omitted *(satisfied by Plan 01-02 — the file-wide grep gate `grep -rcE 'ZMEDIAKEY|ZMETADATA|ZRECEIPTINFO' src/whatsapp_mcp/reader/` returns 0 across every file in the package; the column literal names are deliberately omitted from the source so neither read nor parse can occur.)*
 
 ### Send
 
@@ -46,10 +46,10 @@
 
 ### Reliability & Concurrency
 
-- [ ] **REL-01**: SQLite reader uses short-lived connections opened with `?mode=ro` URI flag (never `immutable=1`); reads succeed concurrently with WhatsApp's writer
-- [ ] **REL-02**: All DB calls wrapped in `asyncio.to_thread`; all `osascript` calls via `asyncio.create_subprocess_exec` + `asyncio.wait_for(timeout=10)`; the stdio event loop never blocks
+- [x] **REL-01**: SQLite reader uses short-lived connections opened with `?mode=ro` URI flag (never `immutable=1`); reads succeed concurrently with WhatsApp's writer *(satisfied by Plan 01-02 — `reader/connection.py:open_ro` opens `file:{path}?mode=ro` per call with `busy_timeout=5000` and `BEGIN/COMMIT` deferred read; never the WAL-skipping URI flag. Verified live concurrent with WhatsApp Desktop 26.16.74's writer (RUN_LIVE=1 smoke 2026-05-13).)*
+- [x] **REL-02**: All DB calls wrapped in `asyncio.to_thread`; all `osascript` calls via `asyncio.create_subprocess_exec` + `asyncio.wait_for(timeout=10)`; the stdio event loop never blocks *(reader-tier satisfied by Plan 01-02 — `grep -rE 'asyncio\.to_thread' src/whatsapp_mcp/reader/` returns 22 (every public async accessor dispatches to its `_blocking_*` impl); osascript half was satisfied in Phase 0 Plan 03.)*
 - [ ] **REL-03**: Per-tool timeouts enforced: `read_chat` 5s, `search_messages` 10s, `send_message` 15s
-- [ ] **REL-04**: Schema fingerprint (`Z_METADATA.Z_VERSION`) probed at startup; out-of-range version returns a degraded-mode warning from `doctor` rather than crashing read tools
+- [x] **REL-04**: Schema fingerprint (`Z_METADATA.Z_VERSION`) probed at startup; out-of-range version returns a degraded-mode warning from `doctor` rather than crashing read tools *(reader-tier satisfied by Plan 01-02 — `reader/schema_v1.py` ships `SUPPORTED_VERSIONS = frozenset({1})` + `probe_z_version(conn) -> int` + `is_supported(version) -> bool`. Verified live: `Z_VERSION = 1` matches the supported set. `doctor` integration belongs to Plan 01-05.)*
 - [ ] **REL-05**: Reader and Sender modules MUST NOT import each other; tool layer is the only integration point
 
 ### Diagnostics
@@ -126,16 +126,16 @@
 | READ-05 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | READ-06 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | READ-07 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-08 | Phase 1 | Read MVP (`--read-only`) | Pending |
+| READ-08 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (predicate + SQL filter); tool-tier opt-in flag pending Plan 01-04 |
 | READ-09 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DATA-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DATA-02 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| DATA-03 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| DATA-04 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| REL-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| REL-02 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| REL-03 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| REL-04 | Phase 1 | Read MVP (`--read-only`) | Pending |
+| DATA-03 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (`reader/media.py:resolve_media_ref` with path-traversal defense); tool-tier surfacing pending Plan 01-04 |
+| DATA-04 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-02 (encrypted/protobuf BLOB column literal names absent across `src/whatsapp_mcp/reader/` — verified by file-wide grep gate) |
+| REL-01 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-02 (`reader/connection.py:open_ro` with `?mode=ro` + `busy_timeout=5000`; verified live concurrent with WhatsApp writer 2026-05-13) |
+| REL-02 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (22 `asyncio.to_thread` dispatches across the 14 async accessors); osascript half satisfied by Phase 0 Plan 03 |
+| REL-03 | Phase 1 | Read MVP (`--read-only`) | Pending (tool-tier `@timeout` decorator) |
+| REL-04 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (`reader/schema_v1.py` with `SUPPORTED_VERSIONS = frozenset({1})` + `probe_z_version` + `is_supported`); doctor integration pending Plan 01-05 |
 | REL-05 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DIAG-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DIAG-02 | Phase 1 | Read MVP (`--read-only`) | Pending |
@@ -160,4 +160,4 @@
 
 ---
 *Requirements defined: 2026-05-13*
-*Last updated: 2026-05-13 after Phase 0 Plan 05 executed (all 6 Phase 0 requirements satisfied: SETUP-01, SETUP-02, SETUP-03, SETUP-04, SETUP-05, DIST-01; Phase 0 ready for `/gsd-verify-work`)*
+*Last updated: 2026-05-13 after Phase 1 Plan 01-02 executed (reader-tier mitigations for REL-01, REL-02, REL-04, READ-08, DATA-03, DATA-04 satisfied; tool-tier completions pending Plans 01-04/01-05)*
