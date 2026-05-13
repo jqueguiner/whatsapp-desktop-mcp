@@ -1,0 +1,41 @@
+# Release: triggers on `git tag v*`; publishes to PyPI via OIDC trusted-publisher.
+# Reuses ci.yml as a gate (publish job needs: [ci]); no long-lived secrets
+# anywhere — auth is by GitHub OIDC + a pending publisher on PyPI's project
+# settings (one-time manual setup; see README "Development" section).
+#
+# The `permissions: id-token: write` block is INTENTIONALLY at the publish
+# job level, NOT at the workflow root — P-PHASE0-04 mitigation (minimal
+# blast radius; without job-level scoping the OIDC token would be readable
+# by every other job, including the reusable CI workflow).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: [ci]
+    runs-on: macos-14
+    environment:
+      name: pypi
+      url: https://pypi.org/p/whatsapp-mcp
+    permissions:
+      id-token: write   # MANDATORY for OIDC trusted-publisher; without it, PyPI returns 403
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Build distribution
+        run: uv build
+
+      - name: Publish to PyPI (uv)
+        run: uv publish

@@ -1,0 +1,44 @@
+# CI: runs on push to main + every PR.
+# Lints, format-checks, type-checks, and runs the non-live test suite.
+# The stdout-purity test (tests/unit/test_stdout_purity.py) is the SETUP-03
+# CI gate: it spawns `python -m whatsapp_mcp` and asserts every byte on
+# stdout is a JSON-RPC 2.0 frame across a full initialize/tools-list/call
+# handshake. That test is exercised by `pytest -m "not live"` below — no
+# separate gate is needed.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-type-test:
+    runs-on: macos-14   # Apple Silicon — matches user environment (D-18)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install project + dev deps
+        run: uv sync --extra dev
+
+      - name: Lint (ruff check)
+        run: uv run ruff check src tests
+
+      - name: Format check (ruff format --check)
+        run: uv run ruff format --check src tests
+
+      - name: Type check (mypy strict)
+        run: uv run mypy
+
+      - name: Test (excluding live tests)
+        run: uv run pytest -m "not live"
