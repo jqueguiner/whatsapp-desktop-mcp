@@ -24,6 +24,14 @@ classifiers = [
 dependencies = [
     "mcp[cli]==1.27.1",
     "pydantic>=2.7,<3",
+    # pyobjc — Phase 2 D-05: runtime dep for AX-API state assertion (sender/ax_assert.py).
+    # The AX preflight (D-03) is the load-bearing P5 mitigation against wrong-chat
+    # fuzzy sends; pyobjc reads the focused WhatsApp window's chat header via
+    # ApplicationServices. NOT in [project.optional-dependencies] dev — this is
+    # required at runtime on the user's machine, not just CI.
+    "pyobjc-core>=12.1",
+    "pyobjc-framework-Cocoa>=12.1",
+    "pyobjc-framework-ApplicationServices>=12.1",
 ]
 
 [project.optional-dependencies]
