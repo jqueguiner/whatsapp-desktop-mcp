@@ -12,6 +12,12 @@ returns a structured ``DoctorReport`` instead. Phase 1's read tools will be
 the first to raise them when a probe fails for a real call (e.g. an
 ``os.stat`` against ``ChatStorage.sqlite`` returning ``EACCES`` becomes
 ``raise FullDiskAccessRequired(...)``).
+
+Phase 1 addition: :class:`ReadOnlyMode` is appended (sibling of
+:class:`PermissionRequired`, not a child) so Phase 2's ``send_message`` tool
+can import it by name without a circular dependency on a Phase 2-only
+module. Phase 1 ships zero send tools (REL-05 sender/ is empty), so the
+class is minted but never raised in Phase 1.
 """
 
 from __future__ import annotations
@@ -58,3 +64,18 @@ class AccessibilityPermissionRequired(PermissionRequired):
     system_settings_url = (
         "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
     )
+
+
+class ReadOnlyMode(WhatsAppMCPError):
+    """Raised by a send tool when the server was started with --read-only.
+
+    Phase 1 mints this class so Phase 2's send_message can import it by
+    name without a circular dependency on a Phase 2-only module. Phase 1
+    ships zero send tools (REL-05 sender/ is empty), so nothing in
+    Phase 1 ever raises this — but the contract surface is fixed now.
+
+    Sibling of :class:`PermissionRequired` (NOT a child) — being denied
+    by ``--read-only`` is a deliberate server-configuration choice, not
+    a missing OS permission, so it does not share the ``bucket`` /
+    ``system_settings_url`` payload shape.
+    """
