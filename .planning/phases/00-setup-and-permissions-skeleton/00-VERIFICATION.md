@@ -1,15 +1,17 @@
 ---
 phase: 00-setup-and-permissions-skeleton
 verified: 2026-05-13T08:08:59Z
-status: gaps_found
-score: 5/6 must-haves verified (ROADMAP SC1, SC2, SC3-test-half, SC4, REQ coverage); SC3 CI-gate half-fails on ruff format
+status: passed
+score: 6/6 must-haves verified (after gap closure)
 overrides_applied: 0
 re_verification:
-  previous_status: initial
-  previous_score: n/a
-  gaps_closed: []
+  previous_status: gaps_found
+  previous_score: 5/6
+  gaps_closed:
+    - "CI ruff format --check gate: 3 files reformatted by `uv run ruff format src tests`, committed as 7548158. Re-running locally: `uv run ruff format --check src tests` exits 0; full local CI sequence (sync + ruff check + ruff format --check + mypy + pytest -m 'not live') all green. SETUP-03 stdout-purity gate now reachable on every push/PR."
   gaps_remaining: []
   regressions: []
+  resolution_commit: 7548158
 gaps:
   - truth: "CI (.github/workflows/ci.yml) runs the stdout-purity test on every push/PR"
     status: partial
