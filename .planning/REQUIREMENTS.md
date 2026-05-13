@@ -8,9 +8,9 @@
 ### Setup & Permissions
 
 - [ ] **SETUP-01**: MCP server installs via a single line in `claude_desktop_config.json` (`uvx whatsapp-mcp` for dev / `whatsapp-mcp` from a stable path for end-user)
-- [x] **SETUP-02**: Server runs as an MCP stdio server and registers with Claude Desktop / Claude Code without protocol errors *(scaffolded by Plan 02 — `whatsapp_mcp.server.mcp = FastMCP("whatsapp-mcp")` + `run()` dispatcher; full Claude-Desktop registration smoke test lands with Plan 04's `test_stdout_purity.py` + Plan 03's `doctor` tool)*
+- [x] **SETUP-02**: Server runs as an MCP stdio server and registers with Claude Desktop / Claude Code without protocol errors *(satisfied by Plan 03 — `whatsapp_mcp.server.mcp = FastMCP("whatsapp-mcp")` + `run()` dispatcher from Plan 02 + `doctor` tool registered by Plan 03 means `mcp.list_tools()` returns exactly one Tool named `doctor` with `readOnlyHint=True`; full Claude-Desktop registration smoke test lands with Plan 04's `test_stdout_purity.py` exercising `initialize → tools/list → tools/call doctor`)*
 - [x] **SETUP-03**: All logging goes to stderr; stdout is reserved exclusively for JSON-RPC frames (CI test enforces purity; ruff `T201` blocks `print`) *(scaffolded by Plan 02 — `logging.basicConfig(stream=sys.stderr, ...)` is the first executable statement in `server.py`; `import whatsapp_mcp` and `from whatsapp_mcp.server import mcp` both emit zero stdout bytes; T201 is wired in pyproject.toml since Plan 01; CI test lands in Plan 04)*
-- [x] **SETUP-04**: Missing macOS permission produces a structured error (`FullDiskAccessRequired`, `AutomationPermissionRequired`, `AccessibilityPermissionRequired`) naming the exact binary path to grant and a `x-apple.systempreferences:` deep-link *(scaffolded by Plan 02 — exception classes ship with frozen `bucket` + `system_settings_url` class attributes; `PermissionStatus` Pydantic model matches; Plan 03's `doctor` returns the structured payload, Plan 03 + Phase 1 raise the exceptions on real failures)*
+- [x] **SETUP-04**: Missing macOS permission produces a structured error (`FullDiskAccessRequired`, `AutomationPermissionRequired`, `AccessibilityPermissionRequired`) naming the exact binary path to grant and a `x-apple.systempreferences:` deep-link *(satisfied by Plan 03 — `doctor` tool returns a structured `DoctorReport` whose `PermissionStatus` payloads carry `binary_path = sys.executable`, `db_path` (FDA only) from `paths.resolve_chatstorage_path()`, `system_settings_url` from the matching exception class attribute (single source of truth, D-11), and a one-line `remediation` string for any non-granted state. Empirically corrected D-09 PATCHED Automation probe `id of application "WhatsApp"` is in source. Phase 1's read tools will raise the matching `*Required` exception classes on real failures.)*
 - [ ] **SETUP-05**: README documents WhatsApp ToS automation risk, account-ban thresholds, and "this is your personal account, not a bot" framing
 - [ ] **SETUP-06**: `--read-only` startup flag disables every send tool and marks all remaining tools `readOnlyHint:true`
 
@@ -113,9 +113,9 @@
 | Requirement | Phase | Phase Name | Status |
 |-------------|-------|------------|--------|
 | SETUP-01 | Phase 0 | Setup & Permissions Skeleton | Pending |
-| SETUP-02 | Phase 0 | Setup & Permissions Skeleton | Scaffolded (Plan 02; Claude-Desktop smoke test pending Plan 04) |
-| SETUP-03 | Phase 0 | Setup & Permissions Skeleton | Scaffolded (Plan 02 — stderr-FIRST logging + import-time stdout purity; CI test pending Plan 04) |
-| SETUP-04 | Phase 0 | Setup & Permissions Skeleton | Scaffolded (Plan 02 — frozen exception hierarchy + Pydantic surface; raised by Plan 03 / Phase 1) |
+| SETUP-02 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 03 — `doctor` registered with `readOnlyHint=True`; full Claude-Desktop smoke test pending Plan 04 stdout-purity gate) |
+| SETUP-03 | Phase 0 | Setup & Permissions Skeleton | Scaffolded (Plan 02 — stderr-FIRST logging + import-time stdout purity; live CI gate pending Plan 04) |
+| SETUP-04 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 03 — structured `DoctorReport` payloads with binary_path + db_path + system_settings_url + remediation per D-11; D-09 PATCHED probe in source) |
 | SETUP-05 | Phase 0 | Setup & Permissions Skeleton | Pending |
 | DIST-01 | Phase 0 | Setup & Permissions Skeleton | Pending |
 | SETUP-06 | Phase 1 | Read MVP (`--read-only`) | Pending |
@@ -160,4 +160,4 @@
 
 ---
 *Requirements defined: 2026-05-13*
-*Last updated: 2026-05-13 after Phase 0 Plan 02 executed (SETUP-02/03/04 scaffolded; full satisfaction lands with Plans 03–05)*
+*Last updated: 2026-05-13 after Phase 0 Plan 03 executed (SETUP-02 + SETUP-04 satisfied; SETUP-03 scaffolded — full satisfaction lands with Plan 04's CI gate; SETUP-01, SETUP-05, DIST-01 still pending Plan 05)*
