@@ -653,3 +653,230 @@ def writer_db_fixture(tmp_path: Path) -> Iterator[str]:
     finally:
         conn.close()
     yield str(db_path)
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 Plan 02-05 — sender-side fixtures
+# ---------------------------------------------------------------------------
+#
+# These fixtures sandbox the four mutable surfaces under ``sender/`` so unit
+# tests never touch the maintainer's real ``~/Library/Application Support``
+# or ``~/Library/Logs`` paths (T-02-05-03 mitigation):
+#
+# - ``tmp_rate_limit_db``: redirects ``sender.rate_limit._DB_PATH`` to
+#   ``tmp_path / "rate-limit.db"`` for the lifetime of the test. The
+#   SQLite file is freshly created by the test if needed (the production
+#   code's ``_ensure_db`` idempotent path handles creation).
+# - ``tmp_audit_log``: redirects ``sender.audit._LOG_DIR`` and ``_LOG_PATH``
+#   to ``tmp_path`` so JSONL append + mode-0600 create + line-buffered
+#   write all happen against the tmp filesystem.
+# - ``reset_xcq_lru``: clears the module-level deque before AND after each
+#   test for isolation; the dataclass-LRU is a process-global by design
+#   (D-15..D-18) so successive tests would otherwise see stale entries.
+# - ``mock_pyobjc``: provides a ``types.SimpleNamespace`` AX-API surface so
+#   ``ax_assert``'s pyobjc-backed walk can be exercised on non-mac CI.
+#   Each test configures per-call return tuples on the fake before the
+#   public ``ax_assert`` callable runs; the fake's symbol names match the
+#   live pyobjc 12.1 shapes (SP-4 locked: every
+#   ``AXUIElementCopyAttributeValue`` call returns a 2-tuple
+#   ``(err: int, value)``).
+
+
+@pytest.fixture
+def tmp_rate_limit_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Redirect ``sender.rate_limit._DB_PATH`` to ``tmp_path / rate-limit.db``."""
+    # Direct submodule import — ``rate_limit`` is not re-exported via
+    # ``sender/__init__.py``'s ``__all__`` (curated narrow surface per
+    # the Plan 02-03 package docstring), so a ``from whatsapp_mcp.sender
+    # import rate_limit`` would trip mypy's ``[attr-defined]``. Importing
+    # the submodule directly resolves cleanly.
+    from whatsapp_mcp.sender import rate_limit as rate_limit_mod
+
+    db_path = tmp_path / "rate-limit.db"
+    monkeypatch.setattr(rate_limit_mod, "_DB_PATH", db_path)
+    return db_path
+
+
+@pytest.fixture
+def tmp_audit_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Redirect ``sender.audit._LOG_DIR`` + ``_LOG_PATH`` to ``tmp_path``.
+
+    Returns the redirected ``_LOG_PATH`` (the JSONL file the test will
+    inspect). The directory itself is the ``tmp_path`` root; the audit
+    module's ``_blocking_append`` creates the file on first call.
+    """
+    from whatsapp_mcp.sender import audit
+
+    log_path = tmp_path / "audit.log"
+    monkeypatch.setattr(audit, "_LOG_DIR", tmp_path)
+    monkeypatch.setattr(audit, "_LOG_PATH", log_path)
+    return log_path
+
+
+@pytest.fixture
+def reset_xcq_lru() -> Iterator[None]:
+    """Clear ``sender.cross_chat_quote._lru`` before AND after each test.
+
+    The dataclass-backed LRU is a module-level deque (D-15..D-18); without
+    this fixture, successive tests would observe each other's recorded
+    bodies and produce confusing failures. The double-reset is symmetric
+    — fresh state going in, fresh state going out.
+    """
+    from whatsapp_mcp.sender import cross_chat_quote
+
+    cross_chat_quote._reset_for_test()
+    try:
+        yield
+    finally:
+        cross_chat_quote._reset_for_test()
+
+
+class _AXFake:
+    """Configurable test double for the pyobjc AX-API surface.
+
+    Tests construct one of these (via :func:`mock_pyobjc`), populate the
+    ``walk_returns`` list with the ``AXHeading`` / ``AXButton`` labels the
+    walk should observe, and optionally set ``focused_window_err`` or
+    ``whatsapp_running`` to exercise the error branches.
+
+    Calls counted: ``focused_window_calls`` for AXFocusedWindow lookups,
+    plus the standard internal ``_AXUIElementCopyAttributeValue`` counter.
+    """
+
+    def __init__(self) -> None:
+        # Default: WhatsApp running, focused-window lookup succeeds, the
+        # walk yields one heading.
+        self.whatsapp_running: bool = True
+        self.focused_window_err: int = 0
+        self.focused_window_value: object | None = object()  # sentinel "window" element
+        self.walk_returns: list[str] = []
+        # When set to a positive int, ``_walk_for_heading`` should observe
+        # at least this many AXChildren cycles before terminating (DoS
+        # guard test).
+        self.children_chain_depth: int | None = None
+        # Internal call counter for AX walk role-collection cycles.
+        self.role_calls: int = 0
+
+
+@pytest.fixture
+def mock_pyobjc(monkeypatch: pytest.MonkeyPatch) -> _AXFake:
+    """Fake the pyobjc AX-API surface used by ``sender.ax_assert``.
+
+    Wires every symbol the ``ax_assert`` module imports to a callable on
+    the returned ``_AXFake`` instance. The fixture flips
+    ``_PYOBJC_AVAILABLE`` to True (so the import-fallback branch is
+    skipped) and monkey-patches:
+
+    - ``NSWorkspace.sharedWorkspace().runningApplications()`` returning a
+      list whose elements expose ``bundleIdentifier()`` /
+      ``processIdentifier()`` — the latter is the resolved WhatsApp PID.
+    - ``AXUIElementCreateApplication`` returning a sentinel object.
+    - ``AXUIElementCopyAttributeValue(elem, attr, None)`` returning a
+      2-tuple (err, value) per SP-4. The fake routes by ``attr``:
+        * ``kAXFocusedWindowAttribute`` →
+          ``(fake.focused_window_err, fake.focused_window_value)``
+        * ``kAXChildrenAttribute`` → empty list on each call
+        * ``kAXRoleAttribute`` → cycles through "AXHeading" for as many
+          times as ``walk_returns`` has entries
+        * ``kAXDescriptionAttribute`` / ``kAXTitleAttribute`` → next
+          value from ``walk_returns``
+    """
+    from whatsapp_mcp.sender import ax_assert
+
+    fake = _AXFake()
+
+    # _PYOBJC_AVAILABLE may have been set False at import time on non-mac
+    # CI; force True so the public callables exercise the AX-walk path.
+    monkeypatch.setattr(ax_assert, "_PYOBJC_AVAILABLE", True)
+
+    # The pyobjc symbols (``kAXFocusedWindowAttribute`` etc.) are imported
+    # inside ``ax_assert``'s ``try / except ImportError`` block, so mypy
+    # sees them as conditionally-defined attributes. We dereference them
+    # via ``getattr(ax_assert, ...)`` to avoid ``[attr-defined]`` errors
+    # under ``--strict`` — at runtime the production ``ax_assert`` module
+    # always has these symbols when ``_PYOBJC_AVAILABLE`` is True.
+    k_focused = getattr(ax_assert, "kAXFocusedWindowAttribute", None)
+    k_children = getattr(ax_assert, "kAXChildrenAttribute", None)
+    k_role = getattr(ax_assert, "kAXRoleAttribute", None)
+    k_desc = getattr(ax_assert, "kAXDescriptionAttribute", None)
+    k_title = getattr(ax_assert, "kAXTitleAttribute", None)
+
+    # NSWorkspace.sharedWorkspace().runningApplications() — return a
+    # single fake app whose bundleIdentifier matches WhatsApp.app when
+    # ``whatsapp_running`` is True, else an empty list.
+    class _FakeApp:
+        def bundleIdentifier(self) -> str:  # noqa: N802 — match pyobjc name
+            return "net.whatsapp.WhatsApp"
+
+        def processIdentifier(self) -> int:  # noqa: N802
+            return 12345
+
+    class _FakeWorkspace:
+        def runningApplications(self) -> list[_FakeApp]:  # noqa: N802
+            return [_FakeApp()] if fake.whatsapp_running else []
+
+    class _NSWorkspaceShim:
+        @staticmethod
+        def sharedWorkspace() -> _FakeWorkspace:  # noqa: N802
+            return _FakeWorkspace()
+
+    monkeypatch.setattr(ax_assert, "NSWorkspace", _NSWorkspaceShim)
+
+    # AXUIElementCreateApplication(pid) → sentinel element.
+    monkeypatch.setattr(
+        ax_assert,
+        "AXUIElementCreateApplication",
+        lambda _pid: object(),
+    )
+
+    # Lazy node-graph construction: the test sets ``fake.walk_returns``
+    # BEFORE invoking ``ax_assert.assert_focused_chat_matches``. We build
+    # the heading-node graph on the first AX call so the fixture observes
+    # the test's configuration. State below is reset per-test by the
+    # fixture lifecycle.
+    headings_nodes: list[object] = []
+    label_for: dict[int, str] = {}  # id(node) -> label
+    built = [False]
+
+    def _build_graph_if_needed() -> None:
+        if built[0]:
+            return
+        for label in fake.walk_returns:
+            n = object()
+            headings_nodes.append(n)
+            label_for[id(n)] = label
+        built[0] = True
+
+    def _copy_attr(elem: object, attr: object, _none: object) -> tuple[int, object]:
+        # Focused-window lookup: return configured error + value. This is
+        # also the first AX call in every assert_focused_chat_matches
+        # invocation, so it's a good place to lazily build the graph.
+        if attr is k_focused:
+            _build_graph_if_needed()
+            return (fake.focused_window_err, fake.focused_window_value or object())
+        if attr is k_children:
+            _build_graph_if_needed()
+            # Root window has all heading nodes as children; heading nodes
+            # have no children. Returning [] for non-root short-circuits the
+            # DFS at heading depth (good — these nodes carry the labels).
+            if elem is fake.focused_window_value:
+                return (0, list(headings_nodes))
+            return (0, [])
+        if attr is k_role:
+            _build_graph_if_needed()
+            fake.role_calls += 1
+            if id(elem) in label_for:
+                return (0, "AXHeading")
+            return (0, "AXWindow")
+        if attr is k_desc:
+            _build_graph_if_needed()
+            label = label_for.get(id(elem))
+            if label is not None:
+                return (0, label)
+            return (0, "")
+        if attr is k_title:
+            return (0, "")
+        return (-1, None)
+
+    monkeypatch.setattr(ax_assert, "AXUIElementCopyAttributeValue", _copy_attr)
+    return fake
