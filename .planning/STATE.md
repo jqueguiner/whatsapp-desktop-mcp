@@ -1,6 +1,6 @@
 # Project State: WhatsApp MCP
 
-**Last updated:** 2026-05-13 (after Phase 0 Plan 05 executed, Wave 5 done — Phase 0 ready for verification)
+**Last updated:** 2026-05-13 (after Phase 1 Plan 01-01 executed, Wave 1.1 done — Phase 1 in progress, 1/6 plans)
 
 ## Project Reference
 
@@ -19,35 +19,35 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 
 ## Current Focus
 
-- **Active phase:** Phase 0 — Setup & Permissions Skeleton (5/5 plans complete; ready for `/gsd-verify-work`)
-- **Active plan:** All 5 Phase 0 plans complete. Wave 5 done. Next: `/gsd-verify-work` to validate Phase 0 end-to-end, then Phase 1 planning.
-- **Status:** Distribution-and-onboarding surface is live. `.github/workflows/ci.yml` runs on every push to main + every PR (macos-14, setup-uv@v8, Python 3.12; ordered `uv sync --extra dev` → `ruff check src tests` → `ruff format --check src tests` → `mypy` → `pytest -m "not live"`); the SETUP-03 stdout-purity test is exercised inside the pytest step (no separate gate). `.github/workflows/release.yml` triggers on `tags: ['v*']`, reuses ci.yml as a gate, then a `publish` job with `permissions: id-token: write` AT THE JOB LEVEL (P-PHASE0-04 mitigation; verified by YAML-parse runtime assertion) builds + uploads via `uv build` + `uv publish` over GitHub OIDC trusted-publisher — no long-lived credential in the repo. `README.md` replaces the Plan-01 stub: opens with the locked-D-20 WhatsApp ToS automation-risk blockquote (5 sends/min, 30 sends/day, "personal account, not a bot"); D-22 framing inline (no "WhatsApp Business" mention anywhere, even by negation); D-21 four-step quickstart ending in the live `doctor` tool call; full Development section documenting the one-time PyPI trusted-publisher pending-publisher binding (Owner=`gladia`, Repo=`whatsapp-mcp`, Workflow=`release.yml`, Environment=`pypi`). `examples/claude_desktop_config.json` is the 4-line authoritative install snippet — byte-decodable to the same dict as the JSON code fence in README's Quickstart step 1 (cross-check by runtime `json.loads(...) == json.load(...)`). All four ROADMAP §"Phase 0" success criteria are now satisfied (1→Plan 02; 2→Plan 03; 3→Plan 01 lint + Plan 04 test + Plan 05 CI; 4→Plan 05 README).
-- **Next action:** Run `/gsd-verify-work` to verify Phase 0 end-to-end (every ROADMAP success criterion, the structured DoctorReport surface, the full 28-test suite, the workflow files' shape gates, the README content gates). On verification pass, begin Phase 1 planning (`/gsd-discuss-phase 1` → `/gsd-plan-phase 1`).
-- **Resume file:** `.planning/phases/00-setup-and-permissions-skeleton/00-05-SUMMARY.md`
+- **Active phase:** Phase 1 — Read MVP (`--read-only`) (1/6 plans complete; Wave 1.1 done)
+- **Active plan:** Plan 01-01 complete (Wave 1.1). Wave 1's other plan (01-03 `--read-only` flag mechanics) is independent and can run next or in parallel.
+- **Status:** Phase 0 verified complete. Plan 01-01 ships the locked Pydantic data tier: 8 model modules under `src/whatsapp_mcp/models/` (coverage, cursor, contact, media, chat, message, group, __init__), the Cocoa<->Unix epoch helpers (`whatsapp_mcp.time`), and the expansion of `paths.py` with three sibling-DB resolvers (`resolve_lid_path`, `resolve_contactsv2_path`, `resolve_media_root`). Cursor codec uses the W2 widened schema (anchor_kind discriminator: `"z_sort" | "cocoa_ts"`); decoder rejects extra keys + missing keys + wrong types + unknown anchor_kind, all as `CursorError(ValueError)`. Message model honors B2 lock (no public `z_sort` field — reader emits tuples). All 28 Phase 0 tests still green; full `ruff check` + `ruff format --check` + `mypy --strict` clean across 39 source files.
+- **Next action:** Execute Phase 1 Plan 01-03 (`--read-only` flag mechanics) — the second Wave 1 plan, independent of 01-01. Wave 2 (Plans 01-02 reader internals) needs 01-01 done (just shipped). Wave 3 (Plans 01-04 tools, 01-05 doctor expansion) needs the reader. Wave 4 (Plan 01-06 tests) is last.
+- **Resume file:** `.planning/phases/01-read-mvp-read-only/01-01-SUMMARY.md`
 
 ## Progress
 
 ```
-[█████               ] 0/4 phases complete  (Phase 0: 5/5 plans, ready for verification)
-Phase 0: ● Setup & Permissions Skeleton  (5/5 plans — pending /gsd-verify-work)
-Phase 1: ▢ Read MVP (`--read-only`)      (Not started)
+[█████░░             ] 0/4 phases complete  (Phase 0 verified; Phase 1: 1/6 plans, Wave 1.1 done)
+Phase 0: ✓ Setup & Permissions Skeleton  (5/5 plans — verified complete)
+Phase 1: ◐ Read MVP (`--read-only`)      (1/6 plans — Wave 1.1 done; Plan 01-01)
 Phase 2: ▢ Send (UI-automation, guardrails) (Not started)
 Phase 3: ▢ Hardening & Distribution      (Not started)
 ```
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Setup & Permissions Skeleton | 5/5 | Pending verification | - |
-| 1. Read MVP (`--read-only`) | 0/0 | Not started | - |
+| 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
+| 1. Read MVP (`--read-only`) | 1/6 | In progress (Wave 1.1 done) | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Performance Metrics
 
-- **Time spent so far:** Initialization + research + requirements + roadmap + Phase 0 plans 01–05 (one session, 2026-05-13)
-- **Phases completed:** 0 / 4 (Phase 0 ready for verification — `/gsd-verify-work` is the next gate)
-- **Plans completed:** 5 / 5 (Phase 0, Plans 01–05 — ~1882 s combined, 15 commits, 41 files)
-- **Requirements validated:** 6 / 37 (SETUP-01, SETUP-02, SETUP-03, SETUP-04, SETUP-05, DIST-01 — all six Phase 0 requirements now satisfied: SETUP-02 + SETUP-04 by Plan 03; SETUP-03 by Plan 04; SETUP-01 + SETUP-05 by Plan 05's README + examples/claude_desktop_config.json; DIST-01 wired at the workflow level by Plan 05's release.yml — closes end-to-end once the manual one-time PyPI trusted-publisher pending-publisher binding is configured and the first `git tag v0.1.0 && git push --tags` runs to completion)
+- **Time spent so far:** Initialization + research + requirements + roadmap + Phase 0 plans 01–05 + Phase 0 verification + Phase 1 research + Phase 1 plans + Phase 1 Plan 01-01 execution (multi-session, 2026-05-13)
+- **Phases completed:** 0 / 4 (Phase 0 verified; Phase 1 in progress — 1/6 plans done)
+- **Plans completed:** 6 / 11 (Phase 0 Plans 01–05 + Phase 1 Plan 01-01 — ~2209 s combined, 18 commits, 51 files)
+- **Requirements validated:** 6 / 37 + 4 partial (Plan 01-01 lays the schema-shape foundation for DATA-01, DATA-02, DATA-03, DATA-04 — Pydantic models locked; behavior arrives in Plans 02-04)
 
 | Plan | Duration (s) | Tasks | Files | Commits |
 |------|--------------|-------|-------|---------|
@@ -56,6 +56,7 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 | 00-03 Permission probes (FDA / Automation / Accessibility) + doctor MCP tool | 240 | 3 |  6 | 3 |
 | 00-04 Test suite — stdout purity, doctor registration, exception shape, probe mocking, REL-05 isolation | 873 | 3 | 10 | 3 |
 | 00-05 GitHub Actions CI + release.yml + README + claude_desktop_config.json example | 420 | 3 |  4 | 3 |
+| 01-01 Models, time helpers, expanded path resolvers | 327 | 3 | 10 | 3 |
 
 ## Accumulated Context
 
@@ -106,16 +107,25 @@ None.
 
 ### Next Session
 
-- Run `/gsd-verify-work` to verify Phase 0 end-to-end against ROADMAP §"Phase 0" success criteria (all four met): (1) `examples/claude_desktop_config.json` + Plan 02 server registers without protocol errors; (2) Plan 03's `doctor` tool returns structured `DoctorReport` with `binary_path`/`db_path`/`system_settings_url`/`remediation`; (3) Plan 01's ruff `T201` + Plan 04's stdout-purity test + Plan 05's `ci.yml` make a three-layer defense-in-depth against stdout pollution; (4) Plan 05's README ships the D-20 ToS warning + D-21 60s quickstart + D-22 framing. After the verifier signs off, transition Phase 0 from "Pending verification" to "Complete" in ROADMAP.md and STATE.md, then start Phase 1 (`/gsd-discuss-phase 1` → `/gsd-plan-phase 1`). The first real release (`git tag v0.1.0 && git push --tags`) is a maintainer task (requires the one-time PyPI trusted-publisher pending-publisher binding documented in README) — not blocking Phase 1 planning.
+- Execute Phase 1 Plan 01-03 (`--read-only` flag mechanics) — independent of 01-01 and the second Wave 1 plan. Then Wave 2 (Plan 01-02 reader internals) which depends on 01-01. Then Wave 3 (Plans 01-04 tools, 01-05 doctor expansion) which depends on the reader. Wave 4 (Plan 01-06 tests) is last.
+- All Phase 1 reader/tool code can now `from whatsapp_mcp.models import Chat, Message, Contact, Jid, GroupInfo, GroupMember, MediaRef, Coverage, encode_cursor, decode_cursor, CursorError, AnchorKind` without ImportError; `from whatsapp_mcp.time import cocoa_to_unix, unix_to_cocoa, COCOA_EPOCH_OFFSET` works; `from whatsapp_mcp.paths import resolve_chatstorage_path, resolve_lid_path, resolve_contactsv2_path, resolve_media_root` works.
+- B2 lock to honor in Plan 02: `reader.window` returns `(Message, z_sort)` tuples — `z_sort` is NEVER a public attribute on `Message`.
+- W2 cursor schema in use: `{"chat_id": int, "anchor": float, "anchor_kind": "z_sort" | "cocoa_ts"}`.
 
-### Files Most Recently Touched
+### Files Most Recently Touched (Plan 01-01)
 
-- `.github/workflows/ci.yml` (created — Plan 05 Task 1)
-- `.github/workflows/release.yml` (created — Plan 05 Task 1; P-PHASE0-04 job-level id-token:write)
-- `README.md` (replaced the Plan-01 stub — Plan 05 Task 2; 157 lines, 123 non-empty)
-- `examples/claude_desktop_config.json` (created — Plan 05 Task 3)
-- `.planning/phases/00-setup-and-permissions-skeleton/00-05-SUMMARY.md` (created)
-- `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/REQUIREMENTS.md` (updated)
+- `src/whatsapp_mcp/models/coverage.py` (created)
+- `src/whatsapp_mcp/models/cursor.py` (created — W2 widened schema)
+- `src/whatsapp_mcp/models/contact.py` (created)
+- `src/whatsapp_mcp/models/media.py` (created)
+- `src/whatsapp_mcp/models/chat.py` (created)
+- `src/whatsapp_mcp/models/message.py` (created — B2 lock honored, no z_sort field)
+- `src/whatsapp_mcp/models/group.py` (created)
+- `src/whatsapp_mcp/models/__init__.py` (created — explicit __all__ re-exports)
+- `src/whatsapp_mcp/time.py` (created — Cocoa<->Unix helpers)
+- `src/whatsapp_mcp/paths.py` (expanded — three new sibling-DB resolvers)
+- `.planning/phases/01-read-mvp-read-only/01-01-SUMMARY.md` (created)
+- `.planning/STATE.md`, `.planning/ROADMAP.md` (updated)
 
 ---
-*State updated: 2026-05-13 after Phase 0 Plan 05 executed (Wave 5 done — Phase 0 ready for verification)*
+*State updated: 2026-05-13 after Phase 1 Plan 01-01 executed (Wave 1.1 done — data tier locked)*
