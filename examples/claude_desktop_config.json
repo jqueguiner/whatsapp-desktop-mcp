@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "whatsapp": {
+      "command": "uvx",
+      "args": ["whatsapp-mcp"]
+    }
+  }
+}
