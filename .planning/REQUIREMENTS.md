@@ -7,11 +7,11 @@
 
 ### Setup & Permissions
 
-- [ ] **SETUP-01**: MCP server installs via a single line in `claude_desktop_config.json` (`uvx whatsapp-mcp` for dev / `whatsapp-mcp` from a stable path for end-user)
+- [x] **SETUP-01**: MCP server installs via a single line in `claude_desktop_config.json` (`uvx whatsapp-mcp` for dev / `whatsapp-mcp` from a stable path for end-user) *(satisfied by Plan 05 — `examples/claude_desktop_config.json` is the authoritative 4-line snippet `{"mcpServers": {"whatsapp": {"command": "uvx", "args": ["whatsapp-mcp"]}}}`; byte-decodable to the same dict as the README's Quickstart step 1 JSON code fence; resolves through `[project.scripts] whatsapp-mcp = "whatsapp_mcp.cli:main"` from Plan 01)*
 - [x] **SETUP-02**: Server runs as an MCP stdio server and registers with Claude Desktop / Claude Code without protocol errors *(satisfied by Plan 03 — `whatsapp_mcp.server.mcp = FastMCP("whatsapp-mcp")` + `run()` dispatcher from Plan 02 + `doctor` tool registered by Plan 03 means `mcp.list_tools()` returns exactly one Tool named `doctor` with `readOnlyHint=True`; full Claude-Desktop registration smoke test lands with Plan 04's `test_stdout_purity.py` exercising `initialize → tools/list → tools/call doctor`)*
 - [x] **SETUP-03**: All logging goes to stderr; stdout is reserved exclusively for JSON-RPC frames (CI test enforces purity; ruff `T201` blocks `print`) *(satisfied by Plan 04 — `tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_mcp` and asserts every stdout line parses as JSON-RPC 2.0 after a full `initialize → notifications/initialized → tools/list → tools/call doctor` handshake; runs in CI as part of `uv run pytest -m "not live"`; ruff T201 wired since Plan 01; combined defence — lint blocks `print` source, runtime test blocks every other stdout-pollution path)*
 - [x] **SETUP-04**: Missing macOS permission produces a structured error (`FullDiskAccessRequired`, `AutomationPermissionRequired`, `AccessibilityPermissionRequired`) naming the exact binary path to grant and a `x-apple.systempreferences:` deep-link *(satisfied by Plan 03 — `doctor` tool returns a structured `DoctorReport` whose `PermissionStatus` payloads carry `binary_path = sys.executable`, `db_path` (FDA only) from `paths.resolve_chatstorage_path()`, `system_settings_url` from the matching exception class attribute (single source of truth, D-11), and a one-line `remediation` string for any non-granted state. Empirically corrected D-09 PATCHED Automation probe `id of application "WhatsApp"` is in source. Phase 1's read tools will raise the matching `*Required` exception classes on real failures.)*
-- [ ] **SETUP-05**: README documents WhatsApp ToS automation risk, account-ban thresholds, and "this is your personal account, not a bot" framing
+- [x] **SETUP-05**: README documents WhatsApp ToS automation risk, account-ban thresholds, and "this is your personal account, not a bot" framing *(satisfied by Plan 05 — README opens with the locked-D-20 ToS automation-risk blockquote (every required clause present: 'WhatsApp's Terms of Service prohibit "automated or bulk messaging"', 'irrecoverable account ban', 'conservative rate limits (5 sends / minute, 30 sends / day) by default', 'you accept the risk by using it', 'personal account, not a bot'); D-21 four-step quickstart ending in the live `doctor` tool call; D-22 framing inline (no 'WhatsApp Business' mention anywhere). 157-line file replacing the Plan-01 stub.)*
 - [ ] **SETUP-06**: `--read-only` startup flag disables every send tool and marks all remaining tools `readOnlyHint:true`
 
 ### Read
@@ -59,7 +59,7 @@
 
 ### Distribution
 
-- [ ] **DIST-01**: Project is published to PyPI as `whatsapp-mcp`, installable via `uvx whatsapp-mcp` for developers
+- [x] **DIST-01**: Project is published to PyPI as `whatsapp-mcp`, installable via `uvx whatsapp-mcp` for developers *(satisfied at the workflow level by Plan 05 — `.github/workflows/release.yml` triggers on `tags: ['v*']`, reuses `ci.yml` as a gate, then a `publish` job with `permissions: id-token: write` AT THE JOB LEVEL (P-PHASE0-04 mitigation) runs `uv build` + `uv publish` over GitHub OIDC trusted-publisher; no long-lived credential in repo (verified by file-wide grep `'PYPI_TOKEN' not in src and 'password:' not in src`). Closes end-to-end once the manual one-time PyPI trusted-publisher pending-publisher binding (Owner=`gladia`, Repo=`whatsapp-mcp`, Workflow=`release.yml`, Environment=`pypi`) is configured and the first `git tag v0.1.0 && git push --tags` runs to completion — documented in README's Development section.)*
 - [ ] **DIST-02**: Project ships an end-user install path that puts the launcher binary at a stable absolute path (so TCC permissions persist across upgrades) — Developer-ID-signed `.pkg` and/or Homebrew formula
 - [ ] **DIST-03**: README includes platform requirements (macOS only, WhatsApp Desktop Catalyst build, Python 3.12+ if user-installed) and a 60-second quickstart
 
@@ -112,12 +112,12 @@
 
 | Requirement | Phase | Phase Name | Status |
 |-------------|-------|------------|--------|
-| SETUP-01 | Phase 0 | Setup & Permissions Skeleton | Pending |
-| SETUP-02 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 03 — `doctor` registered with `readOnlyHint=True`; full Claude-Desktop smoke test pending Plan 04 stdout-purity gate) |
-| SETUP-03 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 04 — `tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_mcp`, drives full JSON-RPC handshake, asserts every stdout line is JSON-RPC 2.0; ruff T201 lint-blocks `print` from Plan 01) |
+| SETUP-01 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 05 — `examples/claude_desktop_config.json` is the authoritative 4-line snippet; cross-checked byte-decodable equal to the JSON code fence in README's Quickstart step 1) |
+| SETUP-02 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 03 — `doctor` registered with `readOnlyHint=True`; full Claude-Desktop smoke test exercised by Plan 04's stdout-purity test inside Plan 05's ci.yml) |
+| SETUP-03 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 04 — `tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_mcp`, drives full JSON-RPC handshake, asserts every stdout line is JSON-RPC 2.0; ruff T201 lint-blocks `print` from Plan 01; Plan 05's `ci.yml` runs the test on every push/PR — three-layer defense in depth) |
 | SETUP-04 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 03 — structured `DoctorReport` payloads with binary_path + db_path + system_settings_url + remediation per D-11; D-09 PATCHED probe in source) |
-| SETUP-05 | Phase 0 | Setup & Permissions Skeleton | Pending |
-| DIST-01 | Phase 0 | Setup & Permissions Skeleton | Pending |
+| SETUP-05 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 05 — README opens with D-20 ToS automation-risk blockquote, contains D-21 four-step 60s quickstart, D-22 framing inline — all locked clauses verified by content greps) |
+| DIST-01 | Phase 0 | Setup & Permissions Skeleton | Satisfied at the workflow level (Plan 05 — `.github/workflows/release.yml` triggers on `tags: ['v*']`, runs CI then `uv build` + `uv publish` via OIDC trusted-publisher with job-level `id-token: write` per P-PHASE0-04; closes end-to-end once the manual one-time PyPI pending-publisher binding is configured and v0.1.0 ships) |
 | SETUP-06 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | READ-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | READ-02 | Phase 1 | Read MVP (`--read-only`) | Pending |
@@ -160,4 +160,4 @@
 
 ---
 *Requirements defined: 2026-05-13*
-*Last updated: 2026-05-13 after Phase 0 Plan 04 executed (SETUP-02 + SETUP-03 + SETUP-04 satisfied; SETUP-01, SETUP-05, DIST-01 still pending Plan 05)*
+*Last updated: 2026-05-13 after Phase 0 Plan 05 executed (all 6 Phase 0 requirements satisfied: SETUP-01, SETUP-02, SETUP-03, SETUP-04, SETUP-05, DIST-01; Phase 0 ready for `/gsd-verify-work`)*
