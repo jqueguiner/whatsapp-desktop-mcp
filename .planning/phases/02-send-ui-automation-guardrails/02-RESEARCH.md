@@ -1371,34 +1371,34 @@ The following CLAUDE.md hard rules constrain Phase 2 design:
 
 **Note on A1-A6:** All six are sound enough to plan against. None require user confirmation BEFORE planning — they require execution-time spikes that Plan 02-01's Wave 0 will surface. The discuss-phase has already locked the high-level decisions (D-01..D-25); these assumptions are tactical "verify in spike" items the executor will resolve.
 
-## Open Questions
+## Open Questions (RESOLVED via Plan 02-01 Wave 0 spikes)
 
-1. **Cmd-F vs AX-click for sidebar search focus in group-send fallback**
+1. **RESOLVED: deferred to SP-1.** **Cmd-F vs AX-click for sidebar search focus in group-send fallback**
    - What we know: AX tree shows `AXGenericElement:‎Rechercher` (FR locale) as the sidebar search field; verified live.
    - What's unclear: whether Cmd-F focuses it (vs chat-pane "search within current chat") on the user's WhatsApp Catalyst build.
    - Recommendation: Plan 02-01 Wave 0 live spike to verify; pin the result in `ui_send.py` module docstring. If Cmd-F is wrong, fallback to AX-click on the `Rechercher` AXGenericElement via pyobjc.
 
-2. **Behavior of `open -g whatsapp://...` for foregrounding WhatsApp**
+2. **RESOLVED: deferred to SP-2.** **Behavior of `open -g whatsapp://...` for foregrounding WhatsApp**
    - What we know: deep-link URL scheme is registered in WhatsApp's Info.plist per research/ARCHITECTURE.md.
    - What's unclear: whether `-g` keeps WhatsApp suppressed enough that the subsequent settle-poll fails to find the front window.
    - Recommendation: Plan 02-01 Wave 0 spike; if `-g` keeps WhatsApp completely background, drop the flag (document the focus-steal as the tradeoff).
 
-3. **AXHeading exposure when a chat is open** (vs sidebar-only view, which we verified live)
+3. **RESOLVED: deferred to SP-3.** **AXHeading exposure when a chat is open** (vs sidebar-only view, which we verified live)
    - What we know: in sidebar-only view the AXHeading is `‎Discussions`.
    - What's unclear: when a chat is open, does the chat name appear as `AXHeading` description or only as `AXStaticText`?
    - Recommendation: Plan 02-01 Wave 0 spike — open a chat on user's Mac, dump `entire contents of front window`, confirm AXHeading. If absent, widen `_walk_for_heading` to also collect AXStaticText nodes near top of AXGroup tree.
 
-4. **pyobjc 12.1 exact API for `AXUIElementCopyAttributeValue`**
+4. **RESOLVED: deferred to SP-4.** **pyobjc 12.1 exact API for `AXUIElementCopyAttributeValue`**
    - What we know: pyobjc generally returns `(err, value)` tuples via the `out` parameter pattern; verified on the project's training-data of older pyobjc versions.
    - What's unclear: whether 12.1 changed the convention.
    - Recommendation: Plan 02-01 task 3 Wave 0 minimal spike.
 
-5. **Emoji / non-BMP body handling**
+5. **RESOLVED: tested in Plan 02-05.** **Emoji / non-BMP body handling**
    - What we know: from research/PITFALLS.md P12, AppleScript `keystroke` historically truncates surrogate pairs. The deep-link path URL-encodes the body so 1:1 sends should work for emoji. The group-send fallback types body via `keystroke`, which is the failure case.
    - What's unclear: whether the user's WhatsApp Catalyst on macOS 26.4 still has the surrogate-pair issue.
    - Recommendation: Plan 02-05 includes an emoji unit test (1:1 deep-link path: should pass; group-send path: should FAIL gracefully with a `BodyEncodingNotSupported` error, NOT silently truncate). Document v0.1 constraint: group-send body restricted to BMP.
 
-6. **Multi-instance audit-log race**
+6. **RESOLVED: deferred to Phase 3 with documentation.** **Multi-instance audit-log race**
    - What we know: v0.1 ships no `flock`; documented as Phase-3 candidate.
    - What's unclear: whether users actually run two MCP instances concurrently in practice.
    - Recommendation: Phase 2 documents the limitation in README's "Sending Messages" section; Phase 3 adds `fcntl.flock` if user reports show it matters.

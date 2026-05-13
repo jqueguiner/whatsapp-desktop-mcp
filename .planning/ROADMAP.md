@@ -66,7 +66,13 @@ Plans:
   3. A successful 1:1 send via the `whatsapp://send?phone=…&text=…` deep-link + `osascript` keystroke-return path completes within the 15s per-tool timeout, is verified post-hoc by polling `ZWAMESSAGE` for a new outgoing row matching the body within 10s, and returns the resulting `ZSTANZAID` as `message_id`; group-chat sends use the documented search-and-click fallback and either succeed or return a structured error.
   4. The default rate limiter (5 sends/min, 30 sends/day) trips with a structured error response — never silently dropping — and every send attempt (success or failure) appends a single line to `~/Library/Logs/whatsapp-mcp/audit.log` (mode 0600) recording timestamp, resolved chat_id + name, body hash, and outcome.
   5. The pre-send AX-API state assertion verifies the focused window's chat header matches the resolved chat name and aborts on mismatch (defending against the invisible-LRM trap and wrong-chat fuzzy-search class of bugs).
-**Plans:** TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 02-01-PLAN.md — Sender primitives — pyobjc deps, deeplink builder, osascript_send wrapper, AX preflight (Wave-0 spikes first)
+- [ ] 02-02-PLAN.md — Guardrails — persistent rate limiter, JSONL audit log, cross-chat-quote LRU, send models
+- [ ] 02-03-PLAN.md — Send orchestration — ui_send (deeplink + group fallback), post-hoc verify, send_message MCP tool, server wiring
+- [ ] 02-04-PLAN.md — Read-tool integration — cross-chat-quote.record_bodies hook + test_isolation.py D-24 evolution
+- [ ] 02-05-PLAN.md — Tests — sender unit suite, 4 mandatory regression tests, RUN_LIVE=1 send smoke, send_message tool tests
 **Avoids pitfalls:** P5 (wrong-chat fuzzy send), P6 (LLM misuse — fan-out / leak / prompt injection), P12 (AppleScript fragility), P13 (Automation permission self-check), P14 (TOS / ban — conservative defaults).
 
 ### Phase 3: Hardening & Distribution
