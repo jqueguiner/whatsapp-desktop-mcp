@@ -205,3 +205,51 @@ class AutomationRevoked(WhatsAppMCPError):
     :class:`AutomationPermissionRequired` but a different trigger point
     (mid-send vs. startup probe).
     """
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 — guardrail exception surface (Plan 02-02 Task 1)
+#
+# Two additional classes appended to support the persistent rate limiter
+# (D-11) and the send_message tool's chat_id validation step (D-25 step 2 /
+# SEND-01). Both inherit directly from :class:`WhatsAppMCPError`; neither
+# carries the ``bucket`` / ``system_settings_url`` payload shape used by the
+# :class:`PermissionRequired` family — these are not missing-TCC failures.
+# ---------------------------------------------------------------------------
+
+
+class RateLimitExceeded(WhatsAppMCPError):
+    """Raised by the sender's persistent rate limiter when a send would
+    exceed the per-minute or per-day budget (D-11 / SEND-05, T-1 fan-out
+    mitigation).
+
+    The rate limiter persists send timestamps at
+    ``~/Library/Application Support/whatsapp-mcp/rate-limit.db`` so a server
+    restart cannot bypass the daily cap (T-5 restart-bypass mitigation). The
+    exception is raised by ``sender.rate_limit.check_and_reserve`` BEFORE
+    any UI automation runs — the upstream send tool maps this to a
+    structured MCP error and audit-logs ``outcome="rate_limited"``.
+
+    The message carries the current count vs. the configured cap so callers
+    (humans and LLMs) can decide whether to wait, drop the send, or
+    re-evaluate the configured budget. Defaults (5/min, 30/day) are
+    deliberately conservative against WhatsApp's anti-spam threshold.
+    """
+
+
+class InvalidChatId(WhatsAppMCPError):
+    """Raised by ``send_message`` when the supplied ``chat_id`` does not
+    resolve to a known chat row (D-25 step 2 / SEND-01 contract).
+
+    The send tool accepts ONLY an opaque ``int`` ``chat_id`` that came back
+    from a prior ``search_contacts`` / ``list_chats`` call. A free-form
+    chat name string is rejected at the Pydantic-validation layer when int
+    coercion fails; an int that has no matching row in ``ZWACHATSESSION``
+    is rejected here. This is the structural P5 / wrong-chat-fuzzy-send
+    defense at the parameter layer (the AX preflight is the second line
+    of defense at the UI layer).
+
+    The message carries the offending ``chat_id`` so the upstream client
+    can surface a clear "this chat doesn't exist (anymore?)" error without
+    inventing a fallback chat.
+    """
