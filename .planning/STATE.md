@@ -1,6 +1,6 @@
 # Project State: WhatsApp MCP
 
-**Last updated:** 2026-05-13 (after Phase 2 Plan 02-02 executed — guardrail modules + send Pydantic models shipped; 2/5 Phase 2 plans complete, Wave 2 done)
+**Last updated:** 2026-05-13 (after Phase 2 Plan 02-03 executed — send_message MCP tool + ui_send orchestrator + verify.py + REL-05 D-24 evolution shipped; 3/5 Phase 2 plans complete, Wave 3 done)
 
 ## Project Reference
 
@@ -21,18 +21,18 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 
 - **Active phase:** Phase 2 — Send (UI-automation, guardrails). Phase 0 + Phase 1 verified complete.
 - **Phase 2 status:** CONTEXT.md gathered via `/gsd-discuss-phase 2 --auto`. 25 locked decisions (D-01..D-25) covering send mechanism (deep-link primary + AX preflight + search-and-click group fallback), pyobjc dep added now, MCP elicitation always-on with env-var opt-out, persistent SQLite rate limiter (5/min, 30/day), JSONL audit log mode 0600 with body SHA-256 only, group-send v1.0 with `is_experimental=true` flag, session-scoped cross-chat-quote heuristic (40-char threshold, 30-min window), 250ms × 40 verification polling, --read-only=True default kept for v0.1, REL-05 evolved to allow sender→reader.connection one-way import. 8 reqs (SEND-01..08).
-- **Active plan:** Plan 02-02 complete (2026-05-13); next is Plan 02-03 (orchestration + send_message tool) per Wave 3 of the Phase 2 dependency graph.
+- **Active plan:** Plan 02-03 complete (2026-05-13); next is Plan 02-04 (read-tool integration — cross_chat_quote.record_bodies hook + test_isolation.py D-24 evolution tightening) per Wave 4 of the Phase 2 dependency graph.
 - **Status:** Phase 0 verified complete. Plans 01-01/01-02/01-03 shipped the data tier + reader package + `--read-only` flag (see prior sessions). Plan 01-04 shipped the 7 read MCP tools — list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context — plus the `@timeout(seconds=N)` decorator helper. `mcp.list_tools()` now returns exactly 8 tools (doctor + the 7 read tools); every tool carries `readOnlyHint=True` AND `meta["anthropic/maxResultSizeChars"] == 60000` (W1 lock — doctor's @mcp.tool registration was updated in the same plan to add the meta annotation, no carve-out). W2 cursor codec honored: `read_chat` uses `anchor_kind="z_sort"` (anchored by the ZSORT float returned from `reader.window`'s B2 tuple); `search_messages` uses `anchor_kind="cocoa_ts"` (anchored by ZMESSAGEDATE Cocoa timestamp); cross-tool cursor reuse is rejected with a structured ValueError, and read_chat's T-04-01 chat_id-mismatch guard refuses LLM-forged cross-chat cursors. B2 honored: `read_chat` consumes `messages, last_z_sort = await reader.window(...)` verbatim with no public `z_sort` field on Message. Per-tool timeouts (REL-03): 5s for windowed reads, 10s for search_messages (LIKE scan budget). Char-cap policy on cursored tools (read_chat, search_messages): trim from the HEAD (newest) end so the cursor anchor stays valid; non-cursor tools trim from the tail with `truncated=True`. Structured-error mapping uniform: every tool traps FullDiskAccessRequired + sqlite3.OperationalError and re-raises as ValueError pointing to `doctor` (T-04-10 mitigation). All tool descriptions carry the P6 user-authored-content disclaimer AND the P1 cache-vs-truth disclosure. Live smoke (`RUN_LIVE=1`) against the user's 84438-row ZWAMESSAGE: `list_chats` returns coverage-populated chats; `read_chat(chat_id=34, limit=5)` returns 5 Message JSON rows with `next_cursor` set; reusing the cursor returns page 2 with another cursor (paginated reuse across two pages works end-to-end); body size ~2.3k, well under 60k cap; `search_messages` and `search_contacts` both populated; cursor W2 guards verified inline (cocoa_ts cursor → read_chat rejected; z_sort cursor → search_messages rejected; mismatched chat_id → rejected). Three Rule-1 minor deviations all of the same near-miss class: (1) Phase 0's `test_doctor_is_registered_as_readonly` test asserted `len(tools) == 1` which was invalidated by Plan 01-04 adding 7 tools — relaxed to "doctor among tools" assertion; (2) ruff misparsed a literal `# noqa: E402, F401` token inside a server.py docstring comment line as a malformed noqa directive — reworded the comment to refer to "the inline noqa pragma" without spelling out the literal; (3) docstring mentions of `@timeout(seconds=5)` / `readOnlyHint=True` / `anthropic/maxResultSizeChars` inflated source-grep counts above plan exact-count gates — reworded the docstring lines to refer to concepts in prose without naming literal tokens. Plus one no-fix-required acceptance-criterion typo noted: `grep -cE '^logging\.basicConfig\(stream=sys\.stderr'` returns 0 because the as-shipped Phase 0 server.py splits the call across multiple lines (Plan 04's regex appears to be a copy-paste from a pre-split version); the functional P-PHASE0-01 invariant (basicConfig first executable statement before any third-party import) is preserved and the stdout-purity test still passes in the 28-test baseline. 3 atomic commits (`e1f890c`, `d5d54f3`, `9cfc21c`), ~1230 s. Phase 1 transitions to "4/6 plans complete; Wave 3.1 done; Plans 01-05 + 01-06 remaining."
-- **Next action:** execute Plan 02-03 (Wave 3 — orchestration + send_message tool). 02-03-PLAN.md is already written. 02-04 (read-tool integration + REL-05 D-24 evolution) depends on 02-01 + 02-02 (both done); 02-05 (tests) gates the whole phase.
-- **Resume file:** `.planning/phases/02-send-ui-automation-guardrails/02-03-PLAN.md`
+- **Next action:** execute Plan 02-04 (Wave 4 — read-tool integration hooks: `cross_chat_quote.record_bodies` integration site in the 4 body-surfacing read tools + tighten `tests/unit/test_isolation.py` D-24 evolution further to assert the offending file is exactly `sender/verify.py`). 02-04-PLAN.md is already written. 02-05 (tests) gates the whole phase.
+- **Resume file:** `.planning/phases/02-send-ui-automation-guardrails/02-04-PLAN.md`
 
 ## Progress
 
 ```
-[██████████          ] 2/4 phases complete  (Phase 0 + Phase 1 verified; Phase 2 in progress — 2/5 plans done)
+[██████████          ] 2/4 phases complete  (Phase 0 + Phase 1 verified; Phase 2 in progress — 3/5 plans done)
 Phase 0: ✓ Setup & Permissions Skeleton  (5/5 plans — verified complete)
 Phase 1: ✓ Read MVP (`--read-only`)      (6/6 plans — verified complete)
-Phase 2: ◑ Send (UI-automation, guardrails) (2/5 plans complete — Waves 1+2 done; primitives + guardrails shipped)
+Phase 2: ◑ Send (UI-automation, guardrails) (3/5 plans complete — Waves 1+2+3 done; primitives + guardrails + orchestration + send_message tool shipped)
 Phase 3: ▢ Hardening & Distribution      (Not started)
 ```
 
@@ -40,7 +40,7 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 |-------|----------------|--------|-----------|
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
 | 1. Read MVP (`--read-only`) | 6/6 | Pending verification | 2026-05-13 |
-| 2. Send (UI-automation, guardrails) | 2/5 | In progress | - |
+| 2. Send (UI-automation, guardrails) | 3/5 | In progress | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Performance Metrics
@@ -65,6 +65,7 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 | 01-06 Tests: unit (models, reader, tools), concurrency stress, REL-05 isolation re-test, --read-only mode, live integration | 925 | 3 | 20 | 3 |
 | 02-01 Sender primitives — pyobjc deps, deeplink builder, osascript_send wrapper, AX preflight (Wave-0 spikes first) | 664 | 3 |  5 | 3 |
 | 02-02 Guardrails — persistent SQLite rate limiter + JSONL audit log + cross-chat-quote LRU + send Pydantic models | 0 | 3 |  6 | 3 |
+| 02-03 Send orchestration — ui_send + verify.py + send_message MCP tool + server.py wiring | 886 | 3 |  6 | 3 |
 
 ## Accumulated Context
 
