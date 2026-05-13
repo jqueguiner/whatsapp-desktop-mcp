@@ -72,7 +72,7 @@ Plans:
 - [x] 02-02-PLAN.md — Guardrails — persistent rate limiter, JSONL audit log, cross-chat-quote LRU, send models (02-02-SUMMARY.md, 2026-05-13)
 - [x] 02-03-PLAN.md — Send orchestration — ui_send (deeplink + group fallback), post-hoc verify, send_message MCP tool, server wiring (02-03-SUMMARY.md, 2026-05-13)
 - [x] 02-04-PLAN.md — Read-tool integration — cross-chat-quote.record_bodies hook + test_isolation.py D-24 evolution (02-04-SUMMARY.md, 2026-05-13)
-- [ ] 02-05-PLAN.md — Tests — sender unit suite, 4 mandatory regression tests, RUN_LIVE=1 send smoke, send_message tool tests
+- [x] 02-05-PLAN.md — Tests — sender unit suite, 4 mandatory regression tests, RUN_LIVE=1 send smoke, send_message tool tests (02-05-SUMMARY.md, 2026-05-13)
 **Avoids pitfalls:** P5 (wrong-chat fuzzy send), P6 (LLM misuse — fan-out / leak / prompt injection), P12 (AppleScript fragility), P13 (Automation permission self-check), P14 (TOS / ban — conservative defaults).
 
 ### Phase 3: Hardening & Distribution
@@ -94,7 +94,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
 | 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
-| 2. Send (UI-automation, guardrails) | 4/5 | In progress | - |
+| 2. Send (UI-automation, guardrails) | 5/5 | Pending verification | 2026-05-13 |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Coverage Summary
