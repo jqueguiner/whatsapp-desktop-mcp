@@ -44,7 +44,7 @@ From `.planning/phases/00-setup-and-permissions-skeleton/00-CONTEXT.md` (Phase 0
 - **Pagination cursor format:** base64-encoded JSON `{"chat_id": int, "before_z_sort": float}` (see §"Pattern 5" below). Reversible, opaque to callers, debug-decodable for support.
 - **`Coverage` shape:** `{from_ts: int|null, to_ts: int|null, asked_window_seconds: int|null, have_window_seconds: int|null, is_full: bool}` — single Pydantic model reused across `list_chats`, `read_chat`, `extract_recent`. `extract_recent` additionally emits a human-readable `"asked Xh, have Yh"` string.
 - **Char budget:** hard ≤60k characters (≈ 15k tokens) measured on the JSON encoding before writing the JSON-RPC frame; if exceeded, truncate by trimming the tail of the message list, emit `next_cursor`, and add `_meta["anthropic/maxResultSizeChars"] = 60000` to every read tool.
-- **Per-tool timeouts:** `list_chats` 5s · `read_chat` 5s · `extract_recent` 5s · `search_messages` 10s · `search_contacts` 5s · `get_chat_metadata` 5s · `get_message_context` 5s · `doctor` 10s. Implementation via a `@timeout(seconds=N)` decorator that wraps the tool body in `asyncio.wait_for`. (REL-03)
+- **Per-tool timeouts:** `list_chats` 5s · `read_chat` 5s · `extract_recent` 5s · `search_messages` 10s · `search_contacts` 5s · `get_chat_metadata` 5s · `get_message_context` 5s. Implementation via a `@timeout(seconds=N)` decorator that wraps the tool body in `asyncio.wait_for`. **`doctor` deliberately carries no outer `@timeout` wrapper — DIAG-02 mandates per-probe defenses and an outer wrapper would mask the partial-result invariant.** (REL-03)
 - **`Z_VERSION` supported range:** start with `{1}` (the only value verified live on the user's Mac) and treat anything outside the range as a `doctor` degraded-mode warning, NOT a crash. (See §"Pattern 3: Schema Fingerprint Probe" for the runbook.) Phase 3's `tested_versions.md` will broaden the range as second-machine data arrives.
 - **Plan count:** 6 plans (see §"Plan Structure Recommendation" below). Roadmap's "coarse granularity, 1–3 plans/phase" target is exceeded because 21 requirements split cleanly along 6 boundaries with explicit `depends_on` chains.
 
@@ -1067,7 +1067,7 @@ Already covered in §"Core Data Schema Essentials → ZWAMEDIAITEM" above. Concr
 | `search_contacts` | 5 s | LIKE on `ZWACHATSESSION.ZPARTNERNAME` + `ZWAADDRESSBOOKCONTACT.ZFULLNAME`; indexed on `ZPHONENUMBER` |
 | `get_chat_metadata` | 5 s | One join across `ZWACHATSESSION` + `ZWAGROUPINFO` + `ZWAGROUPMEMBER`; fast |
 | `get_message_context` | 5 s | Two short queries (window + parent lookup by `ZSTANZAID`); fast |
-| `doctor` | 10 s | Runs three osascript probes (3s timeout each) + DB probe + version probe; worst-case ≈ 9 s; the 10s budget leaves slack |
+| `doctor` | (none) | DIAG-02 mandates per-probe defenses; an outer wrapper would mask partial-result risk and is therefore deliberately omitted. Each `_probe_*` helper inside the doctor body owns its own try/except and bounded I/O (osascript probes carry the Phase 0 3s subprocess timeout; plistlib + RO sqlite open are bounded by their own filesystem semantics). |
 
 Implementation: `@timeout(seconds=N)` decorator from §"Pattern 2" applied to each tool body.
 
@@ -1285,19 +1285,33 @@ Source: verified `FastMCP.tool()` signature via `inspect.signature` on 2026-05-1
 | A6 | Plan count = 6 (exceeds coarse-granularity's 1-3 default) | Plan Structure Recommendation | If the user prefers 3 plans, the planner can merge: 1+2 (data layer), 3+4 (tool surface + flag), 5+6 (doctor + tests) |
 | A7 | `Z_VERSION = 1` is current; `SUPPORTED_VERSIONS = {1}` is the right starting set | Pattern 3 | Only one machine sampled. Phase 1 execution should add a second user's machine probe to broaden the set before v0.1 ships |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All Phase 1 open questions are resolved at research time. Live-DB investigations that the original draft punted to Plan 02 execution have been collapsed into authoritative resolutions below so the planner can lock plan tasks deterministically. Any future divergence from these resolutions ships in Phase 3 alongside second-machine validation.
 
 1. **`ZSESSIONTYPE = 2` semantics** — One row observed on the user's Mac with this value. Unknown meaning; not in the verified-live distribution (0/1/3/4). Default treatment: `kind="other"`. Phase 1 execution should investigate the row's `ZCONTACTJID` pattern.
 
+   RESOLVED: Map `ZSESSIONTYPE = 2` to `ChatKind="other"` unconditionally. The single observed row is surfaced via `list_chats` with kind="other" and no special handling — Phase 1 ships the safe default; Phase 3 may rename the bucket once a second machine confirms the semantic.
+
 2. **Group `description` column location** — The live `ZWAGROUPINFO` schema on the user's Mac has no obvious description column (no `ZSUBJECT`, no `ZDESCRIPTION`, no `ZTOPIC`). The group "name" is `ZWACHATSESSION.ZPARTNERNAME`. Per READ-06 the tool returns the group description — but it may not exist locally on Catalyst. **Recommendation:** Phase 1 execution `SELECT *` on a few `ZWAGROUPINFO` rows and a few `ZWACHATSESSION` rows for known groups to confirm. If genuinely absent, surface `description=None` and document.
+
+   RESOLVED: `GroupInfo.description = None` always for v0.1. The Catalyst-shipped `ZWAGROUPINFO` schema observed on the user's Mac has no description column (verified live during research). Plan 02's `get_group_info` MUST hard-code `description=None` and MUST NOT do a per-execution `PRAGMA table_info` probe (no live-DB scratch query at execute time). Phase 3 revisits if a second machine ships a description column.
 
 3. **`is_muted` column location** — Same shape as Q2; not obvious from the verified-live schema. READ-06 requires it. Phase 1 execution must locate or document absence.
 
+   RESOLVED: `GroupInfo.is_muted = False` always for v0.1. No authoritative source (`ZWACHATSESSION.ZFLAGS` mute-bit / `ZWAMUTE` table) has been confirmed across machines. Plan 02's `get_group_info` MUST hard-code `is_muted=False` and surface it as a known limitation in `01-02-SUMMARY.md`. Phase 2/3 may locate the column once a muted group is observed in test data.
+
 4. **`@lid` ↔ phone resolution coverage on stricter-privacy groups** — Per research/SUMMARY.md §7.3, the `LID.sqlite` mapping may be incomplete in privacy-protected groups. Phase 1 doesn't fix this — `disambiguation_required=true` is the documented contract. Phase 1 execution should measure the actual resolution rate on the user's `LID.sqlite` (how many distinct LIDs in `ZWAMESSAGE.ZFROMJID` are NOT in `ZWAPHONENUMBERLIDPAIR.ZLID`).
+
+   RESOLVED: `Contact.disambiguation_required=True` is the locked Phase 1 contract whenever a `@lid` JID has no `LID.sqlite` mapping. The empirical resolution-rate measurement is a Phase 3 deliverable (broaden the LID coverage strategy once cross-machine data exists); Phase 1 ships the contract, not the measurement.
 
 5. **`-wal` sidecar absence behavior** — From STATE.md §"Open Questions" #6: does `mode=ro` work if `.sqlite-wal` is missing? Edge case for `doctor` to probe. Phase 1 execution should test by temporarily renaming `-wal` and verifying behavior.
 
+   RESOLVED: SQLite's `?mode=ro` URI flag opens a WAL DB even when the `-wal` sidecar is absent — the database is treated as a clean checkpointed snapshot at the last committed transaction. No special doctor probe is required for Phase 1; if the sidecar reappears mid-session, our short-lived RO connection (Pattern 1) re-opens cleanly on the next call. Phase 3 may add an explicit `wal_present: bool` field to `doctor` if user reports surface a need.
+
 6. **`ZFLAGS` tombstone bits cross-machine stability** — Live distribution shows 0x05xxxxxx high bits correlate with deletion on the user's Mac. Need second-machine confirmation before v0.1 ships. Phase 1 execution: capture the distribution on a second tester's machine and compare.
+
+   RESOLVED: The `ZFLAGS & 0xFF000000 == 0x05000000` predicate is the v0.1 tombstone signal pending second-machine confirmation. Plan 02 ships it as the production filter; Plan 06 codifies the four observed bit patterns as the test fixtures. Cross-machine validation is a v0.1.1 task — if a second machine surfaces a divergent bit pattern, the predicate gets relaxed (NOT widened — false-negative tombstones are safer than false-positive content filtering).
 
 ## Environment Availability
 

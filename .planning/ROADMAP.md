@@ -45,7 +45,14 @@ Plans:
   3. `extract_recent` against an active group returns deterministic, JID/LID-deduplicated messages with Cocoa→Unix-converted timestamps, defaults `include_deleted=False` (tombstones and `ZMESSAGETYPE=14` rows filtered), and surfaces media as `MediaRef` (filename + mime + absolute local_path) — never inlined binary.
   4. `doctor` returns a structured preflight report (DB path resolved, FDA / Automation / Accessibility status, schema fingerprint OK, WhatsApp.app version, last-message timestamp, `coverage` summary) and remains callable even when other read tools would fail because of a missing permission or unsupported schema version.
   5. The Reader package never imports the Sender package (and vice versa); a unit test asserts this isolation, and concurrent read calls during active WhatsApp writes succeed without `database is locked` errors.
-**Plans:** TBD
+**Plans:** 6 plans
+Plans:
+- [ ] 01-01-PLAN.md — Models, time helpers, expanded path resolvers (Wave 1)
+- [ ] 01-02-PLAN.md — Reader internals: RO-WAL connection, schema probe, queries, tombstones, media (Wave 2)
+- [ ] 01-03-PLAN.md — --read-only flag mechanics: CLI flag, ReadOnlyMode exception, server state (Wave 1)
+- [ ] 01-04-PLAN.md — 7 read MCP tools: list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context (Wave 3)
+- [ ] 01-05-PLAN.md — Doctor expansion: DB path + schema fingerprint + WhatsApp.app version + last-message ts + coverage summary (Wave 3)
+- [ ] 01-06-PLAN.md — Tests: unit (models, reader, tools), concurrency stress, REL-05 isolation re-test, --read-only mode, live integration (Wave 4)
 **Avoids pitfalls:** P1 (cache-vs-truth via `coverage`), P2 (schema/path drift via fingerprint + `doctor`), P3 (RO WAL connection), P8 (async wrapping + per-tool timeouts), P9 (char-cap + pagination + `_meta`), P10 (tombstone filter), P11 (JID/LID dedup).
 
 ### Phase 2: Send (UI-automation, behind safety guardrails)
