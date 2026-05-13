@@ -9,7 +9,7 @@
 ## Phases
 
 - [x] **Phase 0: Setup & Permissions Skeleton** — Installable MCP server that diagnoses its own permissions and protocol hygiene, end-to-end from Claude Desktop ✓ verified 2026-05-13
-- [ ] **Phase 1: Read MVP (`--read-only`)** — User can list, read, search, and inspect WhatsApp chats from Claude Desktop with all read tools live behind the `--read-only` flag
+- [x] **Phase 1: Read MVP (`--read-only`)** — User can list, read, search, and inspect WhatsApp chats from Claude Desktop with all read tools live behind the `--read-only` flag ✓ verified 2026-05-13
 - [ ] **Phase 2: Send (UI-automation, behind safety guardrails)** — User can send a single text message to a resolved chat, gated by elicitation confirmation, rate limiter, and audit log
 - [ ] **Phase 3: Hardening & Distribution** — End-user can install via signed `.pkg` / brew, permissions persist across upgrades, search is FTS5-backed, and a tested-versions matrix documents known-good WhatsApp Desktop builds
 
@@ -87,7 +87,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
-| 1. Read MVP (`--read-only`) | 6/6 | Pending verification | 2026-05-13 |
+| 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
