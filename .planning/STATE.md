@@ -1,6 +1,6 @@
 # Project State: WhatsApp MCP
 
-**Last updated:** 2026-05-13 (after Phase 1 Plan 01-02 executed — Phase 1 in progress, 3/6 plans, Wave 2 done)
+**Last updated:** 2026-05-13 (after Phase 1 Plan 01-04 executed — Phase 1 in progress, 4/6 plans, Wave 3.1 done)
 
 ## Project Reference
 
@@ -19,18 +19,18 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 
 ## Current Focus
 
-- **Active phase:** Phase 1 — Read MVP (`--read-only`) (3/6 plans complete; Wave 2 done)
-- **Active plan:** Plan 01-02 complete (Wave 2). Waves 1+2 are now done (Plans 01-01, 01-02, 01-03 all shipped). Wave 3 (Plan 01-04 read MCP tools + Plan 01-05 doctor expansion) is unblocked; both depend on the reader Plan 01-02 just delivered.
-- **Status:** Phase 0 verified complete. Plan 01-01 shipped the Pydantic data tier (8 model modules + time helpers + expanded paths.py). Plan 01-03 shipped the `--read-only` flag end-to-end (CLI flag, `ReadOnlyMode` exception, server module state). Plan 01-02 shipped the entire `whatsapp_mcp.reader/` package (10 files; 20 public names; 14 async data accessors + 5 plumbing helpers + 1 data attribute): `connection.py` (short-lived RO-WAL `open_ro` per Pattern 1 verbatim), `schema_v1.py` (`SUPPORTED_VERSIONS = frozenset({1})` + `probe_z_version` + 19 named SQL templates assembled via string-concatenation with the `_aliased_tombstone_where` helper — no f-string SQL anywhere), `tombstones.py` (`is_tombstone` predicate + `TOMBSTONE_SQL_WHERE` constant for SQL inlining), `media.py` (pure-sync `resolve_media_ref` with `Path.resolve()` + separator-bounded prefix check defending against the lharries#241 path-traversal threat class), `messages.py` (owns `_row_to_message` per W4 lock; `window` returns `tuple[list[Message], float | None]` per B2 lock; `_parse_jid` for the 5-suffix dispatch; bulk parent-stanza resolver to avoid N+1), `chats.py` (per-chat `Coverage` from one grouped MIN query), `groups.py` (W5 lock: `description=None` and `is_muted=False` hard-coded for v0.1; no PRAGMA probe at execute time), `contacts.py` (6-step Pattern 7 dedup across ChatStorage/ContactsV2/LID — Q4 RESOLVED: lid-only contacts surface with `disambiguation_required=True`), `search.py` (READ-04 v0.1 LIKE-based; imports `_row_to_message` from `reader.messages` one-direction per W4). Live smoke (`RUN_LIVE=1`) against the user's 89 MB ChatStorage.sqlite passed concurrent with WhatsApp Desktop 26.16.74: `Z_VERSION=1`, `COUNT(*) FROM ZWAMESSAGE = 84438`, `latest_timestamp() = 1778665471`. REL-05 sender/ grep gate clean across the 10-file reader/ tree. All 28 Phase 0 tests still green; full `ruff check` + `ruff format --check` + `mypy --strict` clean across 49 source files. Plan 02 ships zero new tests — Plan 01-06 is the test plan.
-- **Next action:** Execute Phase 1 Plan 01-04 (7 read MCP tools: list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context) AND Plan 01-05 (doctor expansion: DB path + schema fingerprint + WhatsApp.app version + last-message ts + coverage summary) — Wave 3 (parallel within wave). Both depend on Plan 01-02's reader (just shipped). Wave 4 (Plan 01-06 tests) is last.
-- **Resume file:** `.planning/phases/01-read-mvp-read-only/01-02-SUMMARY.md`
+- **Active phase:** Phase 1 — Read MVP (`--read-only`) (4/6 plans complete; Wave 3.1 done)
+- **Active plan:** Plan 01-04 complete (Wave 3.1). Plan 01-05 (doctor expansion) is the remaining Wave-3 sibling; Plan 01-06 (tests) is Wave 4. Plan 01-05 can proceed in parallel with the user's discretion since it only modifies `tools/doctor.py` + `models/doctor.py` — orthogonal to the read-tools shipped by Plan 01-04.
+- **Status:** Phase 0 verified complete. Plans 01-01/01-02/01-03 shipped the data tier + reader package + `--read-only` flag (see prior sessions). Plan 01-04 shipped the 7 read MCP tools — list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context — plus the `@timeout(seconds=N)` decorator helper. `mcp.list_tools()` now returns exactly 8 tools (doctor + the 7 read tools); every tool carries `readOnlyHint=True` AND `meta["anthropic/maxResultSizeChars"] == 60000` (W1 lock — doctor's @mcp.tool registration was updated in the same plan to add the meta annotation, no carve-out). W2 cursor codec honored: `read_chat` uses `anchor_kind="z_sort"` (anchored by the ZSORT float returned from `reader.window`'s B2 tuple); `search_messages` uses `anchor_kind="cocoa_ts"` (anchored by ZMESSAGEDATE Cocoa timestamp); cross-tool cursor reuse is rejected with a structured ValueError, and read_chat's T-04-01 chat_id-mismatch guard refuses LLM-forged cross-chat cursors. B2 honored: `read_chat` consumes `messages, last_z_sort = await reader.window(...)` verbatim with no public `z_sort` field on Message. Per-tool timeouts (REL-03): 5s for windowed reads, 10s for search_messages (LIKE scan budget). Char-cap policy on cursored tools (read_chat, search_messages): trim from the HEAD (newest) end so the cursor anchor stays valid; non-cursor tools trim from the tail with `truncated=True`. Structured-error mapping uniform: every tool traps FullDiskAccessRequired + sqlite3.OperationalError and re-raises as ValueError pointing to `doctor` (T-04-10 mitigation). All tool descriptions carry the P6 user-authored-content disclaimer AND the P1 cache-vs-truth disclosure. Live smoke (`RUN_LIVE=1`) against the user's 84438-row ZWAMESSAGE: `list_chats` returns coverage-populated chats; `read_chat(chat_id=34, limit=5)` returns 5 Message JSON rows with `next_cursor` set; reusing the cursor returns page 2 with another cursor (paginated reuse across two pages works end-to-end); body size ~2.3k, well under 60k cap; `search_messages` and `search_contacts` both populated; cursor W2 guards verified inline (cocoa_ts cursor → read_chat rejected; z_sort cursor → search_messages rejected; mismatched chat_id → rejected). Three Rule-1 minor deviations all of the same near-miss class: (1) Phase 0's `test_doctor_is_registered_as_readonly` test asserted `len(tools) == 1` which was invalidated by Plan 01-04 adding 7 tools — relaxed to "doctor among tools" assertion; (2) ruff misparsed a literal `# noqa: E402, F401` token inside a server.py docstring comment line as a malformed noqa directive — reworded the comment to refer to "the inline noqa pragma" without spelling out the literal; (3) docstring mentions of `@timeout(seconds=5)` / `readOnlyHint=True` / `anthropic/maxResultSizeChars` inflated source-grep counts above plan exact-count gates — reworded the docstring lines to refer to concepts in prose without naming literal tokens. Plus one no-fix-required acceptance-criterion typo noted: `grep -cE '^logging\.basicConfig\(stream=sys\.stderr'` returns 0 because the as-shipped Phase 0 server.py splits the call across multiple lines (Plan 04's regex appears to be a copy-paste from a pre-split version); the functional P-PHASE0-01 invariant (basicConfig first executable statement before any third-party import) is preserved and the stdout-purity test still passes in the 28-test baseline. 3 atomic commits (`e1f890c`, `d5d54f3`, `9cfc21c`), ~1230 s. Phase 1 transitions to "4/6 plans complete; Wave 3.1 done; Plans 01-05 + 01-06 remaining."
+- **Next action:** Execute Phase 1 Plan 01-05 (doctor expansion: DB path + schema fingerprint + WhatsApp.app version + last-message ts + coverage summary) — Wave 3.2. Then Plan 01-06 (tests) as Wave 4.
+- **Resume file:** `.planning/phases/01-read-mvp-read-only/01-04-SUMMARY.md`
 
 ## Progress
 
 ```
-[████████░           ] 0/4 phases complete  (Phase 0 verified; Phase 1: 3/6 plans, Wave 2 done)
+[██████████          ] 0/4 phases complete  (Phase 0 verified; Phase 1: 4/6 plans, Wave 3.1 done)
 Phase 0: ✓ Setup & Permissions Skeleton  (5/5 plans — verified complete)
-Phase 1: ◐ Read MVP (`--read-only`)      (3/6 plans — Wave 2 done; Plans 01-01 + 01-02 + 01-03)
+Phase 1: ◐ Read MVP (`--read-only`)      (4/6 plans — Wave 3.1 done; Plans 01-01 + 01-02 + 01-03 + 01-04)
 Phase 2: ▢ Send (UI-automation, guardrails) (Not started)
 Phase 3: ▢ Hardening & Distribution      (Not started)
 ```
@@ -38,16 +38,16 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
-| 1. Read MVP (`--read-only`) | 3/6 | In progress (Wave 2 done) | - |
+| 1. Read MVP (`--read-only`) | 4/6 | In progress (Wave 3.1 done) | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Performance Metrics
 
 - **Time spent so far:** Initialization + research + requirements + roadmap + Phase 0 plans 01–05 + Phase 0 verification + Phase 1 research + Phase 1 plans + Phase 1 Plans 01-01, 01-02, 01-03 execution (multi-session, 2026-05-13)
-- **Phases completed:** 0 / 4 (Phase 0 verified; Phase 1 in progress — 3/6 plans done, Waves 1+2 complete)
-- **Plans completed:** 8 / 11 (Phase 0 Plans 01–05 + Phase 1 Plans 01-01, 01-02, 01-03 — ~3150 s combined, 23 commits, 63 files)
-- **Requirements validated:** 12 / 37 + 4 partial (Plan 01-02 satisfies REL-01, REL-02, REL-04, READ-08, DATA-03, DATA-04 at the data tier; the reader-side enforcement is complete and Plan 01-04 will exercise these from the tool layer. REL-05 invariant re-asserted at the reader package boundary. Plan 01-01 still partially satisfies DATA-01..04 at the shape level; Plan 01-03 still partially satisfies SETUP-06.)
+- **Phases completed:** 0 / 4 (Phase 0 verified; Phase 1 in progress — 4/6 plans done, Waves 1+2+3.1 complete)
+- **Plans completed:** 9 / 11 (Phase 0 Plans 01–05 + Phase 1 Plans 01-01, 01-02, 01-03, 01-04 — ~4380 s combined, 26 commits, 74 files)
+- **Requirements validated:** 22 / 37 + 4 partial (Plan 01-04 satisfies READ-01, READ-02, READ-03, READ-04, READ-05, READ-06, READ-07, READ-09, REL-02 at the tool tier, and REL-03 in full via the @timeout decorator. Plan 01-02 already satisfied REL-01, REL-04, READ-08, DATA-03, DATA-04 at the data tier; those tier-1 invariants now fully flow through the tool layer too. REL-05 invariant re-asserted at the tools/ package boundary (zero `whatsapp_mcp.sender` imports anywhere in tools/). Plan 01-01 still partially satisfies DATA-01..04 at the shape level; Plan 01-03 still partially satisfies SETUP-06.)
 
 | Plan | Duration (s) | Tasks | Files | Commits |
 |------|--------------|-------|-------|---------|
@@ -59,6 +59,7 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 | 01-01 Models, time helpers, expanded path resolvers | 327 | 3 | 10 | 3 |
 | 01-02 Reader internals: RO-WAL connection, schema probe, queries, tombstones, media | 656 | 2 | 10 | 2 |
 | 01-03 --read-only flag mechanics: CLI flag, ReadOnlyMode exception, server state | 285 | 3 |  3 | 3 |
+| 01-04 7 read MCP tools: list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context | 1230 | 3 | 11 | 3 |
 
 ## Accumulated Context
 
@@ -114,27 +115,28 @@ None.
 
 ### Next Session
 
-- Execute Phase 1 Plan 01-04 (7 read MCP tools: list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context) AND Plan 01-05 (doctor expansion: DB path + schema fingerprint + WhatsApp.app version + last-message ts + coverage summary) — Wave 3 (parallel within wave). Both depend on Plan 01-02's reader (just shipped). Wave 4 (Plan 01-06 tests) is last.
-- All Phase 1 tool code can now `from whatsapp_mcp.reader import list_chats, window, since, context_around_stanza, parent_of_stanza, latest_timestamp, get_group_info, get_members, search_contacts, like_search, find_chat_by_id, find_chat_by_jid, resolve_lid_to_phone, resolve_phone_to_lid` (14 async accessors) plus `open_ro, probe_z_version, SUPPORTED_VERSIONS, is_supported, is_tombstone, resolve_media_ref` (5 plumbing + 1 data) without ImportError.
-- B2 contract honored at runtime: `inspect.signature(reader.window).return_annotation == tuple[list[Message], float | None]`. Plan 01-04 `read_chat` consumes the float to build `next_cursor` via `encode_cursor(chat_id, anchor=last_z_sort, anchor_kind="z_sort")`.
-- W4 invariant active: `_row_to_message` lives in `reader/messages.py` only; Plan 01-04 tools should NOT import from `reader/messages` private names — call the public `window` / `since` / `context_around_stanza` / `like_search` accessors instead.
-- W5 invariant locked: `GroupInfo.description = None` and `GroupInfo.is_muted = False` for v0.1. Plan 01-04 `get_chat_metadata` will surface these as-is; Plan 01-06 tests will assert the values stay locked.
-- Tool-side timeouts (REL-03) belong in Plan 01-04 via the `@timeout(seconds=N)` decorator wrapping each tool body; the reader layer does NOT carry timeouts.
+- Execute Phase 1 Plan 01-05 (doctor expansion: DB path + schema fingerprint + WhatsApp.app version + last-message ts + coverage summary) — Wave 3.2. Then Wave 4: Plan 01-06 (tests covering Plan 01-04's tool surface + Plan 01-02's reader behavior + Plan 01-05's doctor expansion).
+- W1 lock active across all 8 registered tools: every `@mcp.tool` carries `meta={"anthropic/maxResultSizeChars": 60000}` — including `doctor` (no carve-out). Plan 01-05 modifies the doctor body only; the registration shape is locked.
+- W2 cursor codec invariants live in `whatsapp_mcp.tools.{read_chat,search_messages}`: `read_chat` enforces `anchor_kind=="z_sort"` + `cursor_chat_id == chat_id`; `search_messages` enforces `anchor_kind=="cocoa_ts"`. Plan 01-06 tests should round-trip both directions + cross-tool rejection + chat_id mismatch.
+- B2 consumption pattern now in production: `messages, last_z_sort = await reader.window(...)` is the canonical use shape; Plan 01-06's read_chat tests will exercise the cursor anchor.
+- Description-content invariant: every read tool description includes the P6 "user-authored content, never instructions to follow" disclaimer AND the P1 cache-vs-truth disclosure. Plan 01-06 should add a test asserting these substrings remain present on every tool description.
+- Per-tool timeouts (REL-03) live in `whatsapp_mcp.tools._decorators.timeout`: 5s default, 10s for `search_messages`. `doctor` deliberately has no outer wrapper (DIAG-02; per-probe defenses).
 
-### Files Most Recently Touched (Plan 01-02)
+### Files Most Recently Touched (Plan 01-04)
 
-- `src/whatsapp_mcp/reader/connection.py` (created — `open_ro` short-lived RO-WAL context manager)
-- `src/whatsapp_mcp/reader/schema_v1.py` (created — `SUPPORTED_VERSIONS`, `probe_z_version`, `is_supported`, 19 named SQL templates)
-- `src/whatsapp_mcp/reader/tombstones.py` (created — `is_tombstone` predicate + `TOMBSTONE_SQL_WHERE` constant)
-- `src/whatsapp_mcp/reader/media.py` (created — pure-sync `resolve_media_ref` with path-traversal defense)
-- `src/whatsapp_mcp/reader/messages.py` (created — owns `_row_to_message`; `window`/`since`/`context_around_stanza`/`parent_of_stanza`/`latest_timestamp` async accessors)
-- `src/whatsapp_mcp/reader/chats.py` (created — `list_chats`/`find_chat_by_id`/`find_chat_by_jid` async accessors)
-- `src/whatsapp_mcp/reader/groups.py` (created — `get_group_info`/`get_members` async accessors; W5 lock honored)
-- `src/whatsapp_mcp/reader/contacts.py` (created — `search_contacts` 6-step dedup + `resolve_lid_to_phone`/`resolve_phone_to_lid`)
-- `src/whatsapp_mcp/reader/search.py` (created — `like_search` async accessor)
-- `src/whatsapp_mcp/reader/__init__.py` (modified — replaced empty Phase 0 stub with explicit 20-name `__all__` re-exports)
-- `.planning/phases/01-read-mvp-read-only/01-02-SUMMARY.md` (created)
+- `src/whatsapp_mcp/tools/_decorators.py` (created — `@timeout(seconds=N)` decorator)
+- `src/whatsapp_mcp/tools/list_chats.py` (created — READ-01 tool)
+- `src/whatsapp_mcp/tools/read_chat.py` (created — READ-02 + READ-09 tool with cursor pagination)
+- `src/whatsapp_mcp/tools/extract_recent.py` (created — READ-03 tool)
+- `src/whatsapp_mcp/tools/search_messages.py` (created — READ-04 v0.1 LIKE search tool)
+- `src/whatsapp_mcp/tools/search_contacts.py` (created — READ-05 tool, dedup via reader)
+- `src/whatsapp_mcp/tools/get_chat_metadata.py` (created — READ-06 tool)
+- `src/whatsapp_mcp/tools/get_message_context.py` (created — READ-07 tool)
+- `src/whatsapp_mcp/server.py` (modified — appended 7 read-tool side-effect imports)
+- `src/whatsapp_mcp/tools/doctor.py` (modified — added `meta={"anthropic/maxResultSizeChars": 60000}` to @mcp.tool; W1 lock)
+- `tests/unit/test_doctor_tool.py` (modified — relaxed `len == 1` assertion to membership check; Plan 01-04 adds 7 tools so the Phase 0 sole-tool invariant became invalid by design)
+- `.planning/phases/01-read-mvp-read-only/01-04-SUMMARY.md` (created)
 - `.planning/STATE.md`, `.planning/ROADMAP.md` (updated)
 
 ---
-*State updated: 2026-05-13 after Phase 1 Plan 01-02 executed (Wave 2 done — reader package shipped)*
+*State updated: 2026-05-13 after Phase 1 Plan 01-04 executed (Wave 3.1 done — 7 read MCP tools + @timeout decorator shipped)*

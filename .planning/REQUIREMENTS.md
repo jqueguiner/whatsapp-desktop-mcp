@@ -16,15 +16,15 @@
 
 ### Read
 
-- [ ] **READ-01**: Tool `list_chats` returns groups + 1:1 chats with last-activity timestamp, unread count, kind (1:1/group/broadcast/community), and a `coverage` window naming the time range present in the local DB
-- [ ] **READ-02**: Tool `read_chat` returns messages from a specific chat by `chat_id`, bounded by `limit` (default 200, max enforced by char-cap) OR by `before`/`after` timestamps, with `cursor`/`next_cursor` pagination
-- [ ] **READ-03**: Tool `extract_recent` returns all messages from a `chat_id` within the last N hours; response includes `coverage` ("asked Xh, have Yh")
-- [ ] **READ-04**: Tool `search_messages` performs full-text search across chats with optional `chat_id`, sender, and date filters; LIKE acceptable for v0.1, FTS5 shadow index for v1.0
-- [ ] **READ-05**: Tool `search_contacts` finds chats/contacts by name or phone fragment, deduplicating across `@s.whatsapp.net` and `@lid` representations of the same person
-- [ ] **READ-06**: Tool `get_chat_metadata` returns group description, member list (with display names and admin flags), mute status — for groups and 1:1s
-- [ ] **READ-07**: Tool `get_message_context` returns N messages before/after a `message_id`, plus the parent message if the target is a quote-reply (uses `ZPARENTMESSAGE` self-join)
+- [x] **READ-01**: Tool `list_chats` returns groups + 1:1 chats with last-activity timestamp, unread count, kind (1:1/group/broadcast/community), and a `coverage` window naming the time range present in the local DB *(Plan 01-04: `tools/list_chats.py` wraps `reader.list_chats`; per-chat Coverage populated by reader; live-verified.)*
+- [x] **READ-02**: Tool `read_chat` returns messages from a specific chat by `chat_id`, bounded by `limit` (default 200, max enforced by char-cap) OR by `before`/`after` timestamps, with `cursor`/`next_cursor` pagination *(Plan 01-04: `tools/read_chat.py` consumes `reader.window`'s B2 tuple, emits W2 `anchor_kind="z_sort"` cursor; live-verified cursor pagination across two pages on the user's 84438-row ZWAMESSAGE.)*
+- [x] **READ-03**: Tool `extract_recent` returns all messages from a `chat_id` within the last N hours; response includes `coverage` ("asked Xh, have Yh") *(Plan 01-04: `tools/extract_recent.py` wraps `reader.since`; hours clamped to [1, 168]; `summary` field carries "asked Xh, have Yh" rounded to one decimal.)*
+- [x] **READ-04**: Tool `search_messages` performs full-text search across chats with optional `chat_id`, sender, and date filters; LIKE acceptable for v0.1, FTS5 shadow index for v1.0 *(Plan 01-04: `tools/search_messages.py` ships the v0.1 LIKE variant via `reader.like_search`; W2 `anchor_kind="cocoa_ts"` cursor; FTS5 deferred to Phase 3.)*
+- [x] **READ-05**: Tool `search_contacts` finds chats/contacts by name or phone fragment, deduplicating across `@s.whatsapp.net` and `@lid` representations of the same person *(Plan 01-04: `tools/search_contacts.py` wraps `reader.search_contacts` which Plan 02 already de-dedups via LID.sqlite per the Pattern 7 6-step recipe.)*
+- [x] **READ-06**: Tool `get_chat_metadata` returns group description, member list (with display names and admin flags), mute status — for groups and 1:1s *(Plan 01-04: `tools/get_chat_metadata.py` surfaces the W5-locked v0.1 defaults — `description=None`, `is_muted=False` — verbatim; group member list with admin flags from `reader.get_group_info`; degenerate 1:1 shape with display_name as subject.)*
+- [x] **READ-07**: Tool `get_message_context` returns N messages before/after a `message_id`, plus the parent message if the target is a quote-reply (uses `ZPARENTMESSAGE` self-join) *(Plan 01-04: `tools/get_message_context.py` combines `reader.context_around_stanza` + `reader.parent_of_stanza`; before/after clamped to [0, 50].)*
 - [x] **READ-08**: All read tools default `include_deleted=False`; tombstoned messages (`ZMESSAGETYPE=14`, deleted-for-everyone, deleted-for-me bit-flagged) are filtered unless caller opts in *(reader-tier satisfied by Plan 01-02 — `is_tombstone` predicate + `TOMBSTONE_SQL_WHERE` SQL filter inlined into every `_SQL_*` window/since/context/search template; the `include_deleted=False` default in every reader accessor selects the tombstone-filtered template. Tool-tier `include_deleted` parameter wiring belongs to Plan 01-04.)*
-- [ ] **READ-09**: All read tool responses fit within MCP's per-result size cap (~60k chars); larger results paginate via opaque cursor; `_meta["anthropic/maxResultSizeChars"]` annotation set on every read tool
+- [x] **READ-09**: All read tool responses fit within MCP's per-result size cap (~60k chars); larger results paginate via opaque cursor; `_meta["anthropic/maxResultSizeChars"]` annotation set on every read tool *(Plan 01-04: every registered tool — incl. doctor (W1, no carve-out) — carries `meta={"anthropic/maxResultSizeChars": 60000}`; cursored tools emit W2-discriminated opaque cursors with iterative char-cap trim before return; live-verified body sizes under cap.)*
 
 ### Data Contracts
 
@@ -47,8 +47,8 @@
 ### Reliability & Concurrency
 
 - [x] **REL-01**: SQLite reader uses short-lived connections opened with `?mode=ro` URI flag (never `immutable=1`); reads succeed concurrently with WhatsApp's writer *(satisfied by Plan 01-02 — `reader/connection.py:open_ro` opens `file:{path}?mode=ro` per call with `busy_timeout=5000` and `BEGIN/COMMIT` deferred read; never the WAL-skipping URI flag. Verified live concurrent with WhatsApp Desktop 26.16.74's writer (RUN_LIVE=1 smoke 2026-05-13).)*
-- [x] **REL-02**: All DB calls wrapped in `asyncio.to_thread`; all `osascript` calls via `asyncio.create_subprocess_exec` + `asyncio.wait_for(timeout=10)`; the stdio event loop never blocks *(reader-tier satisfied by Plan 01-02 — `grep -rE 'asyncio\.to_thread' src/whatsapp_mcp/reader/` returns 22 (every public async accessor dispatches to its `_blocking_*` impl); osascript half was satisfied in Phase 0 Plan 03.)*
-- [ ] **REL-03**: Per-tool timeouts enforced: `read_chat` 5s, `search_messages` 10s, `send_message` 15s
+- [x] **REL-02**: All DB calls wrapped in `asyncio.to_thread`; all `osascript` calls via `asyncio.create_subprocess_exec` + `asyncio.wait_for(timeout=10)`; the stdio event loop never blocks *(reader-tier satisfied by Plan 01-02 — `grep -rE 'asyncio\.to_thread' src/whatsapp_mcp/reader/` returns 22 (every public async accessor dispatches to its `_blocking_*` impl); osascript half was satisfied in Phase 0 Plan 03; tool tier in Plan 01-04 uses only `await` against the already-async reader.)*
+- [x] **REL-03**: Per-tool timeouts enforced: `read_chat` 5s, `search_messages` 10s, `send_message` 15s *(Plan 01-04 reader-tier portion: `tools/_decorators.py:timeout(seconds=N)` wraps each tool body in `asyncio.wait_for`; converts `TimeoutError` to a structured `ValueError` so FastMCP surfaces a tool-error rather than a Python traceback. 5s for list_chats/read_chat/extract_recent/search_contacts/get_chat_metadata/get_message_context; 10s for search_messages. `send_message`'s 15s budget is Phase 2's portion.)*
 - [x] **REL-04**: Schema fingerprint (`Z_METADATA.Z_VERSION`) probed at startup; out-of-range version returns a degraded-mode warning from `doctor` rather than crashing read tools *(reader-tier satisfied by Plan 01-02 — `reader/schema_v1.py` ships `SUPPORTED_VERSIONS = frozenset({1})` + `probe_z_version(conn) -> int` + `is_supported(version) -> bool`. Verified live: `Z_VERSION = 1` matches the supported set. `doctor` integration belongs to Plan 01-05.)*
 - [ ] **REL-05**: Reader and Sender modules MUST NOT import each other; tool layer is the only integration point
 
@@ -119,22 +119,22 @@
 | SETUP-05 | Phase 0 | Setup & Permissions Skeleton | Satisfied (Plan 05 — README opens with D-20 ToS automation-risk blockquote, contains D-21 four-step 60s quickstart, D-22 framing inline — all locked clauses verified by content greps) |
 | DIST-01 | Phase 0 | Setup & Permissions Skeleton | Satisfied at the workflow level (Plan 05 — `.github/workflows/release.yml` triggers on `tags: ['v*']`, runs CI then `uv build` + `uv publish` via OIDC trusted-publisher with job-level `id-token: write` per P-PHASE0-04; closes end-to-end once the manual one-time PyPI pending-publisher binding is configured and v0.1.0 ships) |
 | SETUP-06 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-02 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-03 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-04 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-05 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-06 | Phase 1 | Read MVP (`--read-only`) | Pending |
-| READ-07 | Phase 1 | Read MVP (`--read-only`) | Pending |
+| READ-01 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (`tools/list_chats.py`) |
+| READ-02 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (`tools/read_chat.py` with W2 cursor) |
+| READ-03 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (`tools/extract_recent.py` with "asked Xh, have Yh") |
+| READ-04 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 v0.1 LIKE (`tools/search_messages.py`); FTS5 deferred to Phase 3 |
+| READ-05 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (`tools/search_contacts.py` over Plan 02's dedup recipe) |
+| READ-06 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (`tools/get_chat_metadata.py` w/ W5 v0.1 locks) |
+| READ-07 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (`tools/get_message_context.py` w/ parent self-join) |
 | READ-08 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (predicate + SQL filter); tool-tier opt-in flag pending Plan 01-04 |
-| READ-09 | Phase 1 | Read MVP (`--read-only`) | Pending |
+| READ-09 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-04 (every registered tool incl. doctor advertises 60k meta; cursored tools char-cap with opaque W2 cursors) |
 | DATA-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DATA-02 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DATA-03 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (`reader/media.py:resolve_media_ref` with path-traversal defense); tool-tier surfacing pending Plan 01-04 |
 | DATA-04 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-02 (encrypted/protobuf BLOB column literal names absent across `src/whatsapp_mcp/reader/` — verified by file-wide grep gate) |
 | REL-01 | Phase 1 | Read MVP (`--read-only`) | Satisfied by Plan 01-02 (`reader/connection.py:open_ro` with `?mode=ro` + `busy_timeout=5000`; verified live concurrent with WhatsApp writer 2026-05-13) |
-| REL-02 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (22 `asyncio.to_thread` dispatches across the 14 async accessors); osascript half satisfied by Phase 0 Plan 03 |
-| REL-03 | Phase 1 | Read MVP (`--read-only`) | Pending (tool-tier `@timeout` decorator) |
+| REL-02 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (22 `asyncio.to_thread` dispatches across the 14 async accessors); osascript half satisfied by Phase 0 Plan 03; tool tier in Plan 01-04 uses async/await against the reader's coroutines |
+| REL-03 | Phase 1 | Read MVP (`--read-only`) | Read-tool tier satisfied by Plan 01-04 (`tools/_decorators.py:timeout(seconds=N)` wrapping each tool body; 5s default / 10s search_messages); `send_message` 15s portion belongs to Phase 2 |
 | REL-04 | Phase 1 | Read MVP (`--read-only`) | Reader tier satisfied by Plan 01-02 (`reader/schema_v1.py` with `SUPPORTED_VERSIONS = frozenset({1})` + `probe_z_version` + `is_supported`); doctor integration pending Plan 01-05 |
 | REL-05 | Phase 1 | Read MVP (`--read-only`) | Pending |
 | DIAG-01 | Phase 1 | Read MVP (`--read-only`) | Pending |
@@ -160,4 +160,4 @@
 
 ---
 *Requirements defined: 2026-05-13*
-*Last updated: 2026-05-13 after Phase 1 Plan 01-02 executed (reader-tier mitigations for REL-01, REL-02, REL-04, READ-08, DATA-03, DATA-04 satisfied; tool-tier completions pending Plans 01-04/01-05)*
+*Last updated: 2026-05-13 after Phase 1 Plan 01-04 executed (tool-tier READ-01..07, READ-09, REL-02 tool tier, and REL-03 read-tool portion satisfied; reader-tier REL-01, REL-04, READ-08, DATA-03, DATA-04 already satisfied by Plan 01-02; DIAG-01/02 + SETUP-06 + DATA-01/02 pending Plans 01-05/01-06)*
