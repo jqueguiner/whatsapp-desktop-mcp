@@ -1,6 +1,6 @@
 # Project State: WhatsApp MCP
 
-**Last updated:** 2026-05-13 (after roadmap creation)
+**Last updated:** 2026-05-13 (after Phase 0 context gathered, --auto)
 
 ## Project Reference
 
@@ -20,9 +20,10 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 ## Current Focus
 
 - **Active phase:** Phase 0 — Setup & Permissions Skeleton
-- **Active plan:** None yet (run `/gsd-plan-phase 0` to draft)
-- **Status:** Roadmap defined; awaiting first phase plan
-- **Next action:** `/gsd-plan-phase 0`
+- **Active plan:** None yet (auto-advancing to `/gsd-plan-phase 0 --auto`)
+- **Status:** Phase 0 CONTEXT.md written; ready for planning
+- **Next action:** `/gsd-plan-phase 0 --auto` (auto-chain in flight)
+- **Resume file:** `.planning/phases/00-setup-and-permissions-skeleton/00-CONTEXT.md`
 
 ## Progress
 
@@ -87,18 +88,19 @@ None.
 
 - Initialized PROJECT.md, REQUIREMENTS.md, and full research bundle (SUMMARY, STACK, FEATURES, ARCHITECTURE, PITFALLS).
 - Created ROADMAP.md (4 coarse phases with 100% requirement coverage) and this STATE.md.
+- Gathered Phase 0 context via `/gsd-discuss-phase 0 --auto`: locked decisions on project layout (src-layout `whatsapp_mcp`), MCP framework (FastMCP decorators, mcp[cli]==1.27.1, stdio only), `doctor` scope (3 permission probes only — no schema/version probes), permission probe technique (try-and-catch on small real actions), CI (GitHub Actions on push/PR + release-on-tag PyPI via OIDC).
 
 ### Next Session
 
-- Run `/gsd-plan-phase 0` to decompose Phase 0 (Setup & Permissions Skeleton) into executable plans.
+- Auto-advancing to `/gsd-plan-phase 0 --auto` to decompose Phase 0 into executable plans.
 - Granularity = coarse → expect 1–3 plans for Phase 0.
-- Likely plan candidates: (a) MCP stdio server skeleton + stdout-hygiene CI, (b) `doctor` preflight tool with structured permission errors, (c) README + ToS disclaimer + uvx-publish path.
+- Likely plan candidates: (a) MCP stdio server skeleton + stdout-hygiene CI + lint/type/test gates, (b) `doctor` preflight tool with the 3-permission probe + structured exception classes, (c) README + ToS disclaimer + uvx publish workflow.
 
 ### Files Most Recently Touched
 
-- `.planning/ROADMAP.md` (created)
-- `.planning/STATE.md` (created)
-- `.planning/REQUIREMENTS.md` (Traceability section refreshed)
+- `.planning/phases/00-setup-and-permissions-skeleton/00-CONTEXT.md` (created)
+- `.planning/phases/00-setup-and-permissions-skeleton/00-DISCUSSION-LOG.md` (created)
+- `.planning/STATE.md` (updated)
 
 ---
-*State initialized: 2026-05-13 after roadmap creation*
+*State updated: 2026-05-13 after Phase 0 discuss --auto*
