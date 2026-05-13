@@ -43,9 +43,7 @@ class PermissionRequired(WhatsAppMCPError):
 
 class FullDiskAccessRequired(PermissionRequired):
     bucket = "fda"
-    system_settings_url = (
-        "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
-    )
+    system_settings_url = "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
 
 
 class AutomationPermissionRequired(PermissionRequired):

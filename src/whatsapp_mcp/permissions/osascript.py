@@ -82,9 +82,7 @@ async def run_osascript(script: str, timeout: float = 3.0) -> OsascriptResult:
     except FileNotFoundError:
         # /usr/bin/osascript is part of macOS; absent only on non-mac CI runners.
         logger.error("osascript not found at /usr/bin/osascript")
-        return OsascriptResult(
-            exit_code=-1, stdout="", stderr="osascript-missing", error_code=None
-        )
+        return OsascriptResult(exit_code=-1, stdout="", stderr="osascript-missing", error_code=None)
 
     stdout = stdout_b.decode("utf-8", errors="replace")
     stderr = stderr_b.decode("utf-8", errors="replace")
@@ -99,6 +97,4 @@ async def run_osascript(script: str, timeout: float = 3.0) -> OsascriptResult:
     # ``communicate()`` waits for the process to exit, so ``returncode`` is
     # guaranteed to be set; the assert narrows ``int | None`` -> ``int`` for mypy strict.
     assert proc.returncode is not None
-    return OsascriptResult(
-        exit_code=proc.returncode, stdout=stdout, stderr=stderr, error_code=code
-    )
+    return OsascriptResult(exit_code=proc.returncode, stdout=stdout, stderr=stderr, error_code=code)

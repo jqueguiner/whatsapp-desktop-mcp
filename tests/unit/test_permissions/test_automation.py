@@ -58,7 +58,7 @@ async def test_automation_whatsapp_not_installed(fp: FakeProcess) -> None:
     """error_code=-1728 (errAENoSuchObject) -> state=whatsapp_not_installed."""
     fp.register(
         ["/usr/bin/osascript", "-e", 'id of application "WhatsApp"'],
-        stderr=b"0:0: execution error: Can\xe2\x80\x99t get application \"WhatsApp\". (-1728)\n",
+        stderr=b'0:0: execution error: Can\xe2\x80\x99t get application "WhatsApp". (-1728)\n',
         returncode=1,
     )
     status = await check_whatsapp()
