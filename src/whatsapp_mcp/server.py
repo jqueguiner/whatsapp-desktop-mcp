@@ -21,6 +21,16 @@ Hard architectural rules carried from CLAUDE.md and CONTEXT.md D-04 / D-05:
 - ``mcp = FastMCP(...)`` is instantiated at module scope BEFORE the tool
   registration import below; the tool module imports ``mcp`` from this file,
   so this top-down ordering is the P-PHASE0-06 circular-import safety net.
+
+``read_only_mode`` is a module-level boolean set by ``cli.main()`` BEFORE
+the lazy ``from whatsapp_mcp.server import run`` import resolves — because
+the tool-registration side-effect imports execute at server module import
+time, ``cli.main`` must assign the flag prior to that import (Plan 01-03
+wires this; Phase 2 will gate its send tool import on
+``if not read_only_mode:``). Phase 1 ships zero send tools, so the flag
+is consulted only by Phase 2's ``send_message`` registration and by unit
+tests that assert tool-listing behavior. Read tools always carry
+``readOnlyHint=True`` regardless of the flag.
 """
 
 from __future__ import annotations
@@ -41,7 +51,19 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 mcp: FastMCP = FastMCP("whatsapp-mcp")
 
+# Module-level flag set by cli.main() BEFORE the tool-registration imports
+# below execute. Default True is the v0.1 carry-over (STATE.md §Carry-overs);
+# Phase 2 will wrap its send_message tool import in `if not read_only_mode:`.
+# Phase 1 read tools always carry `readOnlyHint=True` regardless of this flag.
+read_only_mode: bool = True
+
 from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
+
+# --- Plan 01-04 tool import insertion point ---
+# Plan 01-04 will append 7 read tools below this marker (all unconditionally
+# registered; readOnlyHint=True is intrinsic to the read tools themselves).
+# Phase 2 will append its `if not read_only_mode:` send-tool import block
+# AFTER the Plan 01-04 read tools.
 
 
 def run() -> None:
