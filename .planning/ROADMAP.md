@@ -68,7 +68,7 @@ Plans:
   5. The pre-send AX-API state assertion verifies the focused window's chat header matches the resolved chat name and aborts on mismatch (defending against the invisible-LRM trap and wrong-chat fuzzy-search class of bugs).
 **Plans:** 5 plans
 Plans:
-- [ ] 02-01-PLAN.md — Sender primitives — pyobjc deps, deeplink builder, osascript_send wrapper, AX preflight (Wave-0 spikes first)
+- [x] 02-01-PLAN.md — Sender primitives — pyobjc deps, deeplink builder, osascript_send wrapper, AX preflight (Wave-0 spikes first) (02-01-SUMMARY.md, 2026-05-13)
 - [ ] 02-02-PLAN.md — Guardrails — persistent rate limiter, JSONL audit log, cross-chat-quote LRU, send models
 - [ ] 02-03-PLAN.md — Send orchestration — ui_send (deeplink + group fallback), post-hoc verify, send_message MCP tool, server wiring
 - [ ] 02-04-PLAN.md — Read-tool integration — cross-chat-quote.record_bodies hook + test_isolation.py D-24 evolution
@@ -94,7 +94,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
 | 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
-| 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
+| 2. Send (UI-automation, guardrails) | 1/5 | In progress | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Coverage Summary
