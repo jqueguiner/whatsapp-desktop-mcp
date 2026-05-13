@@ -49,7 +49,7 @@ Plans:
 Plans:
 - [x] 01-01-PLAN.md — Models, time helpers, expanded path resolvers (01-01-SUMMARY.md, 2026-05-13)
 - [ ] 01-02-PLAN.md — Reader internals: RO-WAL connection, schema probe, queries, tombstones, media (Wave 2)
-- [ ] 01-03-PLAN.md — --read-only flag mechanics: CLI flag, ReadOnlyMode exception, server state (Wave 1)
+- [x] 01-03-PLAN.md — --read-only flag mechanics: CLI flag, ReadOnlyMode exception, server state (01-03-SUMMARY.md, 2026-05-13)
 - [ ] 01-04-PLAN.md — 7 read MCP tools: list_chats, read_chat, extract_recent, search_messages, search_contacts, get_chat_metadata, get_message_context (Wave 3)
 - [ ] 01-05-PLAN.md — Doctor expansion: DB path + schema fingerprint + WhatsApp.app version + last-message ts + coverage summary (Wave 3)
 - [ ] 01-06-PLAN.md — Tests: unit (models, reader, tools), concurrency stress, REL-05 isolation re-test, --read-only mode, live integration (Wave 4)
@@ -87,7 +87,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
-| 1. Read MVP (`--read-only`) | 1/6 | In progress (Wave 1.1 done) | - |
+| 1. Read MVP (`--read-only`) | 2/6 | In progress (Wave 1 done) | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
