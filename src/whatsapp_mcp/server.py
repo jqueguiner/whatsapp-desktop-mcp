@@ -18,9 +18,9 @@ Hard architectural rules carried from CLAUDE.md and CONTEXT.md D-04 / D-05:
 - ``mcp.run()`` is called with no arguments. Stdio is the default transport;
   passing any explicit transport keyword here would open the door to the
   HTTP/SSE anti-feature explicitly forbidden by CLAUDE.md hard rule #5.
-- ``mcp = FastMCP(...)`` is instantiated at module scope BEFORE Plan 03's
-  ``from whatsapp_mcp.tools import doctor`` line is appended. This ordering
-  is the P-PHASE0-06 circular-import safety net.
+- ``mcp = FastMCP(...)`` is instantiated at module scope BEFORE the tool
+  registration import below; the tool module imports ``mcp`` from this file,
+  so this top-down ordering is the P-PHASE0-06 circular-import safety net.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from mcp.server.fastmcp import FastMCP  # noqa: E402
 
 mcp: FastMCP = FastMCP("whatsapp-mcp")
 
-# Phase 0 Plan 03 inserts: from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
+from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
 
 
 def run() -> None:
