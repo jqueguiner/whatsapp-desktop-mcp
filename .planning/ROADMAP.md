@@ -28,7 +28,7 @@
 **Plans:** 5 plans
 Plans:
 - [x] 00-01-PLAN.md — Project skeleton, pyproject.toml, uv-managed deps (00-01-SUMMARY.md, 2026-05-13)
-- [ ] 00-02-PLAN.md — FastMCP stdio server, CLI entry point, exception hierarchy, Pydantic models
+- [x] 00-02-PLAN.md — FastMCP stdio server, CLI entry point, exception hierarchy, Pydantic models (00-02-SUMMARY.md, 2026-05-13)
 - [ ] 00-03-PLAN.md — Permission probes (FDA / Automation / Accessibility) and the doctor MCP tool
 - [ ] 00-04-PLAN.md — Test suite — stdout purity, doctor registration, exception shape, probe mocking, REL-05 isolation
 - [ ] 00-05-PLAN.md — GitHub Actions CI + release.yml + README + claude_desktop_config.json example
@@ -79,7 +79,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Setup & Permissions Skeleton | 1/5 | In progress | - |
+| 0. Setup & Permissions Skeleton | 2/5 | In progress | - |
 | 1. Read MVP (`--read-only`) | 0/0 | Not started | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |

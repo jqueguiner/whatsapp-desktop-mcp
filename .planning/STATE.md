@@ -1,6 +1,6 @@
 # Project State: WhatsApp MCP
 
-**Last updated:** 2026-05-13 (after Phase 0 Plan 01 executed, Wave 1 done)
+**Last updated:** 2026-05-13 (after Phase 0 Plan 02 executed, Wave 2 done)
 
 ## Project Reference
 
@@ -20,16 +20,16 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 ## Current Focus
 
 - **Active phase:** Phase 0 — Setup & Permissions Skeleton
-- **Active plan:** Phase 0, Plan 01 complete; Wave 1 done. Wave 2 next (Plans 02..04 if independent, then Plan 05).
-- **Status:** Skeleton landed (src-layout, pyproject.toml, ruff/mypy/pytest gates, uv.lock, MIT LICENSE, .gitignore, stub README). `uv sync --extra dev` and `uv build` both succeed.
-- **Next action:** Continue `/gsd-execute-phase 0` Wave 2 — typically Plan 02 (FastMCP server + CLI + exception hierarchy + Pydantic models) is the next dependency root.
-- **Resume file:** `.planning/phases/00-setup-and-permissions-skeleton/00-01-SUMMARY.md`
+- **Active plan:** Phase 0, Plans 01 + 02 complete; Wave 2 done. Plan 03 next (depends on Plan 02's frozen contracts), then Plan 04 (tests), then Plan 05 (CI + README).
+- **Status:** Executable spine landed. `uv run whatsapp-mcp --version` and `uv run python -m whatsapp_mcp --version` both print `whatsapp-mcp 0.1.0` and exit 0. FastMCP server (zero registered tools), exception hierarchy, Pydantic models, and path resolver all in place — Plan 03 binds against frozen contracts.
+- **Next action:** Continue `/gsd-execute-phase 0` Wave 3 — Plan 03 (permission probes + `doctor` tool registration). Plan 03's executor edits exactly `src/whatsapp_mcp/server.py:44` (the insertion-site comment) and adds `tools/doctor.py` + `permissions/{fda,automation,accessibility,osascript}.py`.
+- **Resume file:** `.planning/phases/00-setup-and-permissions-skeleton/00-02-SUMMARY.md`
 
 ## Progress
 
 ```
 [                    ] 0/4 phases complete
-Phase 0: ◐ Setup & Permissions Skeleton  (In progress: 1/5 plans)
+Phase 0: ◐ Setup & Permissions Skeleton  (In progress: 2/5 plans)
 Phase 1: ▢ Read MVP (`--read-only`)      (Not started)
 Phase 2: ▢ Send (UI-automation, guardrails) (Not started)
 Phase 3: ▢ Hardening & Distribution      (Not started)
@@ -37,21 +37,22 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Setup & Permissions Skeleton | 1/5 | In progress | - |
+| 0. Setup & Permissions Skeleton | 2/5 | In progress | - |
 | 1. Read MVP (`--read-only`) | 0/0 | Not started | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Performance Metrics
 
-- **Time spent so far:** Initialization + research + requirements + roadmap + Phase 0 plan 01 (one session, 2026-05-13)
+- **Time spent so far:** Initialization + research + requirements + roadmap + Phase 0 plans 01–02 (one session, 2026-05-13)
 - **Phases completed:** 0 / 4
-- **Plans completed:** 1 / 5 (Phase 0, Plan 01 — ~169 s, 3 commits, 15 files)
-- **Requirements validated:** 0 / 37 (DIST-01 and SETUP-05 partially scaffolded; full validation in Plan 05)
+- **Plans completed:** 2 / 5 (Phase 0, Plans 01–02 — ~349 s combined, 6 commits, 21 files)
+- **Requirements validated:** 0 / 37 (SETUP-02/03/04 satisfied at the protocol-scaffolding level by Plan 02; full end-to-end validation lands with Plans 03–05; DIST-01 and SETUP-05 partially scaffolded)
 
 | Plan | Duration (s) | Tasks | Files | Commits |
 |------|--------------|-------|-------|---------|
 | 00-01 Project skeleton, pyproject.toml, uv-managed deps | 169 | 3 | 15 | 3 |
+| 00-02 FastMCP stdio server, CLI, exceptions, Pydantic models | 180 | 3 |  6 | 3 |
 
 ## Accumulated Context
 
@@ -95,18 +96,18 @@ None.
 - Gathered Phase 0 context via `/gsd-discuss-phase 0 --auto`: locked decisions on project layout (src-layout `whatsapp_mcp`), MCP framework (FastMCP decorators, mcp[cli]==1.27.1, stdio only), `doctor` scope (3 permission probes only — no schema/version probes), permission probe technique (try-and-catch on small real actions), CI (GitHub Actions on push/PR + release-on-tag PyPI via OIDC).
 - Planned Phase 0 into 5 plans across 4 waves (`/gsd-plan-phase 0 --auto`).
 - **Executed Phase 0 Plan 01 (Wave 1):** scaffolded the src-layout package (`whatsapp_mcp` with empty `permissions/`, `models/`, `tools/`, `reader/`, `sender/` subpackages), wrote `pyproject.toml` (hatchling, mcp[cli]==1.27.1, pydantic 2.x, ruff T201 + E,F,I,B,UP,TID, mypy --strict, pytest with `live` marker, `pyyaml>=6` added to dev for Plan 05 release.yml structural assertions), shipped `.gitignore` + MIT `LICENSE` + stub `README.md` (Rule-3 deviation so hatchling resolves `readme="README.md"`), and committed `uv.lock`. `uv sync --extra dev` and `uv build` both succeed; wheel ships `reader/` + `sender/` empty `__init__.py` files (REL-05 ship-shape). 3 atomic commits, ~169 s.
+- **Executed Phase 0 Plan 02 (Wave 2):** landed the executable spine — FastMCP stdio server module (`whatsapp_mcp.server.mcp` + `run()`), argparse CLI with lazy server import (`--version` / `--help` exit before FastMCP loads), `python -m whatsapp_mcp` shim, the frozen 5-class `WhatsAppMCPError` → `PermissionRequired` → `{FullDiskAccess,Automation,Accessibility}Required` exception hierarchy with `bucket` + `system_settings_url` class attributes, the Pydantic v2 `DoctorReport` / `PermissionStatus` contracts (Literal-typed enums, `all_granted` as a `@property` not a field), and the pure `resolve_chatstorage_path()` resolver. `uv run whatsapp-mcp --version` and `uv run python -m whatsapp_mcp --version` both print `whatsapp-mcp 0.1.0` and exit 0. Server import emits zero stdout bytes (P-PHASE0-01 invariant). One Rule-1 deviation: server.py docstring re-worded to omit the literal `transport=` token so the plan's strict file-wide grep gate passes. 3 atomic commits, ~180 s.
 
 ### Next Session
 
-- Continue `/gsd-execute-phase 0` Wave 2: Plan 02 (FastMCP server + CLI + exception hierarchy + Pydantic models) is the next dependency root and unblocks Plans 03, 04, 05.
+- Continue `/gsd-execute-phase 0` Wave 3: Plan 03 (permission probes + `doctor` tool registration). Plan 03's executor edits exactly `src/whatsapp_mcp/server.py:44` (the insertion-site comment marking the single-line edit) and adds `tools/doctor.py` + `permissions/{fda,automation,accessibility,osascript}.py` against the frozen Plan 02 contracts.
 
 ### Files Most Recently Touched
 
-- `pyproject.toml`, `README.md`, `LICENSE`, `.gitignore`, `uv.lock` (created)
-- `src/whatsapp_mcp/` package tree with 6 `__init__.py` files (created)
-- `tests/` skeleton with 4 `__init__.py` files (created)
-- `.planning/phases/00-setup-and-permissions-skeleton/00-01-SUMMARY.md` (created)
-- `.planning/STATE.md`, `.planning/ROADMAP.md` (updated)
+- `src/whatsapp_mcp/{server,cli,__main__,exceptions,paths}.py` (created — Plan 02 Tasks 1–3)
+- `src/whatsapp_mcp/models/doctor.py` (created — Plan 02 Task 1)
+- `.planning/phases/00-setup-and-permissions-skeleton/00-02-SUMMARY.md` (created)
+- `.planning/STATE.md`, `.planning/ROADMAP.md`, `.planning/REQUIREMENTS.md` (updated)
 
 ---
-*State updated: 2026-05-13 after Phase 0 Plan 01 executed (Wave 1 done)*
+*State updated: 2026-05-13 after Phase 0 Plan 02 executed (Wave 2 done)*
