@@ -48,17 +48,38 @@ _EXPECTED_TOOL_NAMES: frozenset[str] = frozenset(
 
 @pytest.mark.asyncio
 async def test_eight_tools_registered() -> None:
-    """``mcp.list_tools()`` returns exactly the 8 read tools (doctor + 7 reads)."""
+    """``mcp.list_tools()`` includes the 8 read tools (doctor + 7 reads).
+
+    Phase 2 Plan 02-05 introduces tool-tier tests for ``send_message``
+    that import the module at collection time, which (via the
+    ``@mcp.tool`` decorator side-effect) permanently registers the 9th
+    tool in the process's FastMCP instance. This test therefore asserts
+    the 8 read tools are a SUBSET of the registered names — drift in
+    the read-tool surface still fails the assertion; the optional
+    ``send_message`` 9th name is tolerated.
+    """
     tools = await mcp.list_tools()
     names = {t.name for t in tools}
-    assert names == _EXPECTED_TOOL_NAMES, f"tool registration drift: {names ^ _EXPECTED_TOOL_NAMES}"
+    missing = _EXPECTED_TOOL_NAMES - names
+    assert not missing, f"missing expected read tools: {missing}"
+    # The only acceptable extra name is the gated ``send_message``.
+    extras = names - _EXPECTED_TOOL_NAMES
+    assert extras <= {"send_message"}, f"unexpected tool registration drift: {extras}"
 
 
 @pytest.mark.asyncio
 async def test_every_tool_is_read_only_hint() -> None:
-    """All 8 tools carry ``annotations.readOnlyHint == True`` (Plan 04 + Phase 0 contract)."""
+    """All 8 READ tools carry ``annotations.readOnlyHint == True`` (Plan 04 contract).
+
+    Phase 2's ``send_message`` (which Plan 02-05 may register globally
+    in this process) is explicitly ``readOnlyHint=False`` per D-20; we
+    skip it here. The 8 Phase 0/1 read tools MUST all carry
+    ``readOnlyHint=True`` regardless.
+    """
     tools = await mcp.list_tools()
     for t in tools:
+        if t.name == "send_message":
+            continue  # send_message intentionally readOnlyHint=False (D-20)
         assert t.annotations is not None, f"tool {t.name} has no annotations"
         assert t.annotations.readOnlyHint is True, f"tool {t.name} missing readOnlyHint=True"
 
