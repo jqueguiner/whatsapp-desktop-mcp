@@ -25,7 +25,13 @@
   2. From Claude Desktop, the user can invoke a `doctor`-style preflight tool (or equivalent ping) and receive a structured response — never a Python traceback — that names which macOS permissions are missing (`FullDiskAccessRequired` / `AutomationPermissionRequired` / `AccessibilityPermissionRequired`) along with the exact binary path to grant and a `x-apple.systempreferences:` deep-link.
   3. CI runs a stdout-purity test that spawns the server, sends `initialize` plus a sample tool call, and fails if any non-JSON-RPC byte hits stdout; ruff's `T201` rule blocks `print` statements at lint time.
   4. The published README opens with a WhatsApp ToS / account-ban disclaimer and a 60-second `uvx`-based quickstart, framed as "this is your personal account, not a bot."
-**Plans:** TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 00-01-PLAN.md — Project skeleton, pyproject.toml, uv-managed deps
+- [ ] 00-02-PLAN.md — FastMCP stdio server, CLI entry point, exception hierarchy, Pydantic models
+- [ ] 00-03-PLAN.md — Permission probes (FDA / Automation / Accessibility) and the doctor MCP tool
+- [ ] 00-04-PLAN.md — Test suite — stdout purity, doctor registration, exception shape, probe mocking, REL-05 isolation
+- [ ] 00-05-PLAN.md — GitHub Actions CI + release.yml + README + claude_desktop_config.json example
 **Avoids pitfalls:** P7 (stdout pollution), P4 (wrong-binary FDA), P13 (sandboxed-launch automation strip), P14 (ToS disclaimer), P15 (TCC churn — documented as a Phase 3 problem, flagged here).
 
 ### Phase 1: Read MVP (`--read-only`)
@@ -73,7 +79,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Setup & Permissions Skeleton | 0/0 | Not started | - |
+| 0. Setup & Permissions Skeleton | 0/5 | Planned | - |
 | 1. Read MVP (`--read-only`) | 0/0 | Not started | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |

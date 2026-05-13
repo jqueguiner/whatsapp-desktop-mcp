@@ -1394,19 +1394,21 @@ send tools (Phase 1+) will work.
 | A4 | `setup-uv@v8` is current; major version pin is the right cadence | §"Code Examples / ci.yml" | Low — actions are versioned conservatively; v8 is the documented current major as of 2026-04 |
 | A5 | The `id of application "WhatsApp"` probe distinguishes "not installed" (-1728) from "Automation denied" (-1743) reliably across macOS versions | §"AppleScript Probe Error Code Map" | Medium — if a future macOS pre-empts the bundle-lookup with a TCC check (returning -1743 before the system can determine the app exists), our `whatsapp_not_installed` branch becomes unreachable. Acceptable: in that case we report `denied`, the user goes to grant the permission, sees no row to check, and infers "not installed" from the missing entry |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the doctor probe also detect a denied-but-prompt-pending state?**
+> All three carry an authoritative `Recommendation:` line and are wired into the plans accordingly: Q1 → Plan 03 falls through to `denied` with an "unexpected-result" remediation message; Q2 → Plan 03 uses `sys.executable` (no `os.readlink`); Q3 → Plan 04 ships only the SDK-layer `test_doctor_tool.py`, no protocol-layer harness. None blocks Phase 0 execution.
+
+1. **RESOLVED. Should the doctor probe also detect a denied-but-prompt-pending state?**
    - What we know: macOS 14+ adds `errAEEventWouldRequireUserConsent` (-1744) which means "user has not yet been prompted, the system would need to prompt them now."
    - What's unclear: whether a `subprocess`-launched osascript can ever surface this state, or whether the prompt is suppressed entirely under non-bundled callers.
    - Recommendation: don't special-case it in Phase 0; if the probe returns -1744, treat it as `denied` with remediation "an authorization prompt may be pending — focus the system to dismiss it, then re-run doctor."
 
-2. **What's the right `binary_path` value when running under `uvx`?**
+2. **RESOLVED. What's the right `binary_path` value when running under `uvx`?**
    - What we know: `sys.executable` is the resolved Python interpreter — typically deep inside `~/.local/share/uv/python/cpython-3.12.x.../bin/python3.12`. That IS the binary the user must add to TCC. CONTEXT.md D-11 already specifies `sys.executable`.
    - What's unclear: whether the user benefits from also showing `os.readlink(sys.executable)` to surface stable vs symlink. Probably not in Phase 0.
    - Recommendation: `sys.executable` only. Phase 3's signed-launcher work will replace this with a stable absolute path.
 
-3. **Do we need an explicit `tools/list` smoke test beyond `test_stdout_purity.py`?**
+3. **RESOLVED. Do we need an explicit `tools/list` smoke test beyond `test_stdout_purity.py`?**
    - What we know: `test_stdout_purity.py` already calls `tools/list` and `tools/call doctor`, so the registration path is exercised.
    - What's unclear: whether the planner wants to assert exact `tools/list` JSON shape (e.g., `tools[0].annotations.readOnlyHint == true`) at the protocol layer rather than the SDK layer. The protocol-layer test would catch SDK regressions where a future `mcp[cli]` minor version drops the annotation field by accident.
    - Recommendation: ship the SDK-layer `test_doctor_tool.py` in Phase 0; defer protocol-layer assertion to Phase 1 if it ever becomes a real concern.
