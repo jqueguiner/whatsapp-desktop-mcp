@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from collections import defaultdict
 from typing import Any
 
 from mcp.types import ToolAnnotations
@@ -31,6 +32,7 @@ from mcp.types import ToolAnnotations
 from whatsapp_mcp import reader
 from whatsapp_mcp.exceptions import FullDiskAccessRequired
 from whatsapp_mcp.models import Coverage, CursorError, decode_cursor, encode_cursor
+from whatsapp_mcp.sender import cross_chat_quote
 from whatsapp_mcp.server import mcp
 from whatsapp_mcp.time import cocoa_to_unix, unix_to_cocoa
 from whatsapp_mcp.tools._decorators import timeout
@@ -212,4 +214,16 @@ async def search_messages(
         body["truncated"],
         body["next_cursor"] is not None,
     )
+
+    # SEND-07 / D-15: cross-chat-quote LRU recording. search_messages spans
+    # multiple chats — group by message.chat_id and record each group under
+    # its own chat_id so the LRU's "different chat" semantics are correct
+    # when a future send_message calls check().
+    _by_chat: dict[int, list[str]] = defaultdict(list)
+    for m in messages:
+        if m.body:
+            _by_chat[m.chat_id].append(m.body)
+    for cid, bodies in _by_chat.items():
+        cross_chat_quote.record_bodies(cid, bodies)
+
     return body

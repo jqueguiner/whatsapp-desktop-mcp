@@ -39,6 +39,7 @@ from mcp.types import ToolAnnotations
 from whatsapp_mcp import reader
 from whatsapp_mcp.exceptions import FullDiskAccessRequired
 from whatsapp_mcp.models import Coverage, CursorError, decode_cursor, encode_cursor
+from whatsapp_mcp.sender import cross_chat_quote
 from whatsapp_mcp.server import mcp
 from whatsapp_mcp.tools._decorators import timeout
 
@@ -198,4 +199,11 @@ async def read_chat(
         body["truncated"],
         body["next_cursor"] is not None,
     )
+
+    # SEND-07 / D-15: feed projected message bodies into the cross-chat-quote LRU
+    # so a subsequent send_message can detect "this body was just read from a
+    # DIFFERENT chat" prompt-injection / leak cases. The LRU itself skips
+    # bodies < 40 chars (D-16), so we can pass the raw projection here.
+    cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
+
     return body

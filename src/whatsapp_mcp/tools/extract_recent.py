@@ -25,6 +25,7 @@ from mcp.types import ToolAnnotations
 from whatsapp_mcp import reader
 from whatsapp_mcp.exceptions import FullDiskAccessRequired
 from whatsapp_mcp.models import Coverage
+from whatsapp_mcp.sender import cross_chat_quote
 from whatsapp_mcp.server import mcp
 from whatsapp_mcp.tools._decorators import timeout
 
@@ -147,4 +148,8 @@ async def extract_recent(
         body["count"],
         body["truncated"],
     )
+
+    # SEND-07 / D-15: cross-chat-quote LRU recording (post-char-cap projection).
+    cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
+
     return body

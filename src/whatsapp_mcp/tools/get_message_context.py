@@ -23,6 +23,7 @@ from mcp.types import ToolAnnotations
 
 from whatsapp_mcp import reader
 from whatsapp_mcp.exceptions import FullDiskAccessRequired
+from whatsapp_mcp.sender import cross_chat_quote
 from whatsapp_mcp.server import mcp
 from whatsapp_mcp.tools._decorators import timeout
 
@@ -126,4 +127,19 @@ async def get_message_context(
         parent is not None,
         body["truncated"],
     )
+
+    # SEND-07 / D-15: cross-chat-quote LRU recording. The window messages and
+    # the parent (if present) all belong to the same chat as the target
+    # message_id — record under that chat_id.
+    _window_chat_id: int | None = None
+    if window:
+        _window_chat_id = window[0].chat_id
+    elif parent is not None:
+        _window_chat_id = parent.chat_id
+    if _window_chat_id is not None:
+        _bodies: list[str] = [m.body for m in window if m.body]
+        if parent is not None and parent.body:
+            _bodies.append(parent.body)
+        cross_chat_quote.record_bodies(_window_chat_id, _bodies)
+
     return body
