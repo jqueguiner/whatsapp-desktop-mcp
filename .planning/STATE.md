@@ -1,6 +1,6 @@
 # Project State: WhatsApp MCP
 
-**Last updated:** 2026-05-13 (after Phase 0 context gathered, --auto)
+**Last updated:** 2026-05-13 (after Phase 0 Plan 01 executed, Wave 1 done)
 
 ## Project Reference
 
@@ -20,16 +20,16 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 ## Current Focus
 
 - **Active phase:** Phase 0 — Setup & Permissions Skeleton
-- **Active plan:** None yet (auto-advancing to `/gsd-plan-phase 0 --auto`)
-- **Status:** Phase 0 CONTEXT.md written; ready for planning
-- **Next action:** `/gsd-plan-phase 0 --auto` (auto-chain in flight)
-- **Resume file:** `.planning/phases/00-setup-and-permissions-skeleton/00-CONTEXT.md`
+- **Active plan:** Phase 0, Plan 01 complete; Wave 1 done. Wave 2 next (Plans 02..04 if independent, then Plan 05).
+- **Status:** Skeleton landed (src-layout, pyproject.toml, ruff/mypy/pytest gates, uv.lock, MIT LICENSE, .gitignore, stub README). `uv sync --extra dev` and `uv build` both succeed.
+- **Next action:** Continue `/gsd-execute-phase 0` Wave 2 — typically Plan 02 (FastMCP server + CLI + exception hierarchy + Pydantic models) is the next dependency root.
+- **Resume file:** `.planning/phases/00-setup-and-permissions-skeleton/00-01-SUMMARY.md`
 
 ## Progress
 
 ```
 [                    ] 0/4 phases complete
-Phase 0: ▢ Setup & Permissions Skeleton  (Not started)
+Phase 0: ◐ Setup & Permissions Skeleton  (In progress: 1/5 plans)
 Phase 1: ▢ Read MVP (`--read-only`)      (Not started)
 Phase 2: ▢ Send (UI-automation, guardrails) (Not started)
 Phase 3: ▢ Hardening & Distribution      (Not started)
@@ -37,17 +37,21 @@ Phase 3: ▢ Hardening & Distribution      (Not started)
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Setup & Permissions Skeleton | 0/0 | Not started | - |
+| 0. Setup & Permissions Skeleton | 1/5 | In progress | - |
 | 1. Read MVP (`--read-only`) | 0/0 | Not started | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
 
 ## Performance Metrics
 
-- **Time spent so far:** Initialization + research + requirements + roadmap (one session, 2026-05-13)
+- **Time spent so far:** Initialization + research + requirements + roadmap + Phase 0 plan 01 (one session, 2026-05-13)
 - **Phases completed:** 0 / 4
-- **Plans completed:** 0 / 0 (none planned yet)
-- **Requirements validated:** 0 / 37
+- **Plans completed:** 1 / 5 (Phase 0, Plan 01 — ~169 s, 3 commits, 15 files)
+- **Requirements validated:** 0 / 37 (DIST-01 and SETUP-05 partially scaffolded; full validation in Plan 05)
+
+| Plan | Duration (s) | Tasks | Files | Commits |
+|------|--------------|-------|-------|---------|
+| 00-01 Project skeleton, pyproject.toml, uv-managed deps | 169 | 3 | 15 | 3 |
 
 ## Accumulated Context
 
@@ -89,18 +93,20 @@ None.
 - Initialized PROJECT.md, REQUIREMENTS.md, and full research bundle (SUMMARY, STACK, FEATURES, ARCHITECTURE, PITFALLS).
 - Created ROADMAP.md (4 coarse phases with 100% requirement coverage) and this STATE.md.
 - Gathered Phase 0 context via `/gsd-discuss-phase 0 --auto`: locked decisions on project layout (src-layout `whatsapp_mcp`), MCP framework (FastMCP decorators, mcp[cli]==1.27.1, stdio only), `doctor` scope (3 permission probes only — no schema/version probes), permission probe technique (try-and-catch on small real actions), CI (GitHub Actions on push/PR + release-on-tag PyPI via OIDC).
+- Planned Phase 0 into 5 plans across 4 waves (`/gsd-plan-phase 0 --auto`).
+- **Executed Phase 0 Plan 01 (Wave 1):** scaffolded the src-layout package (`whatsapp_mcp` with empty `permissions/`, `models/`, `tools/`, `reader/`, `sender/` subpackages), wrote `pyproject.toml` (hatchling, mcp[cli]==1.27.1, pydantic 2.x, ruff T201 + E,F,I,B,UP,TID, mypy --strict, pytest with `live` marker, `pyyaml>=6` added to dev for Plan 05 release.yml structural assertions), shipped `.gitignore` + MIT `LICENSE` + stub `README.md` (Rule-3 deviation so hatchling resolves `readme="README.md"`), and committed `uv.lock`. `uv sync --extra dev` and `uv build` both succeed; wheel ships `reader/` + `sender/` empty `__init__.py` files (REL-05 ship-shape). 3 atomic commits, ~169 s.
 
 ### Next Session
 
-- Auto-advancing to `/gsd-plan-phase 0 --auto` to decompose Phase 0 into executable plans.
-- Granularity = coarse → expect 1–3 plans for Phase 0.
-- Likely plan candidates: (a) MCP stdio server skeleton + stdout-hygiene CI + lint/type/test gates, (b) `doctor` preflight tool with the 3-permission probe + structured exception classes, (c) README + ToS disclaimer + uvx publish workflow.
+- Continue `/gsd-execute-phase 0` Wave 2: Plan 02 (FastMCP server + CLI + exception hierarchy + Pydantic models) is the next dependency root and unblocks Plans 03, 04, 05.
 
 ### Files Most Recently Touched
 
-- `.planning/phases/00-setup-and-permissions-skeleton/00-CONTEXT.md` (created)
-- `.planning/phases/00-setup-and-permissions-skeleton/00-DISCUSSION-LOG.md` (created)
-- `.planning/STATE.md` (updated)
+- `pyproject.toml`, `README.md`, `LICENSE`, `.gitignore`, `uv.lock` (created)
+- `src/whatsapp_mcp/` package tree with 6 `__init__.py` files (created)
+- `tests/` skeleton with 4 `__init__.py` files (created)
+- `.planning/phases/00-setup-and-permissions-skeleton/00-01-SUMMARY.md` (created)
+- `.planning/STATE.md`, `.planning/ROADMAP.md` (updated)
 
 ---
-*State updated: 2026-05-13 after Phase 0 discuss --auto*
+*State updated: 2026-05-13 after Phase 0 Plan 01 executed (Wave 1 done)*

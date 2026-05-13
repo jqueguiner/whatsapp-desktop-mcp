@@ -27,7 +27,7 @@
   4. The published README opens with a WhatsApp ToS / account-ban disclaimer and a 60-second `uvx`-based quickstart, framed as "this is your personal account, not a bot."
 **Plans:** 5 plans
 Plans:
-- [ ] 00-01-PLAN.md — Project skeleton, pyproject.toml, uv-managed deps
+- [x] 00-01-PLAN.md — Project skeleton, pyproject.toml, uv-managed deps (00-01-SUMMARY.md, 2026-05-13)
 - [ ] 00-02-PLAN.md — FastMCP stdio server, CLI entry point, exception hierarchy, Pydantic models
 - [ ] 00-03-PLAN.md — Permission probes (FDA / Automation / Accessibility) and the doctor MCP tool
 - [ ] 00-04-PLAN.md — Test suite — stdout purity, doctor registration, exception shape, probe mocking, REL-05 isolation
@@ -79,7 +79,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Setup & Permissions Skeleton | 0/5 | Planned | - |
+| 0. Setup & Permissions Skeleton | 1/5 | In progress | - |
 | 1. Read MVP (`--read-only`) | 0/0 | Not started | - |
 | 2. Send (UI-automation, guardrails) | 0/0 | Not started | - |
 | 3. Hardening & Distribution | 0/0 | Not started | - |
