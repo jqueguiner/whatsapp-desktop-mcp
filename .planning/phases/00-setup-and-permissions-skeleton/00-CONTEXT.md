@@ -41,8 +41,8 @@ Out of scope (this phase): every read tool, every send tool, schema parsing, FTS
 ### Permission Probe Technique
 - **D-09:** Probes are **try-and-catch on small real actions**, not pyobjc TCC API calls and not `tccutil`/TCC.db reads.
   - **FDA**: `os.stat(db_path)` → `PermissionError` (errno EACCES / EPERM) → `denied`. `FileNotFoundError` → `whatsapp_not_installed`.
-  - **Automation (WhatsApp)**: `subprocess.run(["osascript","-e",'tell application "WhatsApp" to count windows'], capture_output=True, timeout=3)`. Map: exit 0 → `granted`; stderr contains `-1743` → `denied`; stderr contains `-1728`/`-600` → `whatsapp_not_installed`.
-  - **Accessibility**: `osascript -e 'tell application "System Events" to count processes'` with timeout 3. Map: exit 0 → `granted`; stderr contains `-1719`/`-25211` → `denied`.
+  - **Automation (WhatsApp)**: `subprocess.run(["osascript","-e",'id of application "WhatsApp"'], capture_output=True, timeout=3)`. Map: exit 0 → `granted`; stderr trailing `(-1743)` → `denied`; stderr trailing `(-1728)` / `(-600)` → `whatsapp_not_installed`; stderr trailing `(-1708)` → `granted` (event not handled by WA but Apple Events succeeded, which is what we're really probing). **Empirical override of an earlier draft** that used `tell application "WhatsApp" to count windows` — WA Catalyst returns `-1708` even when Automation is granted, which would mis-classify. Verified on the user's Mac 2026-05-13 (see 00-RESEARCH.md).
+  - **Accessibility**: `osascript -e 'tell application "System Events" to count processes'` with timeout 3. Map: exit 0 → `granted`; stderr trailing `(-1719)` / `(-25211)` → `denied`. Match the trailing `(-NNNN)` numeric error code only — AppleScript stderr is locale-localized (the user's machine emits French prose), so prose regex breaks.
 - **D-10:** Each probe runs in `asyncio.to_thread` / `asyncio.create_subprocess_exec` with a 3-second wait_for, so the stdio loop never blocks on a stalled `osascript`.
 - **D-11:** Every `denied` response includes:
   - `binary_path`: `sys.executable` (when running under `uvx`, this is the resolved interpreter path the user must add to the corresponding TCC list)
