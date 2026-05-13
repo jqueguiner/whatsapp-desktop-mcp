@@ -71,11 +71,12 @@ REL-05 D-24 invariant
 This module imports from ``whatsapp_mcp.exceptions`` (for
 :class:`RateLimitExceeded` / :class:`InvalidChatId`) and
 ``whatsapp_mcp.paths`` (for ``resolve_chatstorage_path``, consumed by
-the lazy DB-path-distinctness guard). It imports NOTHING from
-``whatsapp_mcp.reader.*`` — the project's read-side data tier is
-strictly downstream of this guardrail module; only the verifier
-sibling (``sender/verify.py``, Plan 02-03) is allowed the
-``reader.connection`` edge per the D-24 evolved isolation rule.
+the lazy DB-path-distinctness guard). It imports NOTHING from the
+project's read-side data tier — the read-package DB-connection
+helpers and message accessors are strictly downstream of this
+guardrail module; only the verifier sibling (``sender/verify.py``,
+Plan 02-03) is allowed a read-tier edge per the D-24 evolved
+isolation rule.
 """
 
 from __future__ import annotations
