@@ -103,6 +103,27 @@ class SchemaFingerprint(BaseModel):
             "states; empty string when ``state=='supported'``."
         ),
     )
+    # Phase 3 Plan 03-03 ADDITIONS (D-20).
+    # APPENDED after ``remediation`` so existing serialization order on the
+    # leading fields stays byte-stable for any downstream JSON-shape
+    # snapshot tests (D-07-style discipline applied to SchemaFingerprint).
+    supported_version_range: tuple[int, int] = Field(
+        default=(1, 1),
+        description=(
+            "Lower/upper Z_VERSION bounds sourced from docs/tested_versions.md "
+            "at module load. doctor compares observed_version against this "
+            "range to populate degraded_mode_warning."
+        ),
+    )
+    degraded_mode_warning: str | None = Field(
+        default=None,
+        description=(
+            "Set when observed Z_VERSION is in-range but WhatsApp.app version "
+            "is outside the tested matrix. Structured for LLM consumption: "
+            "'WhatsApp.app v{x} not in tested-versions.md (last tested: {y}); "
+            "reads may degrade silently.'"
+        ),
+    )
 
 
 class DoctorReport(BaseModel):

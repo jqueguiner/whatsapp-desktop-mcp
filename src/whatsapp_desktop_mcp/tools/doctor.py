@@ -253,6 +253,31 @@ async def doctor() -> DoctorReport:
     # public app-bundle resource (not in a TCC-protected container).
     wa_version = await _probe_whatsapp_version()
 
+    # Phase 3 D-20 — degraded-mode warning when wa_version is outside the
+    # tested matrix. Re-read SUPPORTED_VERSION_RANGE + _load_tested_wa_versions
+    # at call time (NOT bound at import) so monkeypatched alternate paths
+    # are observed in tests. The W-4 lesson from Phase 1 D-19 applies: live
+    # module attribute access via `from whatsapp_desktop_mcp.reader import
+    # tested_versions; tested_versions.SUPPORTED_VERSION_RANGE` rather
+    # than the import-time-bound form.
+    from whatsapp_desktop_mcp.reader import tested_versions
+
+    schema_fp = schema_fp.model_copy(
+        update={"supported_version_range": tested_versions.SUPPORTED_VERSION_RANGE}
+    )
+    if wa_version is not None and schema_fp.state == "supported":
+        tested_wa = tested_versions._load_tested_wa_versions()
+        if wa_version not in tested_wa:
+            latest = max(tested_wa, default="(none)")
+            schema_fp = schema_fp.model_copy(
+                update={
+                    "degraded_mode_warning": (
+                        f"WhatsApp.app v{wa_version} not in tested-versions.md "
+                        f"(last tested: {latest}); reads may degrade silently."
+                    )
+                }
+            )
+
     return DoctorReport(
         full_disk_access=fda_status,
         automation_whatsapp=automation_status,

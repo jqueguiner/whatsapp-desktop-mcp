@@ -163,9 +163,7 @@ async def test_doctor_sets_degraded_warning_when_wa_version_oor(
 
     table = tmp_path / "tv.md"
     table.write_text(
-        "| WA | macOS | Z_VERSION |\n"
-        "|----|-------|-----------|\n"
-        "| 26.16.74 | 26.4 | 1 |\n",
+        "| WA | macOS | Z_VERSION |\n|----|-------|-----------|\n| 26.16.74 | 26.4 | 1 |\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(tested_versions, "_TESTED_VERSIONS_PATH", table)
@@ -226,9 +224,7 @@ async def test_doctor_leaves_degraded_warning_none_when_wa_version_in_matrix(
 
     table = tmp_path / "tv.md"
     table.write_text(
-        "| WA | macOS | Z_VERSION |\n"
-        "|----|-------|-----------|\n"
-        "| 26.16.74 | 26.4 | 1 |\n",
+        "| WA | macOS | Z_VERSION |\n|----|-------|-----------|\n| 26.16.74 | 26.4 | 1 |\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(tested_versions, "_TESTED_VERSIONS_PATH", table)
