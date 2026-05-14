@@ -27,6 +27,35 @@ jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
+  # ---------------------------------------------------------------------
+  # preflight: emits secret-presence flags as outputs.
+  # GitHub Actions does NOT allow `secrets.*` (or `env.*`) in job-level
+  # `if:` expressions — only `needs.*.outputs.*` is allowed. So this tiny
+  # job lifts the secret-existence check into a job output that downstream
+  # jobs (pkg-build, tap-update) can gate on.
+  # ---------------------------------------------------------------------
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      has_apple_cert: ${{ steps.gate.outputs.has_apple_cert }}
+      has_brew_key: ${{ steps.gate.outputs.has_brew_key }}
+    steps:
+      - id: gate
+        env:
+          APPLE_CERT: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          BREW_KEY: ${{ secrets.BREW_TAP_DEPLOY_KEY }}
+        run: |
+          if [ -n "${APPLE_CERT}" ]; then
+            echo "has_apple_cert=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_apple_cert=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "${BREW_KEY}" ]; then
+            echo "has_brew_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_brew_key=false" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
     needs: [ci]
     runs-on: macos-14
@@ -66,11 +95,9 @@ jobs:
   # runners; the env mapping lifts the secret existence check into a string
   # comparison that `if:` evaluates reliably.
   pkg-build:
-    needs: [publish]
+    needs: [preflight, publish]
+    if: needs.preflight.outputs.has_apple_cert == 'true'
     runs-on: macos-14
-    env:
-      HAS_CERT: ${{ secrets.APPLE_INSTALLER_CERT_P12 != '' && 'true' || 'false' }}
-    if: ${{ secrets.APPLE_INSTALLER_CERT_P12 != '' }}
     permissions:
       contents: write   # required for softprops/action-gh-release@v2 release upload
     steps:
@@ -178,11 +205,9 @@ jobs:
   # preserved with the supported tool).
   # Pitfalls covered: P3 (PyPI CDN propagation — sleep 30 ahead of curl).
   tap-update:
-    needs: [publish]
+    needs: [preflight, publish]
+    if: needs.preflight.outputs.has_brew_key == 'true'
     runs-on: macos-14
-    env:
-      HAS_DEPLOY_KEY: ${{ secrets.BREW_TAP_DEPLOY_KEY != '' && 'true' || 'false' }}
-    if: ${{ secrets.BREW_TAP_DEPLOY_KEY != '' }}
     permissions:
       contents: read   # write access to the tap repo is via the deploy key
     steps:
