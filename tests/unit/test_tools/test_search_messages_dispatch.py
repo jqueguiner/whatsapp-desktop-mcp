@@ -192,7 +192,7 @@ async def test_dispatch_auto_sidecar_absent_calls_like_search(
 
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     fts_mock = mock.AsyncMock(return_value=[_make_message("S2", "hi from fts")])
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
 
     result = await _call_search_messages(query="hi from")
@@ -223,7 +223,7 @@ async def test_dispatch_auto_sidecar_present_calls_fts5_search(
 
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     fts_mock = mock.AsyncMock(return_value=[_make_message("S2", "hi from fts")])
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
 
     result = await _call_search_messages(query="hi from")
@@ -255,7 +255,7 @@ async def test_dispatch_force_sidecar_absent_lazy_builds_then_fts5(
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     monkeypatch.setattr(search_fts5, "build_or_refresh", build_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
 
     result = await _call_search_messages(query="hi from")
     assert result["count"] == 1
@@ -286,7 +286,7 @@ async def test_dispatch_disable_always_uses_like(
 
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     fts_mock = mock.AsyncMock(return_value=[_make_message("S2", "hi from fts")])
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
 
     result = await _call_search_messages(query="hi from")
@@ -319,7 +319,7 @@ async def test_dispatch_fts5_operational_error_falls_back_to_like(
     fts_mock = mock.AsyncMock(side_effect=boom)
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "fallback hit")])
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
 
     result = await _call_search_messages(query="fallback hit")
     assert result["count"] == 1
@@ -352,7 +352,7 @@ async def test_full_disk_access_required_mapping_unchanged_under_like(
         remediation="grant in System Settings",
     )
     like_mock = mock.AsyncMock(side_effect=fda)
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
 
     with pytest.raises(ValueError) as excinfo:
         await _call_search_messages(query="anything")
@@ -383,7 +383,7 @@ async def test_full_disk_access_required_mapping_unchanged_under_fts5(
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
     # Belt-and-braces: ensure the LIKE fallback is NOT consulted on FDA.
     like_mock = mock.AsyncMock(return_value=[])
-    monkeypatch.setattr(search_messages_module.reader, "like_search", like_mock)
+    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
 
     with pytest.raises(ValueError) as excinfo:
         await _call_search_messages(query="anything")
@@ -409,7 +409,7 @@ async def _call_search_messages(**kwargs: Any) -> dict[str, Any]:
     # the FunctionTool surface, but at runtime FastMCP exposes ``fn``
     # for direct invocation in tests. Fall back to __wrapped__ if needed.
     if hasattr(sm, "fn"):
-        return await sm.fn(**kwargs)  # type: ignore[no-any-return,attr-defined]
+        return await sm.fn(**kwargs)  # type: ignore[no-any-return]
     if hasattr(sm, "__wrapped__"):
         result = await sm.__wrapped__(**kwargs)
         assert isinstance(result, dict)

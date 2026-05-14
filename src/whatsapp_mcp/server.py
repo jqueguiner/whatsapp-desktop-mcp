@@ -76,6 +76,19 @@ mcp: FastMCP = FastMCP("whatsapp-mcp")
 # Phase 1 read tools always carry `readOnlyHint=True` regardless of this flag.
 read_only_mode: bool = True
 
+# Phase 3 D-29: dispatch flag for the search_messages FTS5 sidecar
+# (CONTEXT.md D-12..D-18). Mirrors `read_only_mode` mechanics — set by
+# cli.main BEFORE tools/search_messages.py is imported via the read-tool
+# registration block below; the tool body inspects `server.fts5_mode` at
+# call time (NOT at import time — see W-4 lesson, Phase 1: live module
+# attribute access via `from whatsapp_mcp import server; server.fts5_mode`
+# rather than `from whatsapp_mcp.server import fts5_mode` which would bind
+# the value at import time and miss the cli mutation). Allowed values:
+# "auto" (default — use FTS5 if the sidecar exists, else fall back to LIKE),
+# "force" (always FTS5; lazy-build the sidecar if absent), or
+# "disable" (always LIKE; Phase 1 v0.1 behavior).
+fts5_mode: str = "auto"
+
 from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
 
 # --- Plan 01-04 read-tool registration block (alphabetized) ---
