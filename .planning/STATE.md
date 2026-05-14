@@ -80,6 +80,9 @@ Phase 3: ◐ Hardening & Distribution      (5/5 plans — 03-01 FTS5 sidecar + d
 
 ## Accumulated Context
 
+### Roadmap Evolution
+- 2026-05-14: Phase 4 added — "Rust port (parallel binary, additive)". Spike of Rust MCP server as second binary `whatsapp-desktop-mcp-rs` shipped alongside Python. Python stays load-bearing for v1.0; promotion → primary deferred until parity verified. Code in `rs/` (Cargo workspace). Don't override existing Python source.
+
 ### Key Decisions (carried from PROJECT.md)
 
 | Decision | Rationale | Status |

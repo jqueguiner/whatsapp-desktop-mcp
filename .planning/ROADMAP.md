@@ -12,6 +12,7 @@
 - [x] **Phase 1: Read MVP (`--read-only`)** — User can list, read, search, and inspect WhatsApp chats from Claude Desktop with all read tools live behind the `--read-only` flag ✓ verified 2026-05-13
 - [x] **Phase 2: Send (UI-automation, behind safety guardrails)** — User can send a single text message to a resolved chat, gated by elicitation confirmation, rate limiter, and audit log ✓ verified 2026-05-13
 - [x] **Phase 3: Hardening & Distribution** — End-user can install via signed `.pkg` / brew, permissions persist across upgrades, search is FTS5-backed, and a tested-versions matrix documents known-good WhatsApp Desktop builds ✓ verified 2026-05-14 (pending maintainer rc1 dry-run + Apple Developer cert bootstrap)
+- [ ] **Phase 4: Rust port (parallel binary, additive)** — Spike a Rust rewrite of the MCP server as a SECOND binary `whatsapp-desktop-mcp-rs` shipped alongside the Python `whatsapp-desktop-mcp`. Python implementation stays load-bearing v1.0; Rust is a parallel experiment. Decision to promote Rust → primary deferred until parity verified. Don't override existing Python code.
 
 ## Phase Details
 
@@ -94,6 +95,20 @@ Plans:
 - [x] 03-05-PLAN.md — Pre-release smoke suite (RUN_LIVE_WHATSAPP=1 composing Phase 1 + Phase 2 + FTS5; D-24 fixture extension) (03-05-SUMMARY.md, 2026-05-14)
 **Avoids pitfalls:** P15 (pipx/uvx TCC churn — solved by stable signed-launcher path), reinforces P2 (schema fingerprint via tested_versions + smoke suite), P4 (FDA documented per binary), P13 (Automation entitlement bundled in `.pkg`).
 
+### Phase 4: Rust port (parallel binary, additive)
+**Goal:** Spike a Rust rewrite of the MCP server as a parallel binary `whatsapp-desktop-mcp-rs` shipped alongside the existing Python `whatsapp-desktop-mcp`. Python stays load-bearing for v1.0; Rust is an experimental second-track that proves out (a) startup cold-time + memory footprint vs Python+pyobjc, (b) maintainability of the AppleScript send path in Rust, (c) static-binary distribution simplicity vs venv `.pkg`. Decision to promote Rust → primary deferred until parity verified across all v1.0 user-visible surfaces (8 read tools + send_message + doctor) and a separate "rust-on" tested_versions.md row exists.
+**Mode:** mvp (per-phase mode — every plan delivers an end-to-end user-visible capability against the Rust binary, even if minimal)
+**Depends on:** Phase 3 (Python v1.0 ships; Rust is additive against the same WhatsApp Desktop env)
+**Requirements:** None new (no v1 REQ-IDs added; this phase is exploratory). Implicit non-goals: Rust port MUST NOT regress any Python-side functionality, MUST NOT replace any Python source file, MUST NOT change install paths for existing Python binary.
+**Success Criteria** (what must be TRUE):
+  1. New top-level directory `rs/` (Cargo workspace) ships alongside `src/whatsapp_desktop_mcp/` (Python). Building Rust does NOT touch Python; running Python tests does NOT require Rust toolchain. Both binaries co-exist in the repo root with zero shared source files.
+  2. `cargo build --release` produces a static-as-possible binary at `rs/target/release/whatsapp-desktop-mcp-rs` that registers as an MCP stdio server with no JSON-RPC errors, and exposes at minimum a `doctor` tool returning the same 3-permission preflight + DB path + WhatsApp.app version structure as the Python `doctor`.
+  3. Cross-binary parity test (`tests/integration/test_rust_python_parity.py`, RUN_LIVE_RUST=1) calls the same MCP tool against both binaries against the same WhatsApp Desktop install and asserts response shapes match (not byte-equal — semantic equivalence on chat_id, message_id, coverage, doctor probe state).
+  4. README adds a "Rust port (experimental)" subsection under Install with a `cargo install --git` invocation; existing Python install paths (brew, .pkg, uvx) byte-stable.
+  5. The Rust port does NOT add to release.yml's PyPI publish job (Rust artifact distribution is a Phase 4.x decision; v1.0 ships Python only). A separate GitHub release asset attached via a Phase-4 `cargo-build` job is acceptable.
+**Plans:** TBD
+**Avoids pitfalls:** New surface — to be enumerated by the Phase 4 researcher. Likely candidates: Rust pyobjc-equivalent for AX-API (pure-objc2 vs cocoa crate), MCP Rust SDK availability (anthropics/modelcontextprotocol-rust may not exist; community crate `mcp-server` exists), SQLite read concurrency in rust+rusqlite vs Python+sqlite3, AppleScript invocation from Rust (Command::new("osascript") works the same), TCC permission inheritance under cargo-built binary (same P15 problem — solved similarly via signed binary at stable path).
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -102,6 +117,7 @@ Plans:
 | 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
 | 2. Send (UI-automation, guardrails) | 5/5 | ✓ Complete | 2026-05-13 |
 | 3. Hardening & Distribution | 5/5 | ✓ Complete (pending rc1) | 2026-05-14 |
+| 4. Rust port (parallel binary, additive) | 0/0 | Not started | - |
 
 ## Coverage Summary
 
