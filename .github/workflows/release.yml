@@ -62,8 +62,6 @@ jobs:
     environment:
       name: pypi
       url: https://pypi.org/p/whatsapp-desktop-mcp
-    permissions:
-      id-token: write   # MANDATORY for OIDC trusted-publisher; without it, PyPI returns 403
     steps:
       - uses: actions/checkout@v4
 
@@ -76,7 +74,13 @@ jobs:
       - name: Build distribution
         run: uv build
 
-      - name: Publish to PyPI (uv)
+      - name: Publish to PyPI (uv, token auth)
+        # Token auth via PYPI_TOKEN repo secret. Maintainer rotates after
+        # first publish. Migrate to OIDC trusted-publisher (id-token: write
+        # + environment-pinned) post-rotation if desired — see
+        # docs/release-setup.md §"PyPI trusted-publisher migration".
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: uv publish
 
   # ---------------------------------------------------------------------
