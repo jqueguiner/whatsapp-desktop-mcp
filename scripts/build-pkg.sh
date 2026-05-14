@@ -27,7 +27,7 @@
 #   D-03 (self-contained Python venv bundle)
 #   D-05 (stdout purity carries through the launcher — exec, no echo)
 #   T-3 (stable absolute path /usr/local/bin/whatsapp-desktop-mcp; pkgbuild --identifier
-#        net.gladia.whatsapp-desktop-mcp ensures macOS treats upgrades as same-package)
+#        net.jqueguiner.whatsapp-desktop-mcp ensures macOS treats upgrades as same-package)
 #
 # Research lock: `python -m venv --copies` is the venv tool here.
 #   The uv-side relocatable-venv flag is deliberately NOT used: uv #3587
@@ -40,7 +40,7 @@ set -euo pipefail
 
 VERSION="${VERSION:?VERSION env var required}"
 STAGING_DIR="${STAGING_DIR:-/tmp/whatsapp-desktop-mcp-pkg}"
-BUNDLE_ID="net.gladia.whatsapp-desktop-mcp"
+BUNDLE_ID="net.jqueguiner.whatsapp-desktop-mcp"
 INSTALL_PREFIX="/usr/local"
 VENV_DIR="${STAGING_DIR}${INSTALL_PREFIX}/lib/whatsapp-desktop-mcp/.venv"
 BIN_DIR="${STAGING_DIR}${INSTALL_PREFIX}/bin"

@@ -28,7 +28,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Custom tap (gladia/whatsapp-desktop-mcp) | User-controlled iteration; no upstream review queue. Promote later if demand. | ✓ |
+| Custom tap (jqueguiner/whatsapp-desktop-mcp) | User-controlled iteration; no upstream review queue. Promote later if demand. | ✓ |
 | homebrew-core | "Official"; 2-4 week review queue per release. | |
 | No brew, .pkg only | Cuts a channel. | |
 

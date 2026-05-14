@@ -24,12 +24,12 @@
     <welcome file="welcome.html" mime-type="text/html"/>
     <choices-outline>
         <line choice="default">
-            <line choice="net.gladia.whatsapp-desktop-mcp"/>
+            <line choice="net.jqueguiner.whatsapp-desktop-mcp"/>
         </line>
     </choices-outline>
     <choice id="default"/>
-    <choice id="net.gladia.whatsapp-desktop-mcp" visible="false">
-        <pkg-ref id="net.gladia.whatsapp-desktop-mcp"/>
+    <choice id="net.jqueguiner.whatsapp-desktop-mcp" visible="false">
+        <pkg-ref id="net.jqueguiner.whatsapp-desktop-mcp"/>
     </choice>
-    <pkg-ref id="net.gladia.whatsapp-desktop-mcp" version="VERSION_PLACEHOLDER" onConclusion="none">whatsapp-desktop-mcp-VERSION_PLACEHOLDER-component.pkg</pkg-ref>
+    <pkg-ref id="net.jqueguiner.whatsapp-desktop-mcp" version="VERSION_PLACEHOLDER" onConclusion="none">whatsapp-desktop-mcp-VERSION_PLACEHOLDER-component.pkg</pkg-ref>
 </installer-gui-script>

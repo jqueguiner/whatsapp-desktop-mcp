@@ -12,7 +12,7 @@ After completing the steps below, every `git tag v* && git push --tags` will:
 3. Build a Developer-ID-signed + notarized + stapled `.pkg` and attach it to
    the GitHub release (only when the Apple cert secrets are present — see
    the **Skip-block** note below).
-4. Open a PR against `gladia/homebrew-whatsapp-desktop-mcp` with the regenerated
+4. Open a PR against `jqueguiner/homebrew-whatsapp-desktop-mcp` with the regenerated
    Formula (only when `BREW_TAP_DEPLOY_KEY` is present).
 
 > **Skip-block (D-07).** If `APPLE_INSTALLER_CERT_P12` is not set, the
@@ -68,7 +68,7 @@ the first signed-`.pkg` release. Section 8 is the dry-run gate.
    **Individual** if shipping under a personal Apple ID.
    - **Organization:** requires legal-entity verification (D-U-N-S
      number, articles of incorporation). Apple typically takes 5–10
-     business days. This is the right path for `gladia/whatsapp-desktop-mcp`.
+     business days. This is the right path for `jqueguiner/whatsapp-desktop-mcp`.
    - **Individual:** typically approved within 24 hours.
 3. Pay the $99/year membership fee.
 4. Wait for the welcome email confirming enrollment.
@@ -160,7 +160,7 @@ You'll also need:
 
 ## 6. GitHub Actions secrets bootstrap
 
-Visit <https://github.com/gladia/whatsapp-desktop-mcp/settings/secrets/actions>
+Visit <https://github.com/jqueguiner/whatsapp-desktop-mcp/settings/secrets/actions>
 and add the following secrets. The first six are required for signed
 `.pkg` builds; the remaining two are optional (Application-cert + brew
 tap deploy key).
@@ -188,16 +188,16 @@ tap deploy key).
 ## 7. Bootstrap the brew tap
 
 The Homebrew custom tap lives in a separate repository:
-<https://github.com/gladia/homebrew-whatsapp-desktop-mcp>. The `tap-update`
+<https://github.com/jqueguiner/homebrew-whatsapp-desktop-mcp>. The `tap-update`
 job rewrites `Formula/whatsapp-desktop-mcp.rb` in this repo on every release.
 
 To bootstrap:
 
-1. Create a new GitHub repo `gladia/homebrew-whatsapp-desktop-mcp` (empty;
+1. Create a new GitHub repo `jqueguiner/homebrew-whatsapp-desktop-mcp` (empty;
    the name MUST start with `homebrew-` for `brew tap` to recognize it).
 2. Clone it locally:
    ```bash
-   git clone git@github.com:gladia/homebrew-whatsapp-desktop-mcp.git
+   git clone git@github.com:jqueguiner/homebrew-whatsapp-desktop-mcp.git
    cd homebrew-whatsapp-desktop-mcp
    mkdir Formula
    ```
@@ -214,17 +214,17 @@ To bootstrap:
      keys → Add deploy key. Generate via `ssh-keygen -t ed25519` and
      paste the public key. Tick **Allow write access**. Save the
      private key — this becomes `BREW_TAP_DEPLOY_KEY` in the
-     `gladia/whatsapp-desktop-mcp` repo's secrets.
+     `jqueguiner/whatsapp-desktop-mcp` repo's secrets.
    - **Fine-grained PAT** (alternative): Generate at
      <https://github.com/settings/personal-access-tokens/new>, scope
-     to `gladia/homebrew-whatsapp-desktop-mcp` only, **Contents: Read and
+     to `jqueguiner/homebrew-whatsapp-desktop-mcp` only, **Contents: Read and
      Write**. Save the token as `BREW_TAP_DEPLOY_KEY`.
 5. End users install via:
    ```bash
-   brew tap gladia/whatsapp-desktop-mcp        # add the tap
+   brew tap jqueguiner/whatsapp-desktop-mcp        # add the tap
    brew install whatsapp-desktop-mcp           # install the formula
    ```
-   (Or the one-shot `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`.)
+   (Or the one-shot `brew install jqueguiner/whatsapp-desktop-mcp/whatsapp-desktop-mcp`.)
 
 ---
 
@@ -239,7 +239,7 @@ git push origin v0.0.1-rc1
 ```
 
 Watch the Actions run at
-<https://github.com/gladia/whatsapp-desktop-mcp/actions>.
+<https://github.com/jqueguiner/whatsapp-desktop-mcp/actions>.
 
 Expected outputs (when all secrets are configured):
 
@@ -248,7 +248,7 @@ Expected outputs (when all secrets are configured):
 | `ci` | Lint + tests pass |
 | `publish` | PyPI release at `whatsapp-desktop-mcp 0.0.1rc1` |
 | `pkg-build` | GitHub release has `whatsapp-desktop-mcp-0.0.1rc1.pkg` attached; `spctl --assess` passes |
-| `tap-update` | PR opened against `gladia/homebrew-whatsapp-desktop-mcp` with the new Formula |
+| `tap-update` | PR opened against `jqueguiner/homebrew-whatsapp-desktop-mcp` with the new Formula |
 
 > **Don't promote `0.0.1-rc1` to brew users.** This is a dry-run gate
 > only. Once everything is green, delete the test release and tag:

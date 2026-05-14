@@ -43,7 +43,7 @@ key_files:
   modified: []
 decisions:
   - "Console-script entry point named in pyproject.toml ahead of cli.py existing — `[project.scripts] whatsapp-desktop-mcp = whatsapp_desktop_mcp.cli:main` (Plan 02 ships cli.py)"
-  - "Project URLs use `github.com/gladia/whatsapp-desktop-mcp` (CONTEXT.md says replace `<org>` with `gladia` if a single value must be chosen, since user email is jlqueguinet@gladia.io)"
+  - "Project URLs use `github.com/jqueguiner/whatsapp-desktop-mcp` (CONTEXT.md says replace `<org>` with `gladia` if a single value must be chosen, since user email is jlqueguinet@gladia.io)"
   - "Stub `README.md` shipped now (deviation Rule 3) so `hatchling` can resolve `readme = \"README.md\"` during `uv build`; full README ships in Plan 05"
   - "Resolved tool versions diverged from floors: mypy 2.1.0 (floor was 1.10), pytest 9.0.3 (floor was 8.2), ruff 0.15.12 (floor was 0.6) — all backwards-compatible per their changelogs; locked into uv.lock"
 metrics:
@@ -165,7 +165,7 @@ All three commits use the `(00-01)` Conventional Commits scope per the executor 
 
 - **Found during:** Task 2 (writing pyproject.toml).
 - **Issue:** RESEARCH.md ships pyproject.toml with `https://github.com/<org>/whatsapp-desktop-mcp` placeholders that would not be valid URLs.
-- **Fix:** Per PLAN.md Task 2 instructions ("replace `<org>` with `gladia` … if a single value must be chosen"), set `Homepage = "https://github.com/gladia/whatsapp-desktop-mcp"` and `Issues = "https://github.com/gladia/whatsapp-desktop-mcp/issues"`. The user's email is `jlqueguinet@gladia.io`, which matches.
+- **Fix:** Per PLAN.md Task 2 instructions ("replace `<org>` with `gladia` … if a single value must be chosen"), set `Homepage = "https://github.com/jqueguiner/whatsapp-desktop-mcp"` and `Issues = "https://github.com/jqueguiner/whatsapp-desktop-mcp/issues"`. The user's email is `jlqueguinet@gladia.io`, which matches.
 - **Files modified:** `pyproject.toml` (lines 43–44).
 - **Commit:** `0538be4`.
 

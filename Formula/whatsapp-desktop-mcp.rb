@@ -1,9 +1,9 @@
-# Formula/whatsapp-desktop-mcp.rb — Bootstrap formula for the gladia/homebrew-whatsapp-desktop-mcp tap.
+# Formula/whatsapp-desktop-mcp.rb — Bootstrap formula for the jqueguiner/homebrew-whatsapp-desktop-mcp tap.
 #
 # This file is COMMITTED in this repo as the seed Formula that the
 # `tap-update` job in .github/workflows/release.yml uses as the baseline
 # to update on each release. The maintainer copies it into the empty
-# tap repo (gladia/homebrew-whatsapp-desktop-mcp) on first bootstrap (see
+# tap repo (jqueguiner/homebrew-whatsapp-desktop-mcp) on first bootstrap (see
 # docs/release-setup.md §"Bootstrap the brew tap").
 #
 # On every release tag, the `tap-update` job:
@@ -16,12 +16,12 @@
 #   6. Opens a PR via peter-evans/create-pull-request@v6
 #
 # Decisions covered: D-09 (Language::Python::Virtualenv shape), D-10 (auto-publish
-# via brew update-python-resources), D-11 (`brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`).
+# via brew update-python-resources), D-11 (`brew install jqueguiner/whatsapp-desktop-mcp/whatsapp-desktop-mcp`).
 class WhatsappMcp < Formula
   include Language::Python::Virtualenv
 
   desc "MCP server controlling WhatsApp Desktop on macOS"
-  homepage "https://github.com/gladia/whatsapp-desktop-mcp"
+  homepage "https://github.com/jqueguiner/whatsapp-desktop-mcp"
   url "https://files.pythonhosted.org/packages/source/w/whatsapp-desktop-mcp/whatsapp_desktop_mcp-0.1.0.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "MIT"

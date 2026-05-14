@@ -13,7 +13,7 @@ Convert "works on the maintainer's Mac" into "works on a fresh Mac after every W
 2. **FTS5 shadow index** — sidecar SQLite at `~/Library/Application Support/whatsapp-desktop-mcp/fts.sqlite` that powers `search_messages` ranked sub-second results on a 100k-message corpus where v0.1 LIKE was visibly slow.
 3. **Pre-release smoke suite** — `RUN_LIVE_WHATSAPP=1 uv run pytest -m live` exercises doctor + 1 read tool + 1 send tool against the real WhatsApp.app on the maintainer's Mac before each release tag, with B-2-style state sandboxing.
 
-User-visible value: a non-developer downloads a `.pkg` (or runs `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`), grants 3 TCC permissions ONCE to a single binary at a stable path, and reaches a first successful `read_chat` and `send_message` from Claude Desktop in under 10 minutes — and that grant survives subsequent upgrades without re-prompting.
+User-visible value: a non-developer downloads a `.pkg` (or runs `brew install jqueguiner/whatsapp-desktop-mcp/whatsapp-desktop-mcp`), grants 3 TCC permissions ONCE to a single binary at a stable path, and reaches a first successful `read_chat` and `send_message` from Claude Desktop in under 10 minutes — and that grant survives subsequent upgrades without re-prompting.
 
 In scope: DIST-02 (signed-package end-user install path with stable binary location), DIST-03 (README install + platform requirements + 60-second quickstart). Plus implementation work that doesn't carry an explicit REQ-ID but is mandated by ROADMAP §"Phase 3 Notes": FTS5 shadow index, tested_versions.md, smoke suite, audit log rotation (Phase 2 D-14 deferred).
 
@@ -25,9 +25,9 @@ Out of scope (this phase): cross-platform support (Windows/Linux WhatsApp Deskto
 ## Implementation Decisions
 
 ### Distribution Channels
-- **D-01:** **Ship BOTH Homebrew formula via custom tap (`gladia/whatsapp-desktop-mcp`) AND signed/notarized `.pkg` installer.** Both achieve DIST-02's "stable absolute path" requirement: brew puts launcher at `/opt/homebrew/bin/whatsapp-desktop-mcp` (Apple Silicon Macs) or `/usr/local/bin/whatsapp-desktop-mcp` (Intel); `.pkg` explicitly drops at `/usr/local/bin/whatsapp-desktop-mcp` regardless of arch. `uvx whatsapp-desktop-mcp` stays as the dev / contributor path with a documented TCC-churn caveat (uv's managed Python interpreter path changes between upgrades, breaking FDA grants — Pitfall P15).
-- **D-02:** **Custom tap (`gladia/whatsapp-desktop-mcp`), NOT homebrew-core.** Custom tap = user-controlled iteration speed; no upstream review queue (homebrew-core typically takes 2-4 weeks). Promote to homebrew-core if external demand warrants in v1.x. Tap repo: `github.com/gladia/homebrew-whatsapp-desktop-mcp` containing one Formula file `Formula/whatsapp-desktop-mcp.rb`.
-- **D-03:** **`.pkg` is a self-contained Python venv bundle**, NOT a "shell out to system pip" installer. Build via `uv build` (the wheel) + `pyinstaller`-equivalent OR a `pkgbuild`-staged directory containing a relocatable Python 3.12 venv with `whatsapp-desktop-mcp + pyobjc + mcp[cli]` pre-installed. Approach: use `uv venv --relocatable /tmp/staging/usr/local/lib/whatsapp-desktop-mcp/.venv` then `uv pip install /tmp/build/whatsapp_desktop_mcp-0.1.0-py3-none-any.whl` then `pkgbuild --root /tmp/staging --identifier net.gladia.whatsapp-desktop-mcp --version 0.1.0 --install-location / whatsapp-desktop-mcp.pkg`, wrap with `productbuild --distribution distribution.xml whatsapp-desktop-mcp-distribution.pkg`. Launcher script at `/usr/local/bin/whatsapp-desktop-mcp` is a thin shell wrapper invoking the bundled venv's interpreter.
+- **D-01:** **Ship BOTH Homebrew formula via custom tap (`jqueguiner/whatsapp-desktop-mcp`) AND signed/notarized `.pkg` installer.** Both achieve DIST-02's "stable absolute path" requirement: brew puts launcher at `/opt/homebrew/bin/whatsapp-desktop-mcp` (Apple Silicon Macs) or `/usr/local/bin/whatsapp-desktop-mcp` (Intel); `.pkg` explicitly drops at `/usr/local/bin/whatsapp-desktop-mcp` regardless of arch. `uvx whatsapp-desktop-mcp` stays as the dev / contributor path with a documented TCC-churn caveat (uv's managed Python interpreter path changes between upgrades, breaking FDA grants — Pitfall P15).
+- **D-02:** **Custom tap (`jqueguiner/whatsapp-desktop-mcp`), NOT homebrew-core.** Custom tap = user-controlled iteration speed; no upstream review queue (homebrew-core typically takes 2-4 weeks). Promote to homebrew-core if external demand warrants in v1.x. Tap repo: `github.com/jqueguiner/homebrew-whatsapp-desktop-mcp` containing one Formula file `Formula/whatsapp-desktop-mcp.rb`.
+- **D-03:** **`.pkg` is a self-contained Python venv bundle**, NOT a "shell out to system pip" installer. Build via `uv build` (the wheel) + `pyinstaller`-equivalent OR a `pkgbuild`-staged directory containing a relocatable Python 3.12 venv with `whatsapp-desktop-mcp + pyobjc + mcp[cli]` pre-installed. Approach: use `uv venv --relocatable /tmp/staging/usr/local/lib/whatsapp-desktop-mcp/.venv` then `uv pip install /tmp/build/whatsapp_desktop_mcp-0.1.0-py3-none-any.whl` then `pkgbuild --root /tmp/staging --identifier net.jqueguiner.whatsapp-desktop-mcp --version 0.1.0 --install-location / whatsapp-desktop-mcp.pkg`, wrap with `productbuild --distribution distribution.xml whatsapp-desktop-mcp-distribution.pkg`. Launcher script at `/usr/local/bin/whatsapp-desktop-mcp` is a thin shell wrapper invoking the bundled venv's interpreter.
 - **D-04:** **Apple Developer Program account REQUIRED for code-signing.** User has gladia.io email; assume access. If not, the `.pkg` signing job is skipped and only the unsigned `.pkg` is built (with a stark "unsigned" warning in release notes). Brew formula doesn't require Apple signing — Homebrew downloads the wheel from PyPI and builds the formula client-side.
 - **D-05:** **`uvx whatsapp-desktop-mcp` install path remains supported** for developers. README documents it as the contributor path with the TCC churn caveat. End users get pointed at brew or .pkg.
 
@@ -43,12 +43,12 @@ Out of scope (this phase): cross-platform support (Windows/Linux WhatsApp Deskto
 - **D-08:** **One-time setup doc** at `docs/release-setup.md` walks the maintainer through: enrolling in Apple Developer Program, generating Developer ID Installer cert via Xcode → Keychain export to `.p12` → encoding to base64 → setting GitHub secrets. Plus the `notarytool` keychain-profile bootstrap. README links to it.
 
 ### Brew Tap Formula
-- **D-09:** **Tap repo `github.com/gladia/homebrew-whatsapp-desktop-mcp`** containing `Formula/whatsapp-desktop-mcp.rb`. Formula:
+- **D-09:** **Tap repo `github.com/jqueguiner/homebrew-whatsapp-desktop-mcp`** containing `Formula/whatsapp-desktop-mcp.rb`. Formula:
   ```ruby
   class WhatsappMcp < Formula
     include Language::Python::Virtualenv
     desc "MCP server controlling WhatsApp Desktop on macOS"
-    homepage "https://github.com/gladia/whatsapp-desktop-mcp"
+    homepage "https://github.com/jqueguiner/whatsapp-desktop-mcp"
     url "https://files.pythonhosted.org/packages/source/w/whatsapp-desktop-mcp/whatsapp_desktop_mcp-0.1.0.tar.gz"
     sha256 "<computed-at-release-time>"
     license "MIT"
@@ -63,8 +63,8 @@ Out of scope (this phase): cross-platform support (Windows/Linux WhatsApp Deskto
     end
   end
   ```
-- **D-10:** **Formula publish automation:** `release.yml` adds a `tap-update` job that checks out `gladia/homebrew-whatsapp-desktop-mcp`, regenerates the Formula via `homebrew-pypi-poet` against the new PyPI version, opens a PR (or commits directly if user opts in via `BREW_TAP_DEPLOY_KEY` secret).
-- **D-11:** **`brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`** is the documented install command. After install, user adds to `claude_desktop_config.json`: `{"mcpServers": {"whatsapp": {"command": "/opt/homebrew/bin/whatsapp-desktop-mcp"}}}` (or `/usr/local/bin/whatsapp-desktop-mcp` on Intel).
+- **D-10:** **Formula publish automation:** `release.yml` adds a `tap-update` job that checks out `jqueguiner/homebrew-whatsapp-desktop-mcp`, regenerates the Formula via `homebrew-pypi-poet` against the new PyPI version, opens a PR (or commits directly if user opts in via `BREW_TAP_DEPLOY_KEY` secret).
+- **D-11:** **`brew install jqueguiner/whatsapp-desktop-mcp/whatsapp-desktop-mcp`** is the documented install command. After install, user adds to `claude_desktop_config.json`: `{"mcpServers": {"whatsapp": {"command": "/opt/homebrew/bin/whatsapp-desktop-mcp"}}}` (or `/usr/local/bin/whatsapp-desktop-mcp` on Intel).
 
 ### FTS5 Shadow Index
 - **D-12:** **Sidecar SQLite at `~/Library/Application Support/whatsapp-desktop-mcp/fts.sqlite` mode 0600.** SEPARATE file from `rate-limit.db` (which Phase 2 D-11 owns) — different lifecycles, different invariants. Lazy-created on first `search_messages` call.
@@ -116,7 +116,7 @@ Out of scope (this phase): cross-platform support (Windows/Linux WhatsApp Deskto
 
 ### README Install Section Revamp
 - **D-31:** **3-row install matrix in README:**
-  - **Brew (recommended for end users):** `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp` → add to `claude_desktop_config.json` → grant 3 TCC permissions → done. Stable path; survives upgrades.
+  - **Brew (recommended for end users):** `brew install jqueguiner/whatsapp-desktop-mcp/whatsapp-desktop-mcp` → add to `claude_desktop_config.json` → grant 3 TCC permissions → done. Stable path; survives upgrades.
   - **`.pkg` (recommended for non-technical end users / offline install):** download signed `.pkg` from GitHub releases → double-click → grant 3 TCC permissions to `/usr/local/bin/whatsapp-desktop-mcp` → add to `claude_desktop_config.json`. Stable path; survives upgrades; no Python required on the host.
   - **`uvx` (developer / contributor):** `uvx whatsapp-desktop-mcp` for one-off; `uv tool install whatsapp-desktop-mcp` for persistent. **TCC churn warning:** uv's managed Python interpreter path changes between `uv tool upgrade` invocations; FDA / Accessibility / Automation grants will need to be re-granted to the new binary path each time. Use brew or .pkg to avoid this.
 - **D-32:** **3 TCC permission cards** (one per bucket: FDA / Accessibility / Automation) with screenshots showing the System Settings panel, the binary to add, and the deep-link URL. Reuses the `system_settings_url` helpers from Phase 0/1 paths.py.
@@ -125,7 +125,7 @@ Out of scope (this phase): cross-platform support (Windows/Linux WhatsApp Deskto
 ### Threat Model (high-level — planner expands per-task)
 - **T-1 (`.pkg` supply chain):** Developer ID Installer signature + notarization + stapling. Reproducible builds via fully-pinned `uv.lock`. GitHub Actions provenance attestation (`actions/attest-build-provenance`).
 - **T-2 (FTS sidecar tampering):** Mode 0600. Path under user-owned `~/Library/Application Support/`. No SUID. FTS5 query input is parameterized (no SQL injection via search query).
-- **T-3 (TCC churn from package upgrade):** Stable absolute path (`/usr/local/bin/whatsapp-desktop-mcp`) is the SINGLE-FILE TCC grant target. `pkgbuild --identifier net.gladia.whatsapp-desktop-mcp` ensures macOS treats upgrades as same-package (no fresh TCC prompt).
+- **T-3 (TCC churn from package upgrade):** Stable absolute path (`/usr/local/bin/whatsapp-desktop-mcp`) is the SINGLE-FILE TCC grant target. `pkgbuild --identifier net.jqueguiner.whatsapp-desktop-mcp` ensures macOS treats upgrades as same-package (no fresh TCC prompt).
 - **T-4 (audit log rotation race):** Rotation is single-threaded within a single MCP server process (one server per user); inter-process race only if user runs two `whatsapp-desktop-mcp` processes simultaneously (unsupported configuration; documented).
 - **T-5 (notarization key leak):** GitHub Actions secrets, never committed. Apple App-Specific Password (not Apple ID password) used for notarytool.
 
@@ -203,7 +203,7 @@ Out of scope (this phase): cross-platform support (Windows/Linux WhatsApp Deskto
 ### Integration Points
 - macOS App Store Connect (notarytool) — release-time external service; one-time setup per maintainer.
 - GitHub Releases — `.pkg` artifact attached; `actions/upload-release-asset` or `softprops/action-gh-release` action.
-- Homebrew custom tap repository (`gladia/homebrew-whatsapp-desktop-mcp`) — separate Git repo; `tap-update` job pushes new Formula on release.
+- Homebrew custom tap repository (`jqueguiner/homebrew-whatsapp-desktop-mcp`) — separate Git repo; `tap-update` job pushes new Formula on release.
 - WhatsApp.app local UI + `ChatStorage.sqlite` — same integration points as Phase 1/2; no new external integrations in Phase 3.
 
 </code_context>

@@ -205,7 +205,7 @@ All three commits use the `(00-05)` Conventional Commits scope per the executor 
 - **PyPI trusted-publisher pending-publisher binding (the manual one-time step):** Documented in README's Development section but not executed in this plan — it requires a logged-in PyPI account and the actual GitHub org/repo name finalized. The maintainer does this once before the first `git tag v0.1.0 && git push --tags`. Without it, the first release will fail with a 403 from PyPI (the OIDC handshake is valid but PyPI has no matching trusted-publisher record); after it, every release is hands-off.
 - **First-release smoke (`uvx whatsapp-desktop-mcp --version` on a fresh Mac):** Deferred until v0.1.0 is actually published. This is the DIST-01 acceptance smoke. It will close once (a) the trusted-publisher binding is configured, (b) v0.1.0 tag pushes successfully, (c) PyPI shows the package live.
 - **Screenshots for the README's Quickstart / Development sections:** Phase 3 polish per ROADMAP §"Phase 3" success criterion 2 (DIST-02 — "enumerates the three TCC buckets ... with screenshots"). Phase 0's README is text-only by deliberate design — screenshots churn across macOS versions and would create maintenance debt this early in the project.
-- **Real GitHub org name baked into README:** README uses `gladia/whatsapp-desktop-mcp` per PROJECT.md's `[project.urls].Homepage = "https://github.com/gladia/whatsapp-desktop-mcp"` in pyproject.toml. If the eventual repo lives under a different org, both pyproject.toml and README will need a one-line update — but the value flows from pyproject.toml today, so this is documentation drift, not source-code drift.
+- **Real GitHub org name baked into README:** README uses `jqueguiner/whatsapp-desktop-mcp` per PROJECT.md's `[project.urls].Homepage = "https://github.com/jqueguiner/whatsapp-desktop-mcp"` in pyproject.toml. If the eventual repo lives under a different org, both pyproject.toml and README will need a one-line update — but the value flows from pyproject.toml today, so this is documentation drift, not source-code drift.
 - **`pre-commit` hook config:** Out of scope for Phase 0 per CONTEXT.md (lint/format/type are CI-side; pre-commit is a developer-convenience layer). Phase 3 may add it if a contributor asks.
 
 ## Authentication / human action gates
@@ -240,7 +240,7 @@ None. Every file in this plan is fully wired:
 - README has the complete D-20 / D-21 / D-22 surface; the Development section has the complete trusted-publisher setup procedure; no `[FILL IN]` markers.
 - `examples/claude_desktop_config.json` is the complete authoritative snippet; no generic `<your-name-here>` placeholders.
 
-One deferred-but-not-stubbed item: the README cites `gladia/whatsapp-desktop-mcp` as the GitHub org/repo, which flows from `pyproject.toml [project.urls].Homepage`. If the project ships under a different org, both pyproject.toml and README will need a coordinated update (documented above under "Skipped or postponed work"). This is metadata drift, not a stub.
+One deferred-but-not-stubbed item: the README cites `jqueguiner/whatsapp-desktop-mcp` as the GitHub org/repo, which flows from `pyproject.toml [project.urls].Homepage`. If the project ships under a different org, both pyproject.toml and README will need a coordinated update (documented above under "Skipped or postponed work"). This is metadata drift, not a stub.
 
 ## Self-Check
 

@@ -104,7 +104,7 @@ asserts every byte the server emits on stdout is a JSON-RPC 2.0 frame).
 ## Development
 
 ```sh
-git clone https://github.com/gladia/whatsapp-desktop-mcp
+git clone https://github.com/jqueguiner/whatsapp-desktop-mcp
 cd whatsapp-desktop-mcp
 uv sync --extra dev
 ```
