@@ -27,9 +27,7 @@ import pytest
 
 
 @pytest.fixture
-def isolated_rate_limit_db(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[Path]:
+def isolated_rate_limit_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """Sandbox: monkey-patch ``rate_limit._DB_PATH`` to tmp_path.
 
     Mirrors the Phase 2 ``_isolate_live_state`` fixture pattern; the dev
@@ -109,6 +107,20 @@ def test_dev_run_non_tty_refuses(
     assert "Refusing" in captured.err or "non-tty" in captured.err
 
 
+def _fake_tty_stdin(text: str) -> io.StringIO:
+    """Build a StringIO that reports ``isatty() == True``.
+
+    ``monkeypatch.setattr("sys.stdin", io.StringIO(...))`` replaces the
+    whole stream object, so a separately monkey-patched ``isatty`` on
+    the original sys.stdin doesn't carry over. This helper subclasses
+    StringIO's behavior with a True-returning isatty so the dev module's
+    tty guard fires the prompt branch.
+    """
+    stream = io.StringIO(text)
+    stream.isatty = lambda: True  # type: ignore[method-assign]
+    return stream
+
+
 def test_dev_run_tty_y_unlinks_db(
     isolated_rate_limit_db: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -120,8 +132,7 @@ def test_dev_run_tty_y_unlinks_db(
     isolated_rate_limit_db.write_bytes(b"sentinel")
     assert isolated_rate_limit_db.exists()
 
-    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("sys.stdin", io.StringIO("y\n"))
+    monkeypatch.setattr("sys.stdin", _fake_tty_stdin("y\n"))
 
     rc = run()
     assert rc == 0
@@ -141,8 +152,7 @@ def test_dev_run_tty_n_aborts(
 
     isolated_rate_limit_db.write_bytes(b"sentinel")
 
-    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("sys.stdin", io.StringIO("n\n"))
+    monkeypatch.setattr("sys.stdin", _fake_tty_stdin("n\n"))
 
     rc = run()
     assert rc == 1
@@ -160,8 +170,7 @@ def test_dev_run_tty_garbage_aborts(
     from whatsapp_desktop_mcp.dev.reset_rate_limit import run
 
     isolated_rate_limit_db.write_bytes(b"sentinel")
-    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
-    monkeypatch.setattr("sys.stdin", io.StringIO("garbage\n"))
+    monkeypatch.setattr("sys.stdin", _fake_tty_stdin("garbage\n"))
 
     rc = run()
     assert rc == 1
@@ -260,6 +269,5 @@ def test_e2e_non_tty_exits_1(tmp_path: Path) -> None:
     # Both are valid for the e2e gate; the structural assertion is that
     # the binary is reachable and the subcommand parses cleanly.
     assert result.returncode in (0, 1), (
-        f"unexpected rc={result.returncode}; "
-        f"stdout={result.stdout!r} stderr={result.stderr!r}"
+        f"unexpected rc={result.returncode}; stdout={result.stdout!r} stderr={result.stderr!r}"
     )

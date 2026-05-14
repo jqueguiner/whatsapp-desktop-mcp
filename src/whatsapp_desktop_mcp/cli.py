@@ -24,6 +24,16 @@ observable by Phase 2's gated send-tool import. In Phase 1 every Plan 01-04
 read-tool import runs unconditionally regardless of the flag (read tools
 are inherently read-only), so the Phase 1 effect of the flag is purely
 structural — it locks in the contract that Phase 2 will honor.
+
+Phase 3 Plan 03-03 restructures :func:`main` into an argparse subparser
+dispatch. The default (no subcommand) runs the MCP server as before;
+``whatsapp-desktop-mcp dev <subcommand>`` dispatches into the
+:mod:`whatsapp_desktop_mcp.dev` subpackage (one-shot CLI utilities;
+NOT the stdio MCP server). The ``--read-only`` / ``--fts5-mode`` /
+``--audit-log-max-bytes`` server-mode args are extracted into a helper
+``_add_server_args(parser)`` so they can be applied to the top-level
+parser today and to a future ``server`` subcommand if the dispatch
+ever inverts.
 """
 
 from __future__ import annotations
@@ -35,16 +45,14 @@ import sys
 from whatsapp_desktop_mcp import __version__
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        prog="whatsapp-desktop-mcp",
-        description="MCP stdio server for the macOS WhatsApp Desktop app.",
-    )
-    parser.add_argument(
-        "--version",
-        action="version",
-        version=f"whatsapp-desktop-mcp {__version__}",
-    )
+def _add_server_args(parser: argparse.ArgumentParser) -> None:
+    """Apply the server-mode CLI args to ``parser``.
+
+    Extracted so the same option set applies whether the user invokes
+    the top-level parser (current default — ``whatsapp-desktop-mcp [args]``)
+    or a future ``server`` subcommand. The Phase 1 / Phase 3 args land
+    here verbatim with their accumulated docstrings.
+    """
     parser.add_argument(
         "--read-only",
         action=argparse.BooleanOptionalAction,
@@ -91,7 +99,48 @@ def main(argv: list[str] | None = None) -> int:
             "evicted on the next rotation past the cap)."
         ),
     )
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="whatsapp-desktop-mcp",
+        description="MCP stdio server for the macOS WhatsApp Desktop app.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"whatsapp-desktop-mcp {__version__}",
+    )
+    _add_server_args(parser)
+
+    # Phase 3 D-27: nested subparsers for the dev subcommand surface. The
+    # top-level parser still accepts the server-mode args (default behavior
+    # is unchanged when no subcommand is given), but `whatsapp-desktop-mcp
+    # dev reset-rate-limit` routes into whatsapp_desktop_mcp.dev.* instead
+    # of starting the stdio server.
+    subparsers = parser.add_subparsers(dest="cmd")
+    dev_parser = subparsers.add_parser(
+        "dev",
+        help="developer utility subcommands (one-shot CLI; NOT the MCP server)",
+    )
+    dev_subparsers = dev_parser.add_subparsers(dest="dev_cmd")
+    dev_subparsers.add_parser(
+        "reset-rate-limit",
+        help=(
+            "clear ~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db "
+            "after interactive confirmation; non-tty stdin refuses (D-27)"
+        ),
+    )
+
     args = parser.parse_args(argv)
+
+    # Phase 3 D-27: dispatch BEFORE the server-mode flag assignments + lazy
+    # server.run import, because the dev subcommand explicitly does NOT want
+    # to boot FastMCP / run the stdio loop.
+    if args.cmd == "dev" and args.dev_cmd == "reset-rate-limit":
+        from whatsapp_desktop_mcp.dev.reset_rate_limit import run as dev_reset
+
+        return dev_reset()
 
     # Set the read_only_mode flag BEFORE importing server.run so that the
     # FastMCP tool-registration side-effect imports in server.py observe

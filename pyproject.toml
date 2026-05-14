@@ -75,6 +75,14 @@ select = [
 [tool.ruff.lint.per-file-ignores]
 # Tests legitimately use print for debugging when failing.
 "tests/**/*.py" = ["T201"]
+# Phase 3 Plan 03-03 (D-27): the dev subpackage hosts one-shot CLI
+# utilities (e.g. `whatsapp-desktop-mcp dev reset-rate-limit`) that
+# legitimately print to stdout. Phase 0 D-05's stdout-purity rule
+# applies to the stdio MCP server (whatsapp-desktop-mcp without
+# subcommand), NOT to `whatsapp-desktop-mcp dev *`. The exemption is
+# scoped to dev/*.py only — server.py / tools/* / reader/* / sender/*
+# all keep T201 active.
+"src/whatsapp_desktop_mcp/dev/*.py" = ["T201"]
 
 [tool.ruff.format]
 # Defaults are fine; explicit for clarity.
