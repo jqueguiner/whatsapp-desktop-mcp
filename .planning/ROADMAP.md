@@ -87,7 +87,7 @@ Plans:
   4. `search_messages` is upgraded from the v0.1 `LIKE` implementation to an FTS5 shadow index (built lazily on first run, refreshed incrementally) — verifiable by ranked, sub-second results on a 100k-message corpus where v0.1 LIKE was visibly slow.
 **Plans:** 5 plans
 Plans:
-- [ ] 03-01-PLAN.md — FTS5 sidecar + search_messages dispatcher (--fts5-mode CLI; quote-wrap; reader/search_fts5.py with REL-05 D-24 carry)
+- [x] 03-01-PLAN.md — FTS5 sidecar + search_messages dispatcher (--fts5-mode CLI; quote-wrap; reader/search_fts5.py with REL-05 D-24 carry) (03-01-SUMMARY.md, 2026-05-14)
 - [ ] 03-02-PLAN.md — Distribution infrastructure: signed .pkg + Homebrew custom tap (build-pkg.sh + release.yml pkg-build/tap-update jobs + docs/release-setup.md + bootstrap Formula)
 - [ ] 03-03-PLAN.md — Hardening: tested_versions.md parser + doctor degraded warning + audit log rotation + dev reset-rate-limit subcommand + --audit-log-max-bytes
 - [ ] 03-04-PLAN.md — README install-matrix revamp (3 rows × 3 TCC permission cards × Sending Messages section)
@@ -101,7 +101,7 @@ Plans:
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
 | 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
 | 2. Send (UI-automation, guardrails) | 5/5 | ✓ Complete | 2026-05-13 |
-| 3. Hardening & Distribution | 0/0 | Not started | - |
+| 3. Hardening & Distribution | 1/5 | In progress (Wave 1.1 done) | - |
 
 ## Coverage Summary
 
