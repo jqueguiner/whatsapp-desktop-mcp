@@ -85,7 +85,13 @@ Plans:
   2. The README's quickstart documents platform requirements (macOS only, WhatsApp Desktop Catalyst build, Python 3.12+ when user-installed), enumerates the three TCC buckets (FDA / Accessibility / Automation) with screenshots, and points users at both the `.pkg`/brew install path (recommended) and the `uvx` path (developer-only, with the TCC-churn caveat).
   3. A `tested_versions.md` document lists known-good WhatsApp Desktop versions and a `RUN_LIVE_WHATSAPP=1`-gated integration smoke suite exercises `doctor`, one read tool, and one send tool against a real WhatsApp install before each release.
   4. `search_messages` is upgraded from the v0.1 `LIKE` implementation to an FTS5 shadow index (built lazily on first run, refreshed incrementally) — verifiable by ranked, sub-second results on a 100k-message corpus where v0.1 LIKE was visibly slow.
-**Plans:** TBD
+**Plans:** 5 plans
+Plans:
+- [ ] 03-01-PLAN.md — FTS5 sidecar + search_messages dispatcher (--fts5-mode CLI; quote-wrap; reader/search_fts5.py with REL-05 D-24 carry)
+- [ ] 03-02-PLAN.md — Distribution infrastructure: signed .pkg + Homebrew custom tap (build-pkg.sh + release.yml pkg-build/tap-update jobs + docs/release-setup.md + bootstrap Formula)
+- [ ] 03-03-PLAN.md — Hardening: tested_versions.md parser + doctor degraded warning + audit log rotation + dev reset-rate-limit subcommand + --audit-log-max-bytes
+- [ ] 03-04-PLAN.md — README install-matrix revamp (3 rows × 3 TCC permission cards × Sending Messages section)
+- [ ] 03-05-PLAN.md — Pre-release smoke suite (RUN_LIVE_WHATSAPP=1 composing Phase 1 + Phase 2 + FTS5; D-24 fixture extension)
 **Avoids pitfalls:** P15 (pipx/uvx TCC churn — solved by stable signed-launcher path), reinforces P2 (schema fingerprint via tested_versions + smoke suite), P4 (FDA documented per binary), P13 (Automation entitlement bundled in `.pkg`).
 
 ## Progress
