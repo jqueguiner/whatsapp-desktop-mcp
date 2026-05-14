@@ -131,31 +131,41 @@ def test_readme_contains(description: str, pattern: str, min_count: int) -> None
 
 
 def test_readme_does_not_carry_old_package_name() -> None:
-    """No ``whatsapp-mcp`` (legacy binary name) in the README.
+    """No ``whatsapp-mcp`` (legacy OUR-binary name) in the README.
 
     The package was renamed to ``whatsapp-desktop-mcp`` in commit 7332f0a;
-    the README's install commands MUST point at the new binary name.
-    Allow ``whatsapp-mcp`` to appear ONLY when it's part of the longer
-    ``whatsapp-desktop-mcp`` string — we test the negative by looking for
-    the bare token with a non-``-desktop-`` neighborhood.
+    the README's install commands and tool references MUST point at the
+    new binary name.
+
+    Two carve-outs:
+
+    1. The substring ``whatsapp-mcp`` is allowed when it's actually part
+       of ``whatsapp-desktop-mcp`` (caught by the negative lookahead on
+       ``-desktop``).
+    2. The substring ``whatsapp-mcp`` is also allowed when prefixed by
+       a GitHub-style ``<owner>/`` slug — that's a proper-name reference
+       to a third-party upstream project (the README's Out-of-scope
+       section names ``lharries/whatsapp-mcp`` as a CVE teaching point;
+       that's an unrelated third-party tool, not OUR binary).
     """
-    # Match the literal "whatsapp-mcp" only when NOT followed by "-desktop"
-    # (i.e. catch the OLD bare binary name; allow ``whatsapp-desktop-mcp``).
+    # Match the literal "whatsapp-mcp" only when NOT followed by "-desktop".
     bare_old_name = re.compile(r"whatsapp-mcp(?!-desktop)", re.IGNORECASE)
-    # Walk every match and discard those that are actually inside the
-    # full new name "whatsapp-desktop-mcp" (that won't match the regex
-    # above anyway, but be explicit) or inside an inline-code path the
-    # rename leaves untouched (none expected). Any surviving match is a
-    # carry-over of the old binary name.
+    # Pre-compile a "GitHub slug" prefix matcher: a non-empty run of
+    # username chars followed by "/". Used to discard third-party project
+    # references like ``lharries/whatsapp-mcp``.
+    github_slug_prefix = re.compile(r"[A-Za-z0-9._-]+/$")
     leaks = []
     for m in bare_old_name.finditer(_TEXT):
-        # m.start() points at the start of "whatsapp-mcp". Look back to
-        # check it's not preceded by "-desktop" (which would mean we're
-        # actually matching inside "whatsapp-desktop-mcp" — impossible
-        # given the negative lookahead, but the back-direction protects
-        # against future regex tweaks).
+        # Look back to check the match isn't already inside a longer
+        # ``whatsapp-desktop-mcp`` (defense-in-depth; the lookahead
+        # already excludes this).
         prefix = _TEXT[max(0, m.start() - 8) : m.start()]
         if prefix.endswith("desktop-"):
+            continue
+        # Also discard third-party project references like
+        # ``<owner>/whatsapp-mcp`` (Out-of-scope teaching pointer).
+        wider_prefix = _TEXT[max(0, m.start() - 40) : m.start()]
+        if github_slug_prefix.search(wider_prefix):
             continue
         leaks.append((m.start(), _TEXT[max(0, m.start() - 20) : m.end() + 20]))
     assert not leaks, (
