@@ -1065,7 +1065,7 @@ wheels = [
 ]
 
 [[package]]
-name = "whatsapp-mcp"
+name = "whatsapp-desktop-mcp"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

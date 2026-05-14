@@ -14,7 +14,7 @@ provides:
     pkgbuild + productbuild → unsigned .pkg)
   - scripts/distribution.xml (productbuild distribution archive spec)
   - scripts/pkg-resources/welcome.html (install-time welcome page)
-  - Formula/whatsapp-mcp.rb (bootstrap seed for the gladia/homebrew-whatsapp-mcp
+  - Formula/whatsapp-desktop-mcp.rb (bootstrap seed for the gladia/homebrew-whatsapp-desktop-mcp
     custom tap)
   - .github/workflows/release.yml pkg-build job (Developer-ID-signed +
     notarized + stapled .pkg attached to GitHub release; D-07 skip-block on
@@ -40,8 +40,8 @@ tech-stack:
   patterns:
     - skip-block on optional CI secrets (D-07 — community forks ship PyPI-only
       without breaking releases)
-    - stable absolute path for TCC grant insulation (/usr/local/bin/whatsapp-mcp
-      across all upgrades; pkgbuild --identifier net.gladia.whatsapp-mcp signals
+    - stable absolute path for TCC grant insulation (/usr/local/bin/whatsapp-desktop-mcp
+      across all upgrades; pkgbuild --identifier net.gladia.whatsapp-desktop-mcp signals
       same-package upgrade to macOS so TCC grants persist — T-3 mitigation)
     - copies-mode venv at the FINAL install path (pyvenv.cfg records
       post-install interpreter path; research-locked over uv's relocatable-venv
@@ -55,7 +55,7 @@ key-files:
     - scripts/build-pkg.sh (137 lines; chmod 0755)
     - scripts/distribution.xml (29 lines)
     - scripts/pkg-resources/welcome.html (28 lines)
-    - Formula/whatsapp-mcp.rb (66 lines)
+    - Formula/whatsapp-desktop-mcp.rb (66 lines)
     - docs/release-setup.md (290 lines, ~14 KB)
   modified:
     - .github/workflows/release.yml (+206 lines: pkg-build + tap-update jobs;
@@ -65,7 +65,7 @@ decisions:
     stable absolute path; uvx kept as dev path with TCC churn caveat
     (Plan 03-04 will document the 3-row install matrix in README)
   - D-03 (research-overridden) honored: python -m venv --copies at the FINAL
-    install path /usr/local/lib/whatsapp-mcp/.venv. The uv-side
+    install path /usr/local/lib/whatsapp-desktop-mcp/.venv. The uv-side
     relocatable-venv flag is NOT used (research-locked override per uv
     #3587 closed without confirmation, #15751 still open as of 2026-05).
   - D-06 honored: release.yml pkg-build job runs on macos-14, depends on
@@ -78,10 +78,10 @@ decisions:
   - D-08 honored: docs/release-setup.md one-time maintainer walkthrough
     covering enrollment, .p12 export, secrets bootstrap, tap bootstrap,
     dry-run, troubleshooting.
-  - D-09..D-11 honored: Formula/whatsapp-mcp.rb uses
+  - D-09..D-11 honored: Formula/whatsapp-desktop-mcp.rb uses
     Language::Python::Virtualenv with depends_on macos: :sequoia and a
-    test block; tap repo gladia/homebrew-whatsapp-mcp; install via
-    `brew install gladia/whatsapp-mcp/whatsapp-mcp`.
+    test block; tap repo gladia/homebrew-whatsapp-desktop-mcp; install via
+    `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`.
   - D-10 (research-overridden) honored: tap-update job uses
     `brew update-python-resources` (the maintained 2026 successor; the
     original poet generator is deprecated upstream as of 2023+). The
@@ -96,12 +96,12 @@ decisions:
     rejects on pyobjc .so files, the maintainer adds the Application
     cert in a follow-up PR. Notarization rejection exits non-zero (no
     silent success).
-  - T-3 honored: `pkgbuild --identifier net.gladia.whatsapp-mcp` ensures
+  - T-3 honored: `pkgbuild --identifier net.gladia.whatsapp-desktop-mcp` ensures
     macOS treats subsequent installs as same-package upgrades (no fresh
     TCC prompt); launcher dropped at the stable absolute path
-    `/usr/local/bin/whatsapp-mcp` regardless of version.
+    `/usr/local/bin/whatsapp-desktop-mcp` regardless of version.
   - D-05 stdout-purity carries through the launcher: the launcher
-    heredoc body is exec-only (`exec "/usr/local/lib/whatsapp-mcp/.venv/bin/python" -m whatsapp_mcp "$@"`)
+    heredoc body is exec-only (`exec "/usr/local/lib/whatsapp-desktop-mcp/.venv/bin/python" -m whatsapp_desktop_mcp "$@"`)
     — NO echo, NO set -x, NO diagnostic output. Verified by grep gate.
 metrics:
   duration_seconds: 1620
@@ -112,7 +112,7 @@ metrics:
 
 ## One-liner
 
-Phase 3 Plan 03-02 ships the v1.0 release pipeline: `scripts/build-pkg.sh` stages a `python -m venv --copies` Python 3.12 bundle at the stable absolute path `/usr/local/lib/whatsapp-mcp/.venv` with a thin exec-only launcher at `/usr/local/bin/whatsapp-mcp`, and `.github/workflows/release.yml` is extended with a Developer-ID-signed + notarized + stapled `pkg-build` job (D-07 skip-block on `APPLE_INSTALLER_CERT_P12`) plus a `tap-update` job that auto-PRs the regenerated Formula against `gladia/homebrew-whatsapp-mcp` via `brew update-python-resources` (skip-block on `BREW_TAP_DEPLOY_KEY`) — the central P15 / T-3 TCC-churn mitigation for v1.0.
+Phase 3 Plan 03-02 ships the v1.0 release pipeline: `scripts/build-pkg.sh` stages a `python -m venv --copies` Python 3.12 bundle at the stable absolute path `/usr/local/lib/whatsapp-desktop-mcp/.venv` with a thin exec-only launcher at `/usr/local/bin/whatsapp-desktop-mcp`, and `.github/workflows/release.yml` is extended with a Developer-ID-signed + notarized + stapled `pkg-build` job (D-07 skip-block on `APPLE_INSTALLER_CERT_P12`) plus a `tap-update` job that auto-PRs the regenerated Formula against `gladia/homebrew-whatsapp-desktop-mcp` via `brew update-python-resources` (skip-block on `BREW_TAP_DEPLOY_KEY`) — the central P15 / T-3 TCC-churn mitigation for v1.0.
 
 ## What Shipped
 
@@ -120,16 +120,16 @@ Phase 3 Plan 03-02 ships the v1.0 release pipeline: `scripts/build-pkg.sh` stage
 
 Four sibling artifacts under the new `scripts/`, `Formula/`, and `scripts/pkg-resources/` directories:
 
-- **`scripts/build-pkg.sh`** (137 lines, `chmod 0755`). Eight numbered steps: clean staging → `uv build --wheel --out-dir dist` → `python3.12 -m venv --copies "${VENV_DIR}"` at the FINAL install location → `pip install whatsapp_mcp-${VERSION}-py3-none-any.whl` → write the launcher heredoc (exec-only, no echo) at `${BIN_DIR}/whatsapp-mcp` and `chmod 0755` → conditional `codesign --deep --options runtime` re-sign of the staged venv (gated on `SIGN_DYLIBS` env var; Pitfall 8 mitigation) → substitute `VERSION_PLACEHOLDER` in a `dist/` copy of `distribution.xml` → `pkgbuild --identifier net.gladia.whatsapp-mcp --version ${VERSION} --install-location / --ownership recommended` → `productbuild --distribution dist/distribution.xml --package-path dist --resources scripts/pkg-resources` → `dist/whatsapp-mcp-${VERSION}-unsigned.pkg`. Inputs via env: `VERSION` (required), `STAGING_DIR` (default `/tmp/whatsapp-mcp-pkg`), `SIGN_DYLIBS` (optional), `APPLE_TEAM_NAME` / `APPLE_TEAM_ID` (required when `SIGN_DYLIBS` set).
+- **`scripts/build-pkg.sh`** (137 lines, `chmod 0755`). Eight numbered steps: clean staging → `uv build --wheel --out-dir dist` → `python3.12 -m venv --copies "${VENV_DIR}"` at the FINAL install location → `pip install whatsapp_desktop_mcp-${VERSION}-py3-none-any.whl` → write the launcher heredoc (exec-only, no echo) at `${BIN_DIR}/whatsapp-desktop-mcp` and `chmod 0755` → conditional `codesign --deep --options runtime` re-sign of the staged venv (gated on `SIGN_DYLIBS` env var; Pitfall 8 mitigation) → substitute `VERSION_PLACEHOLDER` in a `dist/` copy of `distribution.xml` → `pkgbuild --identifier net.gladia.whatsapp-desktop-mcp --version ${VERSION} --install-location / --ownership recommended` → `productbuild --distribution dist/distribution.xml --package-path dist --resources scripts/pkg-resources` → `dist/whatsapp-desktop-mcp-${VERSION}-unsigned.pkg`. Inputs via env: `VERSION` (required), `STAGING_DIR` (default `/tmp/whatsapp-desktop-mcp-pkg`), `SIGN_DYLIBS` (optional), `APPLE_TEAM_NAME` / `APPLE_TEAM_ID` (required when `SIGN_DYLIBS` set).
 - **`scripts/distribution.xml`** (29 lines). productbuild distribution archive with `<allowed-os-versions><os-version min="15.0"/>` (matches `Formula depends_on macos: :sequoia` and the pyobjc 12.1 wheel target), `<options customize="never" rootVolumeOnly="true"/>` for a single-shot installer, and `<welcome file="welcome.html" mime-type="text/html"/>`. `VERSION_PLACEHOLDER` is substituted into a `dist/` copy at build time so the source-tree XML stays idempotent across local re-runs.
-- **`scripts/pkg-resources/welcome.html`** (28 lines, ~600 bytes). Minimal install-time welcome page; references `/usr/local/bin/whatsapp-mcp` + the three TCC permissions + the README URL.
-- **`Formula/whatsapp-mcp.rb`** (66 lines). Bootstrap seed using `Language::Python::Virtualenv` with `depends_on "python@3.12"`, `depends_on macos: :sequoia`, placeholder `resource` blocks for mcp / pydantic / pyobjc-core / pyobjc-framework-Cocoa / pyobjc-framework-ApplicationServices, `def install; virtualenv_install_with_resources; end`, and a `test do; assert_match "0.1.0", shell_output("#{bin}/whatsapp-mcp --version"); end` block (D-09). The maintainer copies this file into the empty `gladia/homebrew-whatsapp-mcp` tap repo on first bootstrap (per `docs/release-setup.md` §7); the `tap-update` job rewrites the `url`, `sha256`, and `resource` blocks on every release.
+- **`scripts/pkg-resources/welcome.html`** (28 lines, ~600 bytes). Minimal install-time welcome page; references `/usr/local/bin/whatsapp-desktop-mcp` + the three TCC permissions + the README URL.
+- **`Formula/whatsapp-desktop-mcp.rb`** (66 lines). Bootstrap seed using `Language::Python::Virtualenv` with `depends_on "python@3.12"`, `depends_on macos: :sequoia`, placeholder `resource` blocks for mcp / pydantic / pyobjc-core / pyobjc-framework-Cocoa / pyobjc-framework-ApplicationServices, `def install; virtualenv_install_with_resources; end`, and a `test do; assert_match "0.1.0", shell_output("#{bin}/whatsapp-desktop-mcp --version"); end` block (D-09). The maintainer copies this file into the empty `gladia/homebrew-whatsapp-desktop-mcp` tap repo on first bootstrap (per `docs/release-setup.md` §7); the `tap-update` job rewrites the `url`, `sha256`, and `resource` blocks on every release.
 
 The launcher heredoc body is verbatim per RESEARCH.md Example 3 / Phase 0 D-05 anti-pattern carryover:
 
 ```bash
 #!/bin/bash
-exec "/usr/local/lib/whatsapp-mcp/.venv/bin/python" -m whatsapp_mcp "$@"
+exec "/usr/local/lib/whatsapp-desktop-mcp/.venv/bin/python" -m whatsapp_desktop_mcp "$@"
 ```
 
 NO echo, NO `set -x`, NO diagnostic output — every byte on stdout stays JSON-RPC. The `exec` form keeps the process tree shallow (Claude Desktop spawns one PID, not two). The `$@` propagates `--read-only` / `--fts5-mode` etc.
@@ -150,17 +150,17 @@ Extended `.github/workflows/release.yml` by appending two new downstream jobs af
 8. `xcrun notarytool submit --wait` one-shot form (RESEARCH.md Example 4) — `--apple-id` / `--team-id` / `--password` passed inline (no keychain-profile bootstrap). **If notarization returns "Invalid", the step fails non-zero and the job fails — no silent success** (W4 patch).
 9. `xcrun stapler staple` — attaches the notarization ticket so the .pkg works offline.
 10. `spctl --assess --type install -vvv` — Gatekeeper acceptance verification (Pitfall 2 warning sign).
-11. `softprops/action-gh-release@v2` attaches `dist/whatsapp-mcp-*.pkg` to the GitHub release.
+11. `softprops/action-gh-release@v2` attaches `dist/whatsapp-desktop-mcp-*.pkg` to the GitHub release.
 
 **`tap-update` job** (`runs-on: macos-14`, `needs: [publish]`):
 
 1. `if: ${{ secrets.BREW_TAP_DEPLOY_KEY != '' }}` — analogous skip-block.
-2. `actions/checkout@v4` with `repository: gladia/homebrew-whatsapp-mcp`, `token: ${{ secrets.BREW_TAP_DEPLOY_KEY }}`, `path: tap`.
+2. `actions/checkout@v4` with `repository: gladia/homebrew-whatsapp-desktop-mcp`, `token: ${{ secrets.BREW_TAP_DEPLOY_KEY }}`, `path: tap`.
 3. `run: sleep 30` — PyPI CDN propagation delay (Pitfall 3); annotated comment.
-4. Compute sdist sha256: `curl -sL https://pypi.org/pypi/whatsapp-mcp/${VERSION}/json | jq -r '.urls[] | select(.packagetype=="sdist") | .digests.sha256'` → `$GITHUB_OUTPUT`.
+4. Compute sdist sha256: `curl -sL https://pypi.org/pypi/whatsapp-desktop-mcp/${VERSION}/json | jq -r '.urls[] | select(.packagetype=="sdist") | .digests.sha256'` → `$GITHUB_OUTPUT`.
 5. Update Formula: `sed -i ''` rewrites the `url` line; an `awk` invocation rewrites only the **first** `sha256` line (the project's own — the `resource` blocks have their own `sha256` lines that the next step rewrites).
-6. `brew update-python-resources whatsapp-mcp || true` regenerates the resource blocks. **The maintained 2026 successor** to the original poet generator that CONTEXT.md D-10 originally named (the generator was deprecated upstream as of 2023+) — the *outcome* of D-10 is preserved with the supported tool, locked by the planner's research-adjustment at the top of the plan.
-7. `peter-evans/create-pull-request@v6` opens a PR titled `whatsapp-mcp ${VERSION}` against the tap repo on branch `whatsapp-mcp-${VERSION}`.
+6. `brew update-python-resources whatsapp-desktop-mcp || true` regenerates the resource blocks. **The maintained 2026 successor** to the original poet generator that CONTEXT.md D-10 originally named (the generator was deprecated upstream as of 2023+) — the *outcome* of D-10 is preserved with the supported tool, locked by the planner's research-adjustment at the top of the plan.
+7. `peter-evans/create-pull-request@v6` opens a PR titled `whatsapp-desktop-mcp ${VERSION}` against the tap repo on branch `whatsapp-desktop-mcp-${VERSION}`.
 
 **Permissions:** `contents: write` for `pkg-build` (release upload); `contents: read` for `tap-update` (the deploy key handles the tap-repo write). Phase 0's `publish` job's `id-token: write` is unaffected.
 
@@ -174,7 +174,7 @@ A 290-line (~14 KB) one-time maintainer walkthrough covering all 9 sections requ
 4. **Export to .p12 + base64 encode** — Keychain Access export → `base64 -i installer-cert.p12 | pbcopy` for the `APPLE_INSTALLER_CERT_P12` secret.
 5. **App-Specific Password for notarytool** — anti-pattern callout: raw Apple ID password fails with `Could not retrieve credentials from the keychain`.
 6. **GitHub Actions secrets bootstrap** — table of 6 required + 3 optional secrets with the D-07 skip-block behavior for each (including the `APPLE_DEVELOPER_ID_APP_CERT` + `APPLE_DEVELOPER_ID_APP_CERT_PASSWORD` pair that enables `SIGN_DYLIBS=1`, plus `APPLE_TEAM_NAME` for the productsign identity string).
-7. **Bootstrap the brew tap** — create `gladia/homebrew-whatsapp-mcp` repo, copy the Formula seed from this repo, generate deploy key (or fine-grained PAT) for `BREW_TAP_DEPLOY_KEY`. End-user install: `brew install gladia/whatsapp-mcp/whatsapp-mcp`.
+7. **Bootstrap the brew tap** — create `gladia/homebrew-whatsapp-desktop-mcp` repo, copy the Formula seed from this repo, generate deploy key (or fine-grained PAT) for `BREW_TAP_DEPLOY_KEY`. End-user install: `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`.
 8. **First release dry run** — protocol against `v0.0.1-rc1` with expected outcomes per job; cleanup steps; "don't promote rc1 to brew users" callout.
 9. **Troubleshooting** — table covering Pitfalls 2 (Gatekeeper on launcher), 3 (PyPI CDN 404), 8 (pyobjc dylib rejection), 9 (enrollment delay), plus common notarytool / productsign failure modes (App-Specific Password vs Apple ID password; cert not in keychain; Team Name mismatch).
 
@@ -195,8 +195,8 @@ Plus a **Reference** section linking the canonical man pages and Homebrew Python
 | `if: secrets.APPLE_INSTALLER_CERT_P12 != ''` skip-block present in pkg-build | `pkg_if` string contains `APPLE_INSTALLER_CERT_P12` | ✓ |
 | `if: secrets.BREW_TAP_DEPLOY_KEY != ''` skip-block present in tap-update | `tap_if` string contains `BREW_TAP_DEPLOY_KEY` | ✓ |
 | `SIGN_DYLIBS` conditional block present in build-pkg.sh (W4 Pitfall 8 patch) | `grep -cE 'if \[ -n "\$\{SIGN_DYLIBS:-\}" \]'` returns 1 | ✓ |
-| `Formula/whatsapp-mcp.rb` includes `Language::Python::Virtualenv` | `grep -cE 'include Language::Python::Virtualenv'` returns 1 | ✓ |
-| `Formula/whatsapp-mcp.rb` has `def install` + `depends_on macos: :sequoia` | both grep gates return 1 | ✓ |
+| `Formula/whatsapp-desktop-mcp.rb` includes `Language::Python::Virtualenv` | `grep -cE 'include Language::Python::Virtualenv'` returns 1 | ✓ |
+| `Formula/whatsapp-desktop-mcp.rb` has `def install` + `depends_on macos: :sequoia` | both grep gates return 1 | ✓ |
 | `docs/release-setup.md` references all 6 GitHub Actions secrets | python assert: `APPLE_INSTALLER_CERT_P12`, `APPLE_INSTALLER_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `BREW_TAP_DEPLOY_KEY` all present | ✓ |
 | `docs/release-setup.md` mentions D-07 skip-block | `grep -cE 'D-07\|skip-block'` returns 5 | ✓ |
 | `release.yml` parses cleanly + `pkg-build`/`tap-update`/`publish` jobs all present | `python <<'PY' import yaml...` heredoc parse + asserts | ✓ |
@@ -260,12 +260,12 @@ None during execution — Plan 03-02 is purely additive packaging infrastructure
 ## Self-Check: PASSED
 
 **Files created:**
-- `/Users/jlqueguiner/dev/whatsapp-mcp/scripts/build-pkg.sh` — FOUND (3961 bytes, executable bit set)
-- `/Users/jlqueguiner/dev/whatsapp-mcp/scripts/distribution.xml` — FOUND
-- `/Users/jlqueguiner/dev/whatsapp-mcp/scripts/pkg-resources/welcome.html` — FOUND
-- `/Users/jlqueguiner/dev/whatsapp-mcp/Formula/whatsapp-mcp.rb` — FOUND
-- `/Users/jlqueguiner/dev/whatsapp-mcp/docs/release-setup.md` — FOUND (~14 KB)
-- `/Users/jlqueguiner/dev/whatsapp-mcp/.github/workflows/release.yml` — FOUND (extended; existing publish job byte-stable)
+- `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/scripts/build-pkg.sh` — FOUND (3961 bytes, executable bit set)
+- `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/scripts/distribution.xml` — FOUND
+- `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/scripts/pkg-resources/welcome.html` — FOUND
+- `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/Formula/whatsapp-desktop-mcp.rb` — FOUND
+- `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/docs/release-setup.md` — FOUND (~14 KB)
+- `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/.github/workflows/release.yml` — FOUND (extended; existing publish job byte-stable)
 
 **Commits referenced (in `git log --oneline`):**
 - `72039b7` — feat(03-02): add build-pkg.sh staging primitive + distribution.xml + Formula seed — FOUND
@@ -279,6 +279,6 @@ None — this plan covers DIST-02 (signed-pkg + brew at stable absolute path) us
 ## Next Steps
 
 - **Plan 03-03:** Hardening — `tested_versions.md` parser + doctor degraded-mode warning + audit log size-based rotation + `dev reset-rate-limit` subcommand + `--audit-log-max-bytes` arg.
-- **Plan 03-04:** README install-matrix revamp — 3-row install matrix (brew / .pkg / uvx) + 3 TCC permission cards + Sending Messages section. Will reference Plan 03-02's `brew install gladia/whatsapp-mcp/whatsapp-mcp` command and the signed-`.pkg` GitHub release artifact.
+- **Plan 03-04:** README install-matrix revamp — 3-row install matrix (brew / .pkg / uvx) + 3 TCC permission cards + Sending Messages section. Will reference Plan 03-02's `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp` command and the signed-`.pkg` GitHub release artifact.
 - **Plan 03-05:** Pre-release smoke suite — `RUN_LIVE_WHATSAPP=1` composing Phase 1 + Phase 2 + FTS5; D-24 fixture extension to sandbox `search_fts5._DB_PATH`. The maintainer-local pre-release ritual that fires before every `git tag v*` push.
 - **Maintainer follow-up before first signed release:** complete `docs/release-setup.md` sections 2–7 (Apple Developer enrollment + cert generation + .p12 export + GitHub secrets + brew tap bootstrap), then run the §8 dry-run protocol against `v0.0.1-rc1`.

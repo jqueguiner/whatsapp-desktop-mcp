@@ -12,7 +12,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from whatsapp_mcp.reader.media import resolve_media_ref
+from whatsapp_desktop_mcp.reader.media import resolve_media_ref
 
 
 def _row_with(media_root: str, *, rel_path: str | None, **extras: object) -> sqlite3.Row:

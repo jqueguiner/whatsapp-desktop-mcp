@@ -6,11 +6,11 @@ tags: [setup, build, packaging, lint, mypy, pytest, hatchling, uv]
 dependency_graph:
   requires: []
   provides:
-    - "Buildable hatchling-backed `whatsapp-mcp` 0.1.0 package (src-layout)"
+    - "Buildable hatchling-backed `whatsapp-desktop-mcp` 0.1.0 package (src-layout)"
     - "Reader/Sender empty siblings (REL-05 enforced by structure)"
     - "Dev gates: ruff (T201 + E,F,I,B,UP,TID), mypy --strict, pytest (asyncio_mode=auto, --strict-markers, `live` marker)"
     - "Reproducible env via committed uv.lock"
-    - "Console-script entry point reservation: `whatsapp-mcp = whatsapp_mcp.cli:main`"
+    - "Console-script entry point reservation: `whatsapp-desktop-mcp = whatsapp_desktop_mcp.cli:main`"
   affects:
     - "Every subsequent Phase 0 plan (02..05) and all of Phase 1+ — they fill into this skeleton"
 tech_stack:
@@ -30,20 +30,20 @@ key_files:
     - LICENSE
     - .gitignore
     - uv.lock
-    - src/whatsapp_mcp/__init__.py
-    - src/whatsapp_mcp/permissions/__init__.py
-    - src/whatsapp_mcp/models/__init__.py
-    - src/whatsapp_mcp/tools/__init__.py
-    - src/whatsapp_mcp/reader/__init__.py
-    - src/whatsapp_mcp/sender/__init__.py
+    - src/whatsapp_desktop_mcp/__init__.py
+    - src/whatsapp_desktop_mcp/permissions/__init__.py
+    - src/whatsapp_desktop_mcp/models/__init__.py
+    - src/whatsapp_desktop_mcp/tools/__init__.py
+    - src/whatsapp_desktop_mcp/reader/__init__.py
+    - src/whatsapp_desktop_mcp/sender/__init__.py
     - tests/__init__.py
     - tests/unit/__init__.py
     - tests/unit/test_permissions/__init__.py
     - tests/integration/__init__.py
   modified: []
 decisions:
-  - "Console-script entry point named in pyproject.toml ahead of cli.py existing — `[project.scripts] whatsapp-mcp = whatsapp_mcp.cli:main` (Plan 02 ships cli.py)"
-  - "Project URLs use `github.com/gladia/whatsapp-mcp` (CONTEXT.md says replace `<org>` with `gladia` if a single value must be chosen, since user email is jlqueguinet@gladia.io)"
+  - "Console-script entry point named in pyproject.toml ahead of cli.py existing — `[project.scripts] whatsapp-desktop-mcp = whatsapp_desktop_mcp.cli:main` (Plan 02 ships cli.py)"
+  - "Project URLs use `github.com/gladia/whatsapp-desktop-mcp` (CONTEXT.md says replace `<org>` with `gladia` if a single value must be chosen, since user email is jlqueguinet@gladia.io)"
   - "Stub `README.md` shipped now (deviation Rule 3) so `hatchling` can resolve `readme = \"README.md\"` during `uv build`; full README ships in Plan 05"
   - "Resolved tool versions diverged from floors: mypy 2.1.0 (floor was 1.10), pytest 9.0.3 (floor was 8.2), ruff 0.15.12 (floor was 0.6) — all backwards-compatible per their changelogs; locked into uv.lock"
 metrics:
@@ -58,21 +58,21 @@ metrics:
 
 ## One-liner
 
-Stood up the `whatsapp-mcp` 0.1.0 src-layout package with hatchling build backend, locked dev gates (ruff T201 + E/F/I/B/UP/TID, mypy --strict, pytest with `live` marker), committed `uv.lock` for reproducibility, and shipped empty `reader/` + `sender/` subpackages so REL-05 (Reader↔Sender import isolation) is enforced by directory structure from day one.
+Stood up the `whatsapp-desktop-mcp` 0.1.0 src-layout package with hatchling build backend, locked dev gates (ruff T201 + E/F/I/B/UP/TID, mypy --strict, pytest with `live` marker), committed `uv.lock` for reproducibility, and shipped empty `reader/` + `sender/` subpackages so REL-05 (Reader↔Sender import isolation) is enforced by directory structure from day one.
 
 ## What was built
 
 ### Directory tree (final state of this plan)
 
 ```
-whatsapp-mcp/
+whatsapp-desktop-mcp/
 ├── .gitignore
 ├── LICENSE                       # MIT, "Copyright (c) 2026 WhatsApp MCP contributors"
 ├── README.md                     # stub — Plan 05 ships full ToS warning + 60s quickstart
 ├── pyproject.toml
 ├── uv.lock                       # 52 packages resolved; mcp==1.27.1, pydantic 2.13.4
 ├── src/
-│   └── whatsapp_mcp/
+│   └── whatsapp_desktop_mcp/
 │       ├── __init__.py           # __version__ = "0.1.0"
 │       ├── permissions/__init__.py   # empty
 │       ├── models/__init__.py        # empty
@@ -87,7 +87,7 @@ whatsapp-mcp/
     └── integration/__init__.py
 ```
 
-Total: **6** `__init__.py` files under `src/whatsapp_mcp/`, **4** under `tests/`, plus 5 root-level files. Zero non-`__init__` `.py` files anywhere — Plans 02–05 fill that in.
+Total: **6** `__init__.py` files under `src/whatsapp_desktop_mcp/`, **4** under `tests/`, plus 5 root-level files. Zero non-`__init__` `.py` files anywhere — Plans 02–05 fill that in.
 
 ### Locked dependency versions (resolved by `uv sync --extra dev`)
 
@@ -109,21 +109,21 @@ Total: **6** `__init__.py` files under `src/whatsapp_mcp/`, **4** under `tests/`
 
 `uv build --no-sources` (run during Task 2 verification, not committed) emitted:
 
-- `dist/whatsapp_mcp-0.1.0-py3-none-any.whl` (~2.7 KB)
-- `dist/whatsapp_mcp-0.1.0.tar.gz` (~198 KB — sdist)
+- `dist/whatsapp_desktop_mcp-0.1.0-py3-none-any.whl` (~2.7 KB)
+- `dist/whatsapp_desktop_mcp-0.1.0.tar.gz` (~198 KB — sdist)
 
 The wheel `RECORD` lists exactly:
 
 ```
-whatsapp_mcp/__init__.py
-whatsapp_mcp/models/__init__.py
-whatsapp_mcp/permissions/__init__.py
-whatsapp_mcp/reader/__init__.py
-whatsapp_mcp/sender/__init__.py
-whatsapp_mcp/tools/__init__.py
+whatsapp_desktop_mcp/__init__.py
+whatsapp_desktop_mcp/models/__init__.py
+whatsapp_desktop_mcp/permissions/__init__.py
+whatsapp_desktop_mcp/reader/__init__.py
+whatsapp_desktop_mcp/sender/__init__.py
+whatsapp_desktop_mcp/tools/__init__.py
 ```
 
-→ Confirms hatchling picked up the src-layout via `[tool.hatch.build.targets.wheel] packages = ["src/whatsapp_mcp"]`. Critically, `reader/__init__.py` and `sender/__init__.py` ship in distributions, not just dev checkouts (P-PHASE0-05 mitigation; REL-05 ship-shape).
+→ Confirms hatchling picked up the src-layout via `[tool.hatch.build.targets.wheel] packages = ["src/whatsapp_desktop_mcp"]`. Critically, `reader/__init__.py` and `sender/__init__.py` ship in distributions, not just dev checkouts (P-PHASE0-05 mitigation; REL-05 ship-shape).
 
 `dist/` is git-ignored, so the wheel is not committed — it's a reproducible artifact of `uv build`.
 
@@ -132,11 +132,11 @@ whatsapp_mcp/tools/__init__.py
 All 6 plan-level verification steps pass:
 
 1. `uv sync --extra dev` → exit 0; `.venv/` + `uv.lock` exist; second run "Resolved 52 packages in 2ms / Checked 50 packages in 1ms" (lockfile is consistent — no resolution drift).
-2. `uv build --no-sources` → "Successfully built dist/whatsapp_mcp-0.1.0.tar.gz" + "Successfully built dist/whatsapp_mcp-0.1.0-py3-none-any.whl".
+2. `uv build --no-sources` → "Successfully built dist/whatsapp_desktop_mcp-0.1.0.tar.gz" + "Successfully built dist/whatsapp_desktop_mcp-0.1.0-py3-none-any.whl".
 3. `uv run ruff check src tests` → "All checks passed!" (no source code yet → no violations, but the gate is wired).
 4. `uv run mypy` → "Success: no issues found in 10 source files".
-5. `find src/whatsapp_mcp -name '*.py' | sort` → exactly 6 `__init__.py` files.
-6. `unzip -l dist/whatsapp_mcp-0.1.0-py3-none-any.whl | grep -c 'whatsapp_mcp/'` → 6 (≥ 6).
+5. `find src/whatsapp_desktop_mcp -name '*.py' | sort` → exactly 6 `__init__.py` files.
+6. `unzip -l dist/whatsapp_desktop_mcp-0.1.0-py3-none-any.whl | grep -c 'whatsapp_desktop_mcp/'` → 6 (≥ 6).
 
 ## Commits
 
@@ -164,8 +164,8 @@ All three commits use the `(00-01)` Conventional Commits scope per the executor 
 **2. [Rule 1 - Bug, minor] Project URLs `<org>` placeholder resolved to `gladia`**
 
 - **Found during:** Task 2 (writing pyproject.toml).
-- **Issue:** RESEARCH.md ships pyproject.toml with `https://github.com/<org>/whatsapp-mcp` placeholders that would not be valid URLs.
-- **Fix:** Per PLAN.md Task 2 instructions ("replace `<org>` with `gladia` … if a single value must be chosen"), set `Homepage = "https://github.com/gladia/whatsapp-mcp"` and `Issues = "https://github.com/gladia/whatsapp-mcp/issues"`. The user's email is `jlqueguinet@gladia.io`, which matches.
+- **Issue:** RESEARCH.md ships pyproject.toml with `https://github.com/<org>/whatsapp-desktop-mcp` placeholders that would not be valid URLs.
+- **Fix:** Per PLAN.md Task 2 instructions ("replace `<org>` with `gladia` … if a single value must be chosen"), set `Homepage = "https://github.com/gladia/whatsapp-desktop-mcp"` and `Issues = "https://github.com/gladia/whatsapp-desktop-mcp/issues"`. The user's email is `jlqueguinet@gladia.io`, which matches.
 - **Files modified:** `pyproject.toml` (lines 43–44).
 - **Commit:** `0538be4`.
 
@@ -191,7 +191,7 @@ N/A — PLAN.md frontmatter declares `type: execute`, not `type: tdd`. No `tdd="
 ## Known Stubs
 
 - `README.md` is a 5-line placeholder. Plan 05 overwrites it with the SETUP-05 deliverable (ToS warning + 60-second quickstart). The placeholder explicitly self-identifies as a stub. Not a blocker for Phase 0 user-facing value because no one calls `doctor` from a README; the README ships value at distribution time (Plan 05 / DIST-01).
-- All 10 `__init__.py` files except `src/whatsapp_mcp/__init__.py` are empty. This is **intentional, not a stub** — it is the scaffolding shape Plans 02–05 build into. CLAUDE.md hard rule #1 ("Reader and Sender packages MUST NOT import each other") is vacuously satisfied while both are empty.
+- All 10 `__init__.py` files except `src/whatsapp_desktop_mcp/__init__.py` are empty. This is **intentional, not a stub** — it is the scaffolding shape Plans 02–05 build into. CLAUDE.md hard rule #1 ("Reader and Sender packages MUST NOT import each other") is vacuously satisfied while both are empty.
 
 ## Self-Check
 
@@ -205,10 +205,10 @@ Verified each commit and key file before declaring done:
 - `LICENSE` ✓ FOUND
 - `.gitignore` ✓ FOUND
 - `README.md` ✓ FOUND
-- `src/whatsapp_mcp/__init__.py` (with `__version__ = "0.1.0"`) ✓ FOUND
-- `src/whatsapp_mcp/{permissions,models,tools,reader,sender}/__init__.py` (5 empty files) ✓ ALL FOUND
+- `src/whatsapp_desktop_mcp/__init__.py` (with `__version__ = "0.1.0"`) ✓ FOUND
+- `src/whatsapp_desktop_mcp/{permissions,models,tools,reader,sender}/__init__.py` (5 empty files) ✓ ALL FOUND
 - `tests/__init__.py`, `tests/unit/__init__.py`, `tests/unit/test_permissions/__init__.py`, `tests/integration/__init__.py` ✓ ALL FOUND
-- `dist/whatsapp_mcp-0.1.0-py3-none-any.whl` (built locally, not committed; gitignored) ✓ FOUND
-- `dist/whatsapp_mcp-0.1.0.tar.gz` (built locally, not committed; gitignored) ✓ FOUND
+- `dist/whatsapp_desktop_mcp-0.1.0-py3-none-any.whl` (built locally, not committed; gitignored) ✓ FOUND
+- `dist/whatsapp_desktop_mcp-0.1.0.tar.gz` (built locally, not committed; gitignored) ✓ FOUND
 
 ## Self-Check: PASSED

@@ -27,10 +27,10 @@ from typing import Any
 
 import pytest
 
-from whatsapp_mcp.models import decode_cursor, encode_cursor
-from whatsapp_mcp.server import mcp
-from whatsapp_mcp.tools.read_chat import read_chat
-from whatsapp_mcp.tools.search_messages import search_messages
+from whatsapp_desktop_mcp.models import decode_cursor, encode_cursor
+from whatsapp_desktop_mcp.server import mcp
+from whatsapp_desktop_mcp.tools.read_chat import read_chat
+from whatsapp_desktop_mcp.tools.search_messages import search_messages
 
 _EXPECTED_TOOL_NAMES: frozenset[str] = frozenset(
     {
@@ -107,7 +107,7 @@ def test_doctor_source_does_not_have_tool_level_timeout() -> None:
     regression guard alongside the runtime introspection in
     test_doctor_phase1.py.
     """
-    from whatsapp_mcp.tools import doctor as doctor_module
+    from whatsapp_desktop_mcp.tools import doctor as doctor_module
 
     doctor_src = Path(inspect.getfile(doctor_module)).read_text(encoding="utf-8")
     assert "@timeout(" not in doctor_src, (
@@ -193,17 +193,21 @@ async def test_read_chat_char_cap(
     # Repoint just this test's reader paths to the large fixture. The other
     # paths (LID, ContactsV2, media_root) are not touched by read_chat
     # against this fixture, so we leave them alone.
-    import whatsapp_mcp.paths
-    import whatsapp_mcp.reader.messages
+    import whatsapp_desktop_mcp.paths
+    import whatsapp_desktop_mcp.reader.messages
 
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_chatstorage_path", lambda: db_path)
-    monkeypatch.setattr(whatsapp_mcp.reader.messages, "resolve_chatstorage_path", lambda: db_path)
+    monkeypatch.setattr(whatsapp_desktop_mcp.paths, "resolve_chatstorage_path", lambda: db_path)
+    monkeypatch.setattr(
+        whatsapp_desktop_mcp.reader.messages, "resolve_chatstorage_path", lambda: db_path
+    )
 
     # media_root is touched by the message projection layer; point it at
     # the tempdir so resolve_media_ref's prefix check has a valid root
     # (even though no media rows are seeded here).
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_media_root", lambda: str(tmp_path))
-    monkeypatch.setattr(whatsapp_mcp.reader.messages, "resolve_media_root", lambda: str(tmp_path))
+    monkeypatch.setattr(whatsapp_desktop_mcp.paths, "resolve_media_root", lambda: str(tmp_path))
+    monkeypatch.setattr(
+        whatsapp_desktop_mcp.reader.messages, "resolve_media_root", lambda: str(tmp_path)
+    )
 
     # limit=200 (the maximum) — body should approach but stay under cap.
     result = await read_chat(chat_id=chat_id, limit=200)

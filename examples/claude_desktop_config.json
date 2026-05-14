@@ -2,7 +2,7 @@
   "mcpServers": {
     "whatsapp": {
       "command": "uvx",
-      "args": ["whatsapp-mcp"]
+      "args": ["whatsapp-desktop-mcp"]
     }
   }
 }

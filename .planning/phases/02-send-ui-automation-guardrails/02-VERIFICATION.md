@@ -13,7 +13,7 @@ re_verification:
 human_verification:
   - test: "End-to-end live send via Claude Desktop with real WhatsApp account"
     expected: "Tool ships, elicitation prompt is rendered by Claude Desktop, accept fires send, post-hoc verify returns ZSTANZAID, audit log written, rate limiter ticks down"
-    why_human: "RUN_LIVE_BURN_BUDGET=1 + WHATSAPP_MCP_LIVE_TEST_SELF_NAME=<self chat name> would exercise SC3 against live WhatsApp Desktop; opt-in only — burns 5 real messages of the user's daily budget"
+    why_human: "RUN_LIVE_BURN_BUDGET=1 + WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME=<self chat name> would exercise SC3 against live WhatsApp Desktop; opt-in only — burns 5 real messages of the user's daily budget"
   - test: "Cross-chat-quote heuristic SC2 surfaces an elicitation warning when sending content read from a different chat"
     expected: "After read_chat(chat_id=A), an attempted send_message(chat_id=B, body=<≥40-char substring of an A body>) shows the OffendingSource warning in the elicitation prompt"
     why_human: "End-to-end LRU → check() → elicitation message rendering is exercised by unit tests in isolation but the user-visible warning text inside Claude Desktop's elicitation UI is a UX-quality assertion"
@@ -63,7 +63,7 @@ human_verification:
 | Group send via search-and-click fallback | `ui_send.py:215-216 if kind == "group": await send_group_via_search(chat_name, body)`; line 229 defines `send_group_via_search` | ✓ VERIFIED |
 | Post-hoc DB poll for ZSTANZAID | `sender/verify.py:poll_for_outgoing` with `_MAX_POLLS = 40 × _POLL_INTERVAL_SECONDS = 0.25 = 10s budget`; called at `tools/send_message.py:457` STEP 9 | ✓ VERIFIED |
 | Soft-fail to `sent_unverified` if poll times out | `sender/verify.py` returns None on timeout per D-22; `tools/send_message.py:476` STEP 11 maps to status `"sent_unverified"` | ✓ VERIFIED |
-| Live test `test_live_send_to_self_chat_smoke` exists and is gated | `tests/integration/test_live_send.py:118` collected under `-m live`; SKIPPED without `WHATSAPP_MCP_LIVE_TEST_SELF_NAME` env var (intentional opt-in safety) | ✓ VERIFIED (gated, opt-in only) |
+| Live test `test_live_send_to_self_chat_smoke` exists and is gated | `tests/integration/test_live_send.py:118` collected under `-m live`; SKIPPED without `WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME` env var (intentional opt-in safety) | ✓ VERIFIED (gated, opt-in only) |
 
 **SC3 Status: ✓ VERIFIED** (deep-link path, group fallback, post-hoc verify all present; live execution requires user opt-in via env var)
 
@@ -71,11 +71,11 @@ human_verification:
 
 | Check | Evidence | Status |
 |-------|----------|--------|
-| Persistent SQLite rate limiter at correct path | `sender/rate_limit.py:_DB_PATH = ~/Library/Application Support/whatsapp-mcp/rate-limit.db`, mode 0o600 | ✓ VERIFIED |
+| Persistent SQLite rate limiter at correct path | `sender/rate_limit.py:_DB_PATH = ~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db`, mode 0o600 | ✓ VERIFIED |
 | Default 5/min, 30/day budgets | `_HARD_MAX_PER_MIN = 20`, defaults inside `_resolve_limits` are 5 and 30 | ✓ VERIFIED |
-| Bounded env override `WHATSAPP_MCP_RATE_PER_MIN=21` rejected at startup | Live verification: `WHATSAPP_MCP_RATE_PER_MIN=21` raises `ValueError: ... exceeds hard max 20; raising the limit risks WhatsApp account ban. Refusing to start.` | ✓ VERIFIED |
+| Bounded env override `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN=21` rejected at startup | Live verification: `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN=21` raises `ValueError: ... exceeds hard max 20; raising the limit risks WhatsApp account ban. Refusing to start.` | ✓ VERIFIED |
 | Rate limit trips with structured error | Mandatory regression `test_send_message_rate_limit_persists_across_restart` PASSES; `RateLimitExceeded` exception class exists in `exceptions.py` | ✓ VERIFIED |
-| JSONL audit log at `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600 | `sender/audit.py:_LOG_PATH = ~/Library/Logs/whatsapp-mcp/audit.log`; `os.chmod(_LOG_PATH, 0o600)` at line 151 | ✓ VERIFIED |
+| JSONL audit log at `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600 | `sender/audit.py:_LOG_PATH = ~/Library/Logs/whatsapp-desktop-mcp/audit.log`; `os.chmod(_LOG_PATH, 0o600)` at line 151 | ✓ VERIFIED |
 | Audit entry has body_sha256 (SHA-256), NOT plaintext body | D-13 STRUCTURAL: live `AuditEntry.model_fields` = `['ts', 'chat_id', 'chat_name', 'body_sha256', 'outcome', 'message_id', 'error', 'confirm_skipped', 'elapsed_ms']` — NO body/body_text/body_preview | ✓ VERIFIED |
 | Mandatory regression `test_send_message_appends_audit_log_with_body_sha256_not_body` PASSES | Run output: `1 passed` | ✓ VERIFIED |
 | Audit append wrapped in try/finally per STEP 10 | `tools/send_message.py:525` STEP 10 inside `finally:` block | ✓ VERIFIED |
@@ -101,18 +101,18 @@ human_verification:
 | Invariant | Check | Result | Status |
 |-----------|-------|--------|--------|
 | **REL-05 D-24** | `tests/unit/test_isolation.py::test_sender_to_reader_edge_is_exactly_one_file` | PASSED | ✓ VERIFIED |
-| **REL-05 D-24 narrow edge** | `grep -rE 'whatsapp_mcp\.reader' src/whatsapp_mcp/sender/` | 1 line: `verify.py:from whatsapp_mcp.reader.connection import open_ro` | ✓ VERIFIED |
-| **stdout = JSON-RPC** | `grep -rn '\bprint(' src/whatsapp_mcp/` | (no output) | ✓ VERIFIED |
-| **No HTTP listener** | `grep -rE 'socket\.\|http\.server\|fastapi\|flask\|aiohttp\.web\|tornado\|http\.HTTPServer' src/whatsapp_mcp/` | (no output) | ✓ VERIFIED |
-| **No SQLite write to ChatStorage.sqlite** | `grep -rE '\b(INSERT\|UPDATE\|DELETE\|executemany)\b' src/whatsapp_mcp/sender/` | only INSERT in `rate_limit.py` (the limiter's own DB at `~/Library/Application Support/whatsapp-mcp/rate-limit.db`); inspected source: docstring + line 76 explicitly forbids ChatStorage.sqlite path; `_check_db_path_distinct` lazy guard at top of `_ensure_db` | ✓ VERIFIED |
+| **REL-05 D-24 narrow edge** | `grep -rE 'whatsapp_desktop_mcp\.reader' src/whatsapp_desktop_mcp/sender/` | 1 line: `verify.py:from whatsapp_desktop_mcp.reader.connection import open_ro` | ✓ VERIFIED |
+| **stdout = JSON-RPC** | `grep -rn '\bprint(' src/whatsapp_desktop_mcp/` | (no output) | ✓ VERIFIED |
+| **No HTTP listener** | `grep -rE 'socket\.\|http\.server\|fastapi\|flask\|aiohttp\.web\|tornado\|http\.HTTPServer' src/whatsapp_desktop_mcp/` | (no output) | ✓ VERIFIED |
+| **No SQLite write to ChatStorage.sqlite** | `grep -rE '\b(INSERT\|UPDATE\|DELETE\|executemany)\b' src/whatsapp_desktop_mcp/sender/` | only INSERT in `rate_limit.py` (the limiter's own DB at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db`); inspected source: docstring + line 76 explicitly forbids ChatStorage.sqlite path; `_check_db_path_distinct` lazy guard at top of `_ensure_db` | ✓ VERIFIED |
 | **D-13 STRUCTURAL** | `AuditEntry.model_fields` body fields | `body`, `body_text`, `body_preview` ALL ABSENT (only `body_sha256`) | ✓ VERIFIED |
-| **D-11 bounded env override** | `WHATSAPP_MCP_RATE_PER_MIN=21` startup | ValueError raised: "exceeds hard max 20" | ✓ VERIFIED |
+| **D-11 bounded env override** | `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN=21` startup | ValueError raised: "exceeds hard max 20" | ✓ VERIFIED |
 | **D-19 read-only-mode-gated tool registration** | Default: `mcp.list_tools()` count | 8 tools (no `send_message`) | ✓ VERIFIED |
 | **D-19 (--no-read-only)** | After `read_only_mode = False` + send_message import | 9 tools (includes `send_message`) | ✓ VERIFIED |
 | **D-20 send_message annotations** | Live introspection | `readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True` | ✓ VERIFIED |
 | **W-3 D-25 11 steps** | `grep -n "STEP " tools/send_message.py` | All 11 steps identifiable in source order with CONTEXT.md back-references | ✓ VERIFIED |
-| **W-4 import shape** | `from whatsapp_mcp import server` AND `from whatsapp_mcp.server import mcp`; lazy `server.read_only_mode` | line 180 + line 198; line 321 lazy attribute access (no `from server import read_only_mode`) | ✓ VERIFIED |
-| **B-2 live tests sandboxed** | After `RUN_LIVE=1 uv run pytest -m live`: production paths state | `~/Library/Logs/whatsapp-mcp/` and `~/Library/Application Support/whatsapp-mcp/` still empty/missing — autouse `_isolate_live_state` fixture monkey-patches paths to `tmp_path` | ✓ VERIFIED |
+| **W-4 import shape** | `from whatsapp_desktop_mcp import server` AND `from whatsapp_desktop_mcp.server import mcp`; lazy `server.read_only_mode` | line 180 + line 198; line 321 lazy attribute access (no `from server import read_only_mode`) | ✓ VERIFIED |
+| **B-2 live tests sandboxed** | After `RUN_LIVE=1 uv run pytest -m live`: production paths state | `~/Library/Logs/whatsapp-desktop-mcp/` and `~/Library/Application Support/whatsapp-desktop-mcp/` still empty/missing — autouse `_isolate_live_state` fixture monkey-patches paths to `tmp_path` | ✓ VERIFIED |
 | **D-03 load-bearing P5 mitigation** | AX assertion source-line BEFORE keystroke source-line | direct: 204 < 207; group: 288 < 295, 303 < 311 (3 enforcement sites) | ✓ VERIFIED |
 
 **All cross-cutting invariants: 13/13 ✓ VERIFIED**
@@ -123,18 +123,18 @@ human_verification:
 
 | Artifact | Status | Details |
 |----------|--------|---------|
-| `src/whatsapp_mcp/sender/deeplink.py` | ✓ VERIFIED | 174 LOC; `build_send_url` + `send_deeplink` (async); `-g` flag; LRM substring match |
-| `src/whatsapp_mcp/sender/osascript_send.py` | ✓ VERIFIED | 122 LOC; `press_return` + `type_string`; -1743 → AutomationRevoked |
-| `src/whatsapp_mcp/sender/ax_assert.py` | ✓ VERIFIED | 361 LOC; D-03 P5 mitigation; bidi-strip; AXHeading filter; 200-node DoS guard |
-| `src/whatsapp_mcp/sender/rate_limit.py` | ✓ VERIFIED | persistent SQLite; CHECK constraint; hard maxes; W-6 lazy distinctness guard |
-| `src/whatsapp_mcp/sender/audit.py` | ✓ VERIFIED | JSONL append-only; mode 0600 on first create; AuditEntry schema (no body fields) |
-| `src/whatsapp_mcp/sender/cross_chat_quote.py` | ✓ VERIFIED | LRU deque maxlen=1000; 40-char threshold; 30-min sliding window |
-| `src/whatsapp_mcp/sender/verify.py` | ✓ VERIFIED | post-hoc poll 250ms × 40 = 10s; ONLY sender file with `reader.connection` import |
-| `src/whatsapp_mcp/sender/ui_send.py` | ✓ VERIFIED | unified `send_text` orchestrator; AX preflight enforced before every keystroke |
-| `src/whatsapp_mcp/sender/__init__.py` | ✓ VERIFIED | mints `send_text` + `SendResult` re-exports |
-| `src/whatsapp_mcp/tools/send_message.py` | ✓ VERIFIED | D-25 11-step orchestration; `@timeout(seconds=15)` + `@mcp.tool` decoration |
-| `src/whatsapp_mcp/models/send.py` | ✓ VERIFIED | `SendResult` + `OffendingSource` (Pydantic) + `ConfirmationSchema` (single-bool) |
-| `src/whatsapp_mcp/server.py` | ✓ VERIFIED | read-only-gated `if not read_only_mode: from ...send_message...` block |
+| `src/whatsapp_desktop_mcp/sender/deeplink.py` | ✓ VERIFIED | 174 LOC; `build_send_url` + `send_deeplink` (async); `-g` flag; LRM substring match |
+| `src/whatsapp_desktop_mcp/sender/osascript_send.py` | ✓ VERIFIED | 122 LOC; `press_return` + `type_string`; -1743 → AutomationRevoked |
+| `src/whatsapp_desktop_mcp/sender/ax_assert.py` | ✓ VERIFIED | 361 LOC; D-03 P5 mitigation; bidi-strip; AXHeading filter; 200-node DoS guard |
+| `src/whatsapp_desktop_mcp/sender/rate_limit.py` | ✓ VERIFIED | persistent SQLite; CHECK constraint; hard maxes; W-6 lazy distinctness guard |
+| `src/whatsapp_desktop_mcp/sender/audit.py` | ✓ VERIFIED | JSONL append-only; mode 0600 on first create; AuditEntry schema (no body fields) |
+| `src/whatsapp_desktop_mcp/sender/cross_chat_quote.py` | ✓ VERIFIED | LRU deque maxlen=1000; 40-char threshold; 30-min sliding window |
+| `src/whatsapp_desktop_mcp/sender/verify.py` | ✓ VERIFIED | post-hoc poll 250ms × 40 = 10s; ONLY sender file with `reader.connection` import |
+| `src/whatsapp_desktop_mcp/sender/ui_send.py` | ✓ VERIFIED | unified `send_text` orchestrator; AX preflight enforced before every keystroke |
+| `src/whatsapp_desktop_mcp/sender/__init__.py` | ✓ VERIFIED | mints `send_text` + `SendResult` re-exports |
+| `src/whatsapp_desktop_mcp/tools/send_message.py` | ✓ VERIFIED | D-25 11-step orchestration; `@timeout(seconds=15)` + `@mcp.tool` decoration |
+| `src/whatsapp_desktop_mcp/models/send.py` | ✓ VERIFIED | `SendResult` + `OffendingSource` (Pydantic) + `ConfirmationSchema` (single-bool) |
+| `src/whatsapp_desktop_mcp/server.py` | ✓ VERIFIED | read-only-gated `if not read_only_mode: from ...send_message...` block |
 | `tests/unit/test_isolation.py` | ✓ VERIFIED | 7 tests (5 from Phase 1 + 2 new); `test_sender_to_reader_edge_is_exactly_one_file` enforces W-5 |
 | `tests/unit/test_sender/` (8 test files) | ✓ VERIFIED | test_audit / test_ax_assert / test_cross_chat_quote / test_deeplink / test_osascript_send / test_rate_limit / test_ui_send / test_verify |
 | `tests/unit/test_tools/test_send_message.py` | ✓ VERIFIED | 19 tests including 3/4 mandatory regressions |
@@ -157,7 +157,7 @@ human_verification:
 | `tools/send_message.py` | `permissions.automation.check_whatsapp` (T-6) | STEP 2 | ✓ WIRED |
 | `tools/send_message.py` | `ctx.elicit` (MCP elicitation) | STEP 6 (line 396) | ✓ WIRED |
 | `ui_send.send_text` | `assert_focused_chat_matches` BEFORE `press_return` | direct (204→207) + group (288→295, 303→311) | ✓ WIRED |
-| `sender.verify` | `reader.connection.open_ro` | line 1: `from whatsapp_mcp.reader.connection import open_ro` (ONLY allowed REL-05 D-24 edge) | ✓ WIRED |
+| `sender.verify` | `reader.connection.open_ro` | line 1: `from whatsapp_desktop_mcp.reader.connection import open_ro` (ONLY allowed REL-05 D-24 edge) | ✓ WIRED |
 | 4 read tools | `cross_chat_quote.record_bodies` | `read_chat`, `extract_recent`, `search_messages`, `get_message_context` each `import cross_chat_quote` + 1 call site | ✓ WIRED |
 | `server.py` | `tools.send_message` (gated) | `if not read_only_mode: from ...send_message...` line 110-111 | ✓ WIRED |
 
@@ -169,12 +169,12 @@ human_verification:
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Default tool list | `python -c "import asyncio; from whatsapp_mcp import server; print(len(asyncio.run(server.mcp.list_tools())))"` | 8 (default `--read-only`) | ✓ PASS |
+| Default tool list | `python -c "import asyncio; from whatsapp_desktop_mcp import server; print(len(asyncio.run(server.mcp.list_tools())))"` | 8 (default `--read-only`) | ✓ PASS |
 | --no-read-only tool list | sim w/ `server.read_only_mode = False` + import send_message | 9 tools, includes `send_message` | ✓ PASS |
 | send_message annotations | inspect via `mcp.list_tools()` | `readOnlyHint=False, destructiveHint=True, idempotentHint=False, openWorldHint=True` | ✓ PASS |
 | send_message inputSchema | inspect | `{'chat_id': int, 'body': str}` (ctx excluded by FastMCP) | ✓ PASS |
 | AuditEntry has no plaintext body field | live introspection | `model_fields` keys do NOT include `body`, `body_text`, `body_preview` | ✓ PASS |
-| Hard-max env-var rejection | `WHATSAPP_MCP_RATE_PER_MIN=21 python -c "from whatsapp_mcp.sender import rate_limit; rate_limit._resolve_limits()"` | ValueError raised | ✓ PASS |
+| Hard-max env-var rejection | `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN=21 python -c "from whatsapp_desktop_mcp.sender import rate_limit; rate_limit._resolve_limits()"` | ValueError raised | ✓ PASS |
 
 **Spot-checks: 6/6 ✓ PASS**
 
@@ -207,7 +207,7 @@ Phase 2 does not declare conventional `scripts/*/tests/probe-*.sh` probes. Inste
 | SEND-03 | Deep-link primary + group search-and-click fallback | 02-01, 02-03, 02-05 | ✓ SATISFIED | `sender/deeplink.py` 1:1 path; `sender/ui_send.py:send_group_via_search` for groups (`is_experimental=True`); `kind == "group"` dispatch at line 215 |
 | SEND-04 | Pre-send AX-API state assertion verifies focused chat header | 02-01, 02-03, 02-05 | ✓ SATISFIED | `sender/ax_assert.py:assert_focused_chat_matches` enforced INSIDE `ui_send.send_text` BEFORE every `press_return` (3 enforcement sites); ChatHeaderMismatch on abort; mandatory regression PASSES |
 | SEND-05 | Conservative rate limiter (5/min, 30/day) with structured error | 02-02, 02-03, 02-05 | ✓ SATISFIED | `sender/rate_limit.py`; `RateLimitExceeded` from `exceptions.py`; mandatory persistence regression PASSES; bounded env-var override verified |
-| SEND-06 | Audit log mode 0600 with timestamp + chat_id + name + body hash + outcome | 02-02, 02-03, 02-05 | ✓ SATISFIED | `sender/audit.py:_LOG_PATH = ~/Library/Logs/whatsapp-mcp/audit.log`; mode 0o600; AuditEntry schema with `ts, chat_id, chat_name, body_sha256, outcome, message_id, error, confirm_skipped, elapsed_ms` (9 fields, NO plaintext body) |
+| SEND-06 | Audit log mode 0600 with timestamp + chat_id + name + body hash + outcome | 02-02, 02-03, 02-05 | ✓ SATISFIED | `sender/audit.py:_LOG_PATH = ~/Library/Logs/whatsapp-desktop-mcp/audit.log`; mode 0o600; AuditEntry schema with `ts, chat_id, chat_name, body_sha256, outcome, message_id, error, confirm_skipped, elapsed_ms` (9 fields, NO plaintext body) |
 | SEND-07 | Cross-chat-quote heuristic warns when body matches recently-read different chat | 02-02, 02-03, 02-04, 02-05 | ✓ SATISFIED | `sender/cross_chat_quote.py:check / record_bodies`; 40-char threshold; 30-min sliding window; LRU 1000 entries; 4 read tools wire `record_bodies` (write half); send_message calls `check` at STEP 4; warnings flow into elicitation prompt |
 | SEND-08 | Post-hoc verification by polling ZWAMESSAGE for ZSTANZAID within 10s | 02-03, 02-05 | ✓ SATISFIED | `sender/verify.py:poll_for_outgoing` (250ms × 40 polls = 10s); `tools/send_message.py:457` STEP 9; D-22 soft-fail returns `sent_unverified`; SQL `ZMESSAGEDATE > since_cocoa AND ZISFROMME = 1` |
 
@@ -259,7 +259,7 @@ All 5 plans show `## Self-Check: PASSED`. None CHECKPOINTED. Total: 14 commits a
 | **Total non-live** | **253** | **all green** |
 | Phase 0 live | 1 | green |
 | Phase 1 live | 8 | green (1 skipped — empty chat) |
-| Phase 2 live (gated, opt-in) | 3 | gated (skipped without `WHATSAPP_MCP_LIVE_TEST_SELF_NAME`) |
+| Phase 2 live (gated, opt-in) | 3 | gated (skipped without `WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME`) |
 | **Total live** | **12** | **all gated** |
 
 `uv run pytest -m "not live"` → **253 passed, 12 deselected in 5.38s**
@@ -271,7 +271,7 @@ All 5 plans show `## Self-Check: PASSED`. None CHECKPOINTED. Total: 14 commits a
 
 ### 1. End-to-end live send via Claude Desktop with real WhatsApp account
 
-**Test:** Configure Claude Desktop with `--no-read-only`, set `WHATSAPP_MCP_LIVE_TEST_SELF_NAME=<your self-chat display name>`, `RUN_LIVE_BURN_BUDGET=1`, then run `RUN_LIVE=1 uv run pytest -m live tests/integration/test_live_send.py`. Alternatively, ask Claude in Claude Desktop to send a one-line message to a known contact.
+**Test:** Configure Claude Desktop with `--no-read-only`, set `WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME=<your self-chat display name>`, `RUN_LIVE_BURN_BUDGET=1`, then run `RUN_LIVE=1 uv run pytest -m live tests/integration/test_live_send.py`. Alternatively, ask Claude in Claude Desktop to send a one-line message to a known contact.
 **Expected:** MCP elicitation prompt is rendered by Claude Desktop showing chat name + JID + body verbatim; user accept fires the WhatsApp Desktop send; post-hoc poll returns ZSTANZAID within 10 seconds; audit log gets one new JSONL line with body_sha256 (NOT plaintext body); rate limiter ticks down (4/5 remaining this minute, 29/30 today).
 **Why human:** RUN_LIVE_BURN_BUDGET=1 burns 5 real messages of the user's daily WhatsApp budget; user must explicitly opt in by setting the env var. Visual rendering of the elicitation prompt inside Claude Desktop is also a UX assertion that can't be verified programmatically.
 

@@ -1,6 +1,6 @@
 """Frozen exception surface assertions for Phase 1.
 
-Phase 1's read tools will ``from whatsapp_mcp.exceptions import
+Phase 1's read tools will ``from whatsapp_desktop_mcp.exceptions import
 FullDiskAccessRequired, AutomationPermissionRequired,
 AccessibilityPermissionRequired`` by name. Renaming any of these classes,
 changing the ``bucket`` literal values, or changing the ``Privacy_*`` URL
@@ -17,7 +17,7 @@ remediation=...)``.
 
 from __future__ import annotations
 
-from whatsapp_mcp.exceptions import (
+from whatsapp_desktop_mcp.exceptions import (
     AccessibilityPermissionRequired,
     AutomationPermissionRequired,
     FullDiskAccessRequired,

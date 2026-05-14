@@ -28,7 +28,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Custom tap (gladia/whatsapp-mcp) | User-controlled iteration; no upstream review queue. Promote later if demand. | ✓ |
+| Custom tap (gladia/whatsapp-desktop-mcp) | User-controlled iteration; no upstream review queue. Promote later if demand. | ✓ |
 | homebrew-core | "Official"; 2-4 week review queue per release. | |
 | No brew, .pkg only | Cuts a channel. | |
 
@@ -67,7 +67,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Sidecar SQLite at ~/Library/Application Support/whatsapp-mcp/fts.sqlite; lazy build on first search; incremental refresh on Z_VERSION match | Separate file; simple lifecycle; doesn't bloat rate-limit.db. | ✓ |
+| Sidecar SQLite at ~/Library/Application Support/whatsapp-desktop-mcp/fts.sqlite; lazy build on first search; incremental refresh on Z_VERSION match | Separate file; simple lifecycle; doesn't bloat rate-limit.db. | ✓ |
 | In-memory FTS rebuilt per session | Cold-start latency every server start. | |
 | Add FTS table to existing rate-limit.db | Co-location confuses lifecycles; rate-limit lives forever, FTS rebuilds on schema change. | |
 | FSEvents watcher continuously updating | Background daemon; out of scope for stdio MCP. | |
@@ -181,8 +181,8 @@
 - .dmg installer — v1.0 ships .pkg only
 - Sparkle auto-update — v2
 - actions/release-drafter auto-changelog — polish
-- `whatsapp-mcp dev rotate-audit-log` subcommand — Claude's discretion
-- `whatsapp-mcp dev record-tested-version` subcommand — v1.1
+- `whatsapp-desktop-mcp dev rotate-audit-log` subcommand — Claude's discretion
+- `whatsapp-desktop-mcp dev record-tested-version` subcommand — v1.1
 - Cross-platform support — v2
 - Multi-account orchestration — v2
 - Full Accessibility-API send (replacing keystroke) — v2

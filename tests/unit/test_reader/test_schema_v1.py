@@ -1,6 +1,6 @@
 """Schema-fingerprint probe tests (REL-04).
 
-Codifies :data:`whatsapp_mcp.reader.SUPPORTED_VERSIONS`,
+Codifies :data:`whatsapp_desktop_mcp.reader.SUPPORTED_VERSIONS`,
 :func:`probe_z_version`, and :func:`is_supported`. Together they form
 the doctor's fallback path: when ``Z_VERSION`` is outside the supported
 set, doctor surfaces a structured ``unsupported`` ``SchemaFingerprint``
@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from whatsapp_mcp.reader.connection import open_ro
-from whatsapp_mcp.reader.schema_v1 import (
+from whatsapp_desktop_mcp.reader.connection import open_ro
+from whatsapp_desktop_mcp.reader.schema_v1 import (
     SUPPORTED_VERSIONS,
     is_supported,
     probe_z_version,

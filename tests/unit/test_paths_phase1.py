@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import os
 
-from whatsapp_mcp.paths import (
+from whatsapp_desktop_mcp.paths import (
     resolve_chatstorage_path,
     resolve_contactsv2_path,
     resolve_lid_path,

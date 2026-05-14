@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# scripts/build-pkg.sh — build a Developer-ID-signable .pkg of whatsapp-mcp.
+# scripts/build-pkg.sh — build a Developer-ID-signable .pkg of whatsapp-desktop-mcp.
 #
 # Inputs (env):
 #   VERSION       — required, e.g. 0.1.0
-#   STAGING_DIR   — optional, default /tmp/whatsapp-mcp-pkg
+#   STAGING_DIR   — optional, default /tmp/whatsapp-desktop-mcp-pkg
 #   SIGN_DYLIBS   — optional. When set (any non-empty value), re-signs every
 #                   binary inside the staged venv with the Developer ID
 #                   Application cert before packaging (Pitfall 8 mitigation:
@@ -20,14 +20,14 @@
 #                   string `Developer ID Application: ${APPLE_TEAM_NAME} (${APPLE_TEAM_ID})`.
 #
 # Outputs:
-#   $PWD/dist/whatsapp-mcp-${VERSION}-component.pkg
-#   $PWD/dist/whatsapp-mcp-${VERSION}-unsigned.pkg
+#   $PWD/dist/whatsapp-desktop-mcp-${VERSION}-component.pkg
+#   $PWD/dist/whatsapp-desktop-mcp-${VERSION}-unsigned.pkg
 #
 # Decisions covered:
 #   D-03 (self-contained Python venv bundle)
 #   D-05 (stdout purity carries through the launcher — exec, no echo)
-#   T-3 (stable absolute path /usr/local/bin/whatsapp-mcp; pkgbuild --identifier
-#        net.gladia.whatsapp-mcp ensures macOS treats upgrades as same-package)
+#   T-3 (stable absolute path /usr/local/bin/whatsapp-desktop-mcp; pkgbuild --identifier
+#        net.gladia.whatsapp-desktop-mcp ensures macOS treats upgrades as same-package)
 #
 # Research lock: `python -m venv --copies` is the venv tool here.
 #   The uv-side relocatable-venv flag is deliberately NOT used: uv #3587
@@ -39,10 +39,10 @@
 set -euo pipefail
 
 VERSION="${VERSION:?VERSION env var required}"
-STAGING_DIR="${STAGING_DIR:-/tmp/whatsapp-mcp-pkg}"
-BUNDLE_ID="net.gladia.whatsapp-mcp"
+STAGING_DIR="${STAGING_DIR:-/tmp/whatsapp-desktop-mcp-pkg}"
+BUNDLE_ID="net.gladia.whatsapp-desktop-mcp"
 INSTALL_PREFIX="/usr/local"
-VENV_DIR="${STAGING_DIR}${INSTALL_PREFIX}/lib/whatsapp-mcp/.venv"
+VENV_DIR="${STAGING_DIR}${INSTALL_PREFIX}/lib/whatsapp-desktop-mcp/.venv"
 BIN_DIR="${STAGING_DIR}${INSTALL_PREFIX}/bin"
 
 # Clean staging
@@ -61,20 +61,20 @@ uv build --wheel --out-dir dist
 #    isn't supported by uv venv as of 2026-05 (uv #3587 / #15751).
 /usr/bin/env python3.12 -m venv --copies "${VENV_DIR}"
 
-# 3. Install whatsapp-mcp + transitive deps into the staged venv.
+# 3. Install whatsapp-desktop-mcp + transitive deps into the staged venv.
 "${VENV_DIR}/bin/pip" install --upgrade pip
-"${VENV_DIR}/bin/pip" install "dist/whatsapp_mcp-${VERSION}-py3-none-any.whl"
+"${VENV_DIR}/bin/pip" install "dist/whatsapp_desktop_mcp-${VERSION}-py3-none-any.whl"
 
 # 4. Write the launcher shell script at the stable absolute path.
 #    Phase 0 D-05 stdout-purity rule carries: NO echo, NO set -x, NO diagnostic
 #    output — every byte on stdout is JSON-RPC. The exec form keeps the process
 #    tree shallow (Claude Desktop spawns one PID, not two). $@ propagates
 #    --read-only / --fts5-mode / --audit-log-max-bytes etc.
-cat > "${BIN_DIR}/whatsapp-mcp" <<'LAUNCHER'
+cat > "${BIN_DIR}/whatsapp-desktop-mcp" <<'LAUNCHER'
 #!/bin/bash
-exec "/usr/local/lib/whatsapp-mcp/.venv/bin/python" -m whatsapp_mcp "$@"
+exec "/usr/local/lib/whatsapp-desktop-mcp/.venv/bin/python" -m whatsapp_desktop_mcp "$@"
 LAUNCHER
-chmod 0755 "${BIN_DIR}/whatsapp-mcp"
+chmod 0755 "${BIN_DIR}/whatsapp-desktop-mcp"
 
 # 5. Optional: re-sign every binary inside the staged venv with the
 #    Developer ID Application cert (Pitfall 8 mitigation). Gated by
@@ -104,11 +104,11 @@ pkgbuild \
     --version "${VERSION}" \
     --install-location / \
     --ownership recommended \
-    "dist/whatsapp-mcp-${VERSION}-component.pkg"
+    "dist/whatsapp-desktop-mcp-${VERSION}-component.pkg"
 
 # 8. Build a distribution archive (allows productsign + notarization).
 productbuild \
     --distribution "dist/distribution.xml" \
     --package-path dist \
     --resources scripts/pkg-resources \
-    "dist/whatsapp-mcp-${VERSION}-unsigned.pkg"
+    "dist/whatsapp-desktop-mcp-${VERSION}-unsigned.pkg"

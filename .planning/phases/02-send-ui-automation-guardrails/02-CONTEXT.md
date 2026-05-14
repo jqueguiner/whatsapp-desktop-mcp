@@ -37,15 +37,15 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
   - Message body verbatim (no truncation; if body > 1000 chars, the elicitation shows full body anyway — sending a long message deserves a long confirmation)
   - Cross-chat-quote warning (if D-12 heuristic fires)
   - Rate limit budget remaining (e.g., "4/5 sends remaining this minute, 28/30 today")
-- **D-08:** **Opt-out via `WHATSAPP_MCP_SKIP_CONFIRM=1` env var.** When set: elicitation is skipped, send proceeds, BUT every skipped confirmation is logged to the audit log with `confirm_skipped: true`. Documented in README with a stark warning about prompt-injection consequences.
+- **D-08:** **Opt-out via `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1` env var.** When set: elicitation is skipped, send proceeds, BUT every skipped confirmation is logged to the audit log with `confirm_skipped: true`. Documented in README with a stark warning about prompt-injection consequences.
 - **D-09:** **No sticky-session confirmation cache.** "Confirmed once, OK for the next N sends to this chat" defeats the per-send safety. Each send gets its own confirmation.
 - **D-10:** **Decline = clean cancellation.** When the user declines the elicitation, `send_message` returns a structured `SendCancelled` result (NOT an error — the user's choice is the success case). Audit log entry `outcome: "cancelled"`.
 
 ### Rate Limiter
-- **D-11:** **Persistent SQLite-backed rate limiter at `~/Library/Application Support/whatsapp-mcp/rate-limit.db` (mode 0600).** Single file; one append-only `sends(ts INTEGER, chat_id INTEGER, body_sha256 TEXT, outcome TEXT)` table. Sliding-window query on `ts`: `SELECT COUNT(*) FROM sends WHERE ts > now-60` and `WHERE ts > now-86400`. Persistent because a server restart MUST NOT bypass the daily limit — the WhatsApp account is the protected resource and it doesn't restart with the MCP. Defaults: 5/min, 30/day. Configurable via env vars `WHATSAPP_MCP_RATE_PER_MIN` / `WHATSAPP_MCP_RATE_PER_DAY` (must NOT silently expand the defaults — both bounded by hard maximums of 20/min and 200/day respectively, beyond which the env var is rejected with a structured config error).
+- **D-11:** **Persistent SQLite-backed rate limiter at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db` (mode 0600).** Single file; one append-only `sends(ts INTEGER, chat_id INTEGER, body_sha256 TEXT, outcome TEXT)` table. Sliding-window query on `ts`: `SELECT COUNT(*) FROM sends WHERE ts > now-60` and `WHERE ts > now-86400`. Persistent because a server restart MUST NOT bypass the daily limit — the WhatsApp account is the protected resource and it doesn't restart with the MCP. Defaults: 5/min, 30/day. Configurable via env vars `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN` / `WHATSAPP_DESKTOP_MCP_RATE_PER_DAY` (must NOT silently expand the defaults — both bounded by hard maximums of 20/min and 200/day respectively, beyond which the env var is rejected with a structured config error).
 
 ### Audit Log
-- **D-12:** **JSONL at `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600.** One JSON object per send attempt:
+- **D-12:** **JSONL at `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600.** One JSON object per send attempt:
   ```json
   {"ts": 1778660000, "chat_id": 30, "chat_name": "Café",
    "body_sha256": "a1b2...", "outcome": "sent|cancelled|rate_limited|error",
@@ -56,13 +56,13 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 - **D-14:** **Append-only, line-buffered, no log rotation in v0.1.** The file grows; users who care can `truncate` it manually or wait for Phase 3 to add rotation. Phase 2 doesn't ship a daemon, so no automatic rotation.
 
 ### Cross-Chat-Quote Heuristic (SEND-07)
-- **D-15:** **Session-scoped source-attribution table.** Every read tool (`read_chat`, `extract_recent`, `search_messages`, `get_message_context`) records returned message bodies with their source `chat_id` and timestamp into a process-local LRU (max 1000 entries, ~30 min sliding window). Implementation: `whatsapp_mcp/sender/cross_chat_quote.py` with a `record(chat_id, body)` write API the read tools call AND a `check(target_chat_id, outgoing_body) -> list[OffendingSource]` read API the send tool calls during confirmation construction.
+- **D-15:** **Session-scoped source-attribution table.** Every read tool (`read_chat`, `extract_recent`, `search_messages`, `get_message_context`) records returned message bodies with their source `chat_id` and timestamp into a process-local LRU (max 1000 entries, ~30 min sliding window). Implementation: `whatsapp_desktop_mcp/sender/cross_chat_quote.py` with a `record(chat_id, body)` write API the read tools call AND a `check(target_chat_id, outgoing_body) -> list[OffendingSource]` read API the send tool calls during confirmation construction.
 - **D-16:** **Match threshold: ≥ 40-character contiguous substring** belonging to a different chat_id within the 30-min window. Below 40 chars, false positives on common phrases dominate. Above 80, the obvious "I'm copying that thing from the other chat" case slips through.
 - **D-17:** **In-memory only — no persistence.** Reset on server restart. The heuristic is prompt-injection defense for the active session; a restart implies a fresh trust context.
 - **D-18:** **Surface as a WARNING in the elicitation, not a HARD BLOCK.** The user may legitimately be forwarding a quote between chats. The warning shows `Body contains a 47-char run from chat "Work" — confirm cross-chat reference is intentional.` The user accepts or declines.
 
 ### --read-only Interaction
-- **D-19:** **`send_message` checks `whatsapp_mcp.server.read_only_mode` at the top of its body and raises `ReadOnlyMode` exception (Phase 1 minted) if True.** v0.1 default for the flag stays `True` (conservative); user must explicitly `uvx whatsapp-mcp --no-read-only` to enable sends. README documents this.
+- **D-19:** **`send_message` checks `whatsapp_desktop_mcp.server.read_only_mode` at the top of its body and raises `ReadOnlyMode` exception (Phase 1 minted) if True.** v0.1 default for the flag stays `True` (conservative); user must explicitly `uvx whatsapp-desktop-mcp --no-read-only` to enable sends. README documents this.
 - **D-20:** **Tool annotations: `@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), meta={"anthropic/maxResultSizeChars": 60000})`.** `destructiveHint=True` is the MCP signal that calling this tool changes external state. `readOnlyHint=False` distinguishes it from the 8 Phase 0/1 tools.
 
 ### Post-Hoc Verification (SEND-08)
@@ -70,12 +70,12 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 - **D-22:** **Verification timeout returns `outcome="sent_unverified"` (NOT "error").** WhatsApp.app may sync the send to its DB after the 10 s window — especially over a slow network. The audit log records `outcome="sent_unverified"`; the tool result returns `{"status": "sent_unverified", "message_id": null, "verification_note": "..."}`. The send is observably in the WA UI; we just couldn't confirm via DB in our window.
 
 ### Sender Package Layout
-- **D-23:** **Files under `src/whatsapp_mcp/sender/`:**
+- **D-23:** **Files under `src/whatsapp_desktop_mcp/sender/`:**
   - `deeplink.py` — `whatsapp://send` URL builder + `open` subprocess wrapper
   - `osascript_send.py` — keystroke-return wrapper with timeout
   - `ax_assert.py` — pyobjc-based focused-window-header probe
   - `ui_send.py` — orchestrates deep-link OR search-and-click + AX assertion + keystroke (the unified send path)
-  - `verify.py` — post-hoc DB poll (uses `whatsapp_mcp.reader.connection.open_ro` — this IS allowed because the integration point is the tool layer, but the sender needs DB read for verification; lock the import direction: `sender/verify.py` imports `reader.connection`, NOT vice versa, so REL-05 stays one-way)
+  - `verify.py` — post-hoc DB poll (uses `whatsapp_desktop_mcp.reader.connection.open_ro` — this IS allowed because the integration point is the tool layer, but the sender needs DB read for verification; lock the import direction: `sender/verify.py` imports `reader.connection`, NOT vice versa, so REL-05 stays one-way)
   - `rate_limit.py` — SQLite rate limiter
   - `audit.py` — JSONL audit log writer
   - `cross_chat_quote.py` — heuristic + read-tool integration hooks
@@ -83,13 +83,13 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 - **D-24:** **REL-05 EVOLUTION:** Phase 1 said "Reader and Sender MUST NOT import each other." Phase 2 needs `sender/verify.py` to use `reader.connection.open_ro`. The cleanest evolution: REL-05 becomes "Reader MUST NOT import Sender. Sender MAY import Reader connection primitives only (NOT reader.tools or reader business logic)." Update `tests/unit/test_isolation.py` accordingly: `test_isolation_reader_does_not_import_sender` stays load-bearing; `test_isolation_sender_does_not_import_reader` is RELAXED to assert sender imports ONLY `reader.connection` — no other reader module. Phase 0/1 sender was empty, so this is the first time the constraint actually has bite.
 
 ### Tool Layer
-- **D-25:** **`src/whatsapp_mcp/tools/send_message.py`** — `@mcp.tool(...)` async function. Body:
+- **D-25:** **`src/whatsapp_desktop_mcp/tools/send_message.py`** — `@mcp.tool(...)` async function. Body:
   1. Check `read_only_mode` → raise `ReadOnlyMode`.
   2. Validate `chat_id` exists via `reader.list_all` lookup → raise `InvalidChatId` if not found (SEND-01: "passing a free-form name string returns InvalidChatId" — chat_id is opaque int validated against reader; planner should generate test that passes a string → 422 / structured error).
   3. Resolve chat name + recipient JID/LID from reader.
   4. Build cross-chat-quote warnings.
   5. Check rate limit → raise `RateLimitExceeded` if over budget.
-  6. MCP elicitation prompt (unless `WHATSAPP_MCP_SKIP_CONFIRM=1`); on decline → `SendCancelled`.
+  6. MCP elicitation prompt (unless `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1`); on decline → `SendCancelled`.
   7. AX state assertion → raise `ChatHeaderMismatch` on focus mismatch.
   8. Drive send (deep-link OR search-and-click).
   9. Post-hoc DB poll for verification (D-21).
@@ -107,8 +107,8 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 ### Claude's Discretion
 - AX-API exact selectors for the focused chat header (the `AXTitle` walk depth, fallback selectors if the obvious one is missing on a specific Catalyst version).
 - Exact wording of the elicitation prompt's body display (must show body verbatim; framing is Claude's call).
-- Whether to add `WHATSAPP_MCP_DRY_RUN=1` env var that walks the entire pipeline up to but not including the keystroke and returns a `dry_run_result` — a useful debugging mode the user might appreciate, not strictly required.
-- Whether to ship a tiny `whatsapp-mcp send-test` CLI subcommand for manual smoke testing without going through Claude Desktop.
+- Whether to add `WHATSAPP_DESKTOP_MCP_DRY_RUN=1` env var that walks the entire pipeline up to but not including the keystroke and returns a `dry_run_result` — a useful debugging mode the user might appreciate, not strictly required.
+- Whether to ship a tiny `whatsapp-desktop-mcp send-test` CLI subcommand for manual smoke testing without going through Claude Desktop.
 
 </decisions>
 
@@ -130,12 +130,12 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 - `.planning/research/STACK.md` — pyobjc dep notes
 
 ### Phase 1 inheritance (loaded by sender)
-- `src/whatsapp_mcp/exceptions.py` — `ReadOnlyMode` (Phase 1 mint, Phase 2 raises); `PermissionRequired` hierarchy
-- `src/whatsapp_mcp/server.py` — `mcp` instance + `read_only_mode` module state
-- `src/whatsapp_mcp/reader/connection.py` — `open_ro` context manager (used by `sender/verify.py` per relaxed REL-05 D-24)
-- `src/whatsapp_mcp/permissions/automation.py` — D-09 patched probe (used by send-time TCC re-check)
-- `src/whatsapp_mcp/paths.py` — `resolve_chatstorage_path`, `system_settings_url`
-- `src/whatsapp_mcp/time.py` — `unix_to_cocoa` for the post-hoc DB poll predicate
+- `src/whatsapp_desktop_mcp/exceptions.py` — `ReadOnlyMode` (Phase 1 mint, Phase 2 raises); `PermissionRequired` hierarchy
+- `src/whatsapp_desktop_mcp/server.py` — `mcp` instance + `read_only_mode` module state
+- `src/whatsapp_desktop_mcp/reader/connection.py` — `open_ro` context manager (used by `sender/verify.py` per relaxed REL-05 D-24)
+- `src/whatsapp_desktop_mcp/permissions/automation.py` — D-09 patched probe (used by send-time TCC re-check)
+- `src/whatsapp_desktop_mcp/paths.py` — `resolve_chatstorage_path`, `system_settings_url`
+- `src/whatsapp_desktop_mcp/time.py` — `unix_to_cocoa` for the post-hoc DB poll predicate
 
 ### External
 - WhatsApp URL scheme — `whatsapp://send?phone=<E164>&text=<urlencoded>` (1:1 only)
@@ -150,13 +150,13 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 ## Existing Code Insights
 
 ### Reusable Assets
-- `whatsapp_mcp.permissions.osascript.run_osascript` (Phase 0) — async wrapper around `osascript -e <script>`. Reuse for `keystroke return` and any AX-via-osascript fallback.
-- `whatsapp_mcp.permissions.automation` (Phase 0, D-09 patched) — `id of application "WhatsApp"` probe. Reuse for the per-send TCC re-check (T-6).
-- `whatsapp_mcp.reader.connection.open_ro` (Phase 1) — async RO context manager. `sender/verify.py` calls this for the post-hoc poll (REL-05 evolution per D-24).
-- `whatsapp_mcp.time.unix_to_cocoa` (Phase 1) — converts Unix → Cocoa for the `ZMESSAGEDATE > :send_started_cocoa` predicate.
-- `whatsapp_mcp.exceptions.ReadOnlyMode` (Phase 1) — raised by `send_message` when server.read_only_mode is True.
-- `whatsapp_mcp.exceptions.PermissionRequired` hierarchy (Phase 0) — re-raised when Automation TCC is revoked mid-session (T-6).
-- `whatsapp_mcp.paths.resolve_chatstorage_path` + `system_settings_url` (Phase 0/1) — for `ChatHeaderMismatch` / `AutomationRevoked` error payloads.
+- `whatsapp_desktop_mcp.permissions.osascript.run_osascript` (Phase 0) — async wrapper around `osascript -e <script>`. Reuse for `keystroke return` and any AX-via-osascript fallback.
+- `whatsapp_desktop_mcp.permissions.automation` (Phase 0, D-09 patched) — `id of application "WhatsApp"` probe. Reuse for the per-send TCC re-check (T-6).
+- `whatsapp_desktop_mcp.reader.connection.open_ro` (Phase 1) — async RO context manager. `sender/verify.py` calls this for the post-hoc poll (REL-05 evolution per D-24).
+- `whatsapp_desktop_mcp.time.unix_to_cocoa` (Phase 1) — converts Unix → Cocoa for the `ZMESSAGEDATE > :send_started_cocoa` predicate.
+- `whatsapp_desktop_mcp.exceptions.ReadOnlyMode` (Phase 1) — raised by `send_message` when server.read_only_mode is True.
+- `whatsapp_desktop_mcp.exceptions.PermissionRequired` hierarchy (Phase 0) — re-raised when Automation TCC is revoked mid-session (T-6).
+- `whatsapp_desktop_mcp.paths.resolve_chatstorage_path` + `system_settings_url` (Phase 0/1) — for `ChatHeaderMismatch` / `AutomationRevoked` error payloads.
 - `tools/_decorators.py @timeout` (Phase 1) — wrap `send_message` with 15 s timeout per REL-03.
 
 ### Established Patterns
@@ -195,8 +195,8 @@ Out of scope (this phase): media sends (v2 — SEND2-01), draft+confirm preview 
 - **Full Accessibility-API send path** (replacing `keystroke return` with `AXTextArea.setValue:` + `AXButton.AXPress`) — v2 (SEND2-04); the AX preflight assertion (D-03) is sufficient for v0.1 P12 mitigation
 - **Group send via deep-link** — v2 (SEND2-05); requires WhatsApp to add group JID support to URL scheme; out of our control
 - **Audit log rotation** — Phase 3 alongside other ops polish
-- **`whatsapp-mcp send-test` CLI subcommand** — Claude's discretion; nice-to-have
-- **`WHATSAPP_MCP_DRY_RUN=1` env var** — Claude's discretion; would help with debugging
+- **`whatsapp-desktop-mcp send-test` CLI subcommand** — Claude's discretion; nice-to-have
+- **`WHATSAPP_DESKTOP_MCP_DRY_RUN=1` env var** — Claude's discretion; would help with debugging
 
 </deferred>
 

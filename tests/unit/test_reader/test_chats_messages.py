@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from whatsapp_mcp import reader
-from whatsapp_mcp.models import Chat, Message
+from whatsapp_desktop_mcp import reader
+from whatsapp_desktop_mcp.models import Chat, Message
 
 
 @pytest.mark.asyncio

@@ -13,17 +13,17 @@ tech_stack:
 key_files:
   created: []
   modified:
-    - src/whatsapp_mcp/tools/read_chat.py
-    - src/whatsapp_mcp/tools/extract_recent.py
-    - src/whatsapp_mcp/tools/search_messages.py
-    - src/whatsapp_mcp/tools/get_message_context.py
+    - src/whatsapp_desktop_mcp/tools/read_chat.py
+    - src/whatsapp_desktop_mcp/tools/extract_recent.py
+    - src/whatsapp_desktop_mcp/tools/search_messages.py
+    - src/whatsapp_desktop_mcp/tools/get_message_context.py
     - tests/unit/test_isolation.py
 decisions:
   - "SEND-07 WRITE-half wired: 4 body-surfacing read tools (read_chat, extract_recent, search_messages, get_message_context) each gain +1 import + +1 call site for cross_chat_quote.record_bodies; the 3 metadata-only tools (list_chats, get_chat_metadata, search_contacts) remain untouched per D-15"
   - "search_messages results span multiple chats — group-by-m.chat_id via defaultdict then one record_bodies call per chat-group so the LRU's 'different chat' semantics in check() stay correct"
   - "get_message_context records window + parent under the SAME chat_id (parent is from the same chat as the target by construction); chat_id derived from window[0].chat_id with parent.chat_id fallback if window is empty"
   - "REL-05 D-24 evolution codified as frozenset _ALLOWED_SENDER_TO_READER_IMPORTS = {'connection'} — future allow-list evolution is now a single-constant tweak (no inline 'dotted == ...' string comparisons)"
-  - "Defense-in-depth W-5 test_sender_to_reader_edge_is_exactly_one_file: AST-walks every src/whatsapp_mcp/sender/*.py file and asserts the set of carrier-file basenames is exactly {'verify.py'} — catches drift where a NEW sender file picks up the edge instead of channeling via verify.py"
+  - "Defense-in-depth W-5 test_sender_to_reader_edge_is_exactly_one_file: AST-walks every src/whatsapp_desktop_mcp/sender/*.py file and asserts the set of carrier-file basenames is exactly {'verify.py'} — catches drift where a NEW sender file picks up the edge instead of channeling via verify.py"
   - "Positive allow-list test_isolation_tools_may_import_both: mirror of test_reader_imports_models_paths_time_only on the tools/ side; sanctions the cross_chat_quote.record_bodies hook + full send_message.py sender composition pattern"
   - "Plan 01-06's test_isolation_reader_does_not_import_sender preserved byte-identical (load-bearing AST walk; the reverse REL-05 forward direction remains strictly forbidden)"
 metrics:
@@ -44,10 +44,10 @@ Landed the WRITE half of the SEND-07 cross-chat-quote heuristic (Plan 02-03 ship
 
 | File | Lines added | Purpose |
 |------|-------------|---------|
-| `src/whatsapp_mcp/tools/read_chat.py` | +8 (+1 import line, +7 incl. comment block + call site) | SEND-07 LRU recording hook after final `logger.info`, before `return body` |
-| `src/whatsapp_mcp/tools/extract_recent.py` | +5 (+1 import, +4 comment + call) | Same shape as read_chat; cleanest possible single-line call site |
-| `src/whatsapp_mcp/tools/search_messages.py` | +14 (+2 imports — sender + stdlib defaultdict, +12 group-by-chat-id loop) | Cross-chat results grouped by `m.chat_id`; one `record_bodies` call per chat-group so the LRU's per-chat semantics are correct |
-| `src/whatsapp_mcp/tools/get_message_context.py` | +16 (+1 import, +15 window/parent chat_id resolution + record block) | Window + parent both go to the LRU under the SAME chat_id (parent is from the same chat as the target message by construction) |
+| `src/whatsapp_desktop_mcp/tools/read_chat.py` | +8 (+1 import line, +7 incl. comment block + call site) | SEND-07 LRU recording hook after final `logger.info`, before `return body` |
+| `src/whatsapp_desktop_mcp/tools/extract_recent.py` | +5 (+1 import, +4 comment + call) | Same shape as read_chat; cleanest possible single-line call site |
+| `src/whatsapp_desktop_mcp/tools/search_messages.py` | +14 (+2 imports — sender + stdlib defaultdict, +12 group-by-chat-id loop) | Cross-chat results grouped by `m.chat_id`; one `record_bodies` call per chat-group so the LRU's per-chat semantics are correct |
+| `src/whatsapp_desktop_mcp/tools/get_message_context.py` | +16 (+1 import, +15 window/parent chat_id resolution + record block) | Window + parent both go to the LRU under the SAME chat_id (parent is from the same chat as the target message by construction) |
 | `tests/unit/test_isolation.py` | +148 / −29 (net +119) | Frozenset `_ALLOWED_SENDER_TO_READER_IMPORTS = {"connection"}` + frozenset `_TOOLS_ALLOWED_INTERNAL_IMPORTS`; relaxed sender-does-not-import-reader test rewritten as parts-based AST walk; +2 new tests (tools-may-import-both + sender-to-reader-edge-is-exactly-one-file) |
 
 Total: 0 files created, 5 files modified, +191 / −29 LOC.
@@ -57,7 +57,7 @@ Total: 0 files created, 5 files modified, +191 / −29 LOC.
 ### `tools/read_chat.py` (+8 lines)
 
 ```diff
-+from whatsapp_mcp.sender import cross_chat_quote
++from whatsapp_desktop_mcp.sender import cross_chat_quote
 ...
      logger.info(...)
 +
@@ -75,7 +75,7 @@ The local variable holding the post-char-cap-trim message list is `messages` (NO
 ### `tools/extract_recent.py` (+5 lines)
 
 ```diff
-+from whatsapp_mcp.sender import cross_chat_quote
++from whatsapp_desktop_mcp.sender import cross_chat_quote
 ...
      logger.info(...)
 +
@@ -89,7 +89,7 @@ The local variable holding the post-char-cap-trim message list is `messages` (NO
 
 ```diff
 +from collections import defaultdict
-+from whatsapp_mcp.sender import cross_chat_quote
++from whatsapp_desktop_mcp.sender import cross_chat_quote
 ...
      logger.info(...)
 +
@@ -112,7 +112,7 @@ CRITICAL design choice: `search_messages` is the only read tool whose results sp
 ### `tools/get_message_context.py` (+16 lines)
 
 ```diff
-+from whatsapp_mcp.sender import cross_chat_quote
++from whatsapp_desktop_mcp.sender import cross_chat_quote
 ...
      logger.info(...)
 +
@@ -138,9 +138,9 @@ The `if not window and parent is None` early-exit (ValueError on unresolved `mes
 ## Untouched tools (D-15 / SEND-07 scope confirmation)
 
 ```
-$ grep -E 'cross_chat_quote' src/whatsapp_mcp/tools/list_chats.py \
-                              src/whatsapp_mcp/tools/get_chat_metadata.py \
-                              src/whatsapp_mcp/tools/search_contacts.py
+$ grep -E 'cross_chat_quote' src/whatsapp_desktop_mcp/tools/list_chats.py \
+                              src/whatsapp_desktop_mcp/tools/get_chat_metadata.py \
+                              src/whatsapp_desktop_mcp/tools/search_contacts.py
 # returns no lines
 ```
 
@@ -169,7 +169,7 @@ Replaced the Plan 02-03 inline-string-comparison form with a parts-based AST wal
 
 ### test_isolation_tools_may_import_both (NEW)
 
-Mirror of `test_reader_imports_models_paths_time_only` on the tools/ side. AST-walks every `tools/*.py` file, collects every `whatsapp_mcp.*` dotted name, and asserts the second-after-`whatsapp_mcp` component is in `_TOOLS_ALLOWED_INTERNAL_IMPORTS`. Catches accidental drift (e.g. a stray `from whatsapp_mcp.notexist import bar` snuck into a tool file) without restricting the legitimate read+send composition.
+Mirror of `test_reader_imports_models_paths_time_only` on the tools/ side. AST-walks every `tools/*.py` file, collects every `whatsapp_desktop_mcp.*` dotted name, and asserts the second-after-`whatsapp_desktop_mcp` component is in `_TOOLS_ALLOWED_INTERNAL_IMPORTS`. Catches accidental drift (e.g. a stray `from whatsapp_desktop_mcp.notexist import bar` snuck into a tool file) without restricting the legitimate read+send composition.
 
 ### test_sender_to_reader_edge_is_exactly_one_file (NEW — W-5 LOCK)
 
@@ -177,11 +177,11 @@ Defense-in-depth on top of `test_isolation_sender_does_not_import_reader`. That 
 
 ```python
 def test_sender_to_reader_edge_is_exactly_one_file() -> None:
-    sender_dir = _package_dir("whatsapp_mcp.sender")
+    sender_dir = _package_dir("whatsapp_desktop_mcp.sender")
     files_with_edge: list[str] = []
     for py_file in sender_dir.rglob("*.py"):
         for dotted in _imported_dotted_names(py_file):
-            if dotted.startswith("whatsapp_mcp.reader"):
+            if dotted.startswith("whatsapp_desktop_mcp.reader"):
                 files_with_edge.append(py_file.name)
                 break
     unique = sorted(set(files_with_edge))
@@ -203,14 +203,14 @@ Net: 5 (original) − 1 (replaced) + 1 (relaxed replacement) + 2 (new) = 7 tests
 
 | Gate | Expected | Got |
 |------|----------|-----|
-| Task 1 — `^from whatsapp_mcp\.sender import cross_chat_quote` in each of 4 read tools | 1 each | 1, 1, 1, 1 ✓ |
+| Task 1 — `^from whatsapp_desktop_mcp\.sender import cross_chat_quote` in each of 4 read tools | 1 each | 1, 1, 1, 1 ✓ |
 | Task 1 — `cross_chat_quote\.record_bodies` syntactic call sites per file | 1 each | 1, 1, 1, 1 ✓ |
 | Task 1 — `cross_chat_quote` references in 3 untouched tools | 0 | 0 ✓ |
 | Task 1 — `@mcp\.tool\(` preserved in each of 4 modified files | 1 each | 1, 1, 1, 1 ✓ |
 | Task 1 — `@timeout\(seconds=` preserved in each of 4 modified files | 1 each | 1, 1, 1, 1 ✓ |
-| Task 1 — REL-05 D-24 sender → reader.* lines in `src/whatsapp_mcp/sender/` | 1 (verify.py only) | 1 ✓ |
-| Task 1 — `ruff check src/whatsapp_mcp/tools/` | 0 errors | 0 ✓ |
-| Task 1 — `mypy src/whatsapp_mcp/tools/{read_chat,extract_recent,search_messages,get_message_context}.py` | 0 errors | 0 ✓ |
+| Task 1 — REL-05 D-24 sender → reader.* lines in `src/whatsapp_desktop_mcp/sender/` | 1 (verify.py only) | 1 ✓ |
+| Task 1 — `ruff check src/whatsapp_desktop_mcp/tools/` | 0 errors | 0 ✓ |
+| Task 1 — `mypy src/whatsapp_desktop_mcp/tools/{read_chat,extract_recent,search_messages,get_message_context}.py` | 0 errors | 0 ✓ |
 | Task 1 — `pytest -m "not live"` exits 0 (baseline 148 still green) | exit 0 | 148 passed ✓ |
 | Task 2 — `^def test_` count in test_isolation.py | 7 | 7 ✓ |
 | Task 2 — Exact test names (sorted) match plan list | 7 lines | 7 ✓ (test_isolation_reader_does_not_import_sender / test_isolation_reader_imports_independently / test_isolation_sender_does_not_import_reader / test_isolation_sender_imports_independently / test_isolation_tools_may_import_both / test_reader_imports_models_paths_time_only / test_sender_to_reader_edge_is_exactly_one_file) |
@@ -227,26 +227,26 @@ All AC grep gates pass.
 ## Confirmation outputs from final verification
 
 ```
-$ grep -E 'cross_chat_quote' src/whatsapp_mcp/tools/*.py
-src/whatsapp_mcp/tools/extract_recent.py:from whatsapp_mcp.sender import cross_chat_quote
-src/whatsapp_mcp/tools/extract_recent.py:    # SEND-07 / D-15: cross-chat-quote LRU recording (post-char-cap projection).
-src/whatsapp_mcp/tools/extract_recent.py:    cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
-src/whatsapp_mcp/tools/get_message_context.py:from whatsapp_mcp.sender import cross_chat_quote
-src/whatsapp_mcp/tools/get_message_context.py:    # SEND-07 / D-15: cross-chat-quote LRU recording. The window messages and
-src/whatsapp_mcp/tools/get_message_context.py:        cross_chat_quote.record_bodies(_window_chat_id, _bodies)
-src/whatsapp_mcp/tools/read_chat.py:from whatsapp_mcp.sender import cross_chat_quote
-src/whatsapp_mcp/tools/read_chat.py:    # SEND-07 / D-15: feed projected message bodies into the cross-chat-quote LRU
-src/whatsapp_mcp/tools/read_chat.py:    cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
-src/whatsapp_mcp/tools/search_messages.py:from whatsapp_mcp.sender import cross_chat_quote
-src/whatsapp_mcp/tools/search_messages.py:    # SEND-07 / D-15: cross-chat-quote LRU recording. search_messages spans
-src/whatsapp_mcp/tools/search_messages.py:    cross_chat_quote.record_bodies(cid, bodies)
+$ grep -E 'cross_chat_quote' src/whatsapp_desktop_mcp/tools/*.py
+src/whatsapp_desktop_mcp/tools/extract_recent.py:from whatsapp_desktop_mcp.sender import cross_chat_quote
+src/whatsapp_desktop_mcp/tools/extract_recent.py:    # SEND-07 / D-15: cross-chat-quote LRU recording (post-char-cap projection).
+src/whatsapp_desktop_mcp/tools/extract_recent.py:    cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
+src/whatsapp_desktop_mcp/tools/get_message_context.py:from whatsapp_desktop_mcp.sender import cross_chat_quote
+src/whatsapp_desktop_mcp/tools/get_message_context.py:    # SEND-07 / D-15: cross-chat-quote LRU recording. The window messages and
+src/whatsapp_desktop_mcp/tools/get_message_context.py:        cross_chat_quote.record_bodies(_window_chat_id, _bodies)
+src/whatsapp_desktop_mcp/tools/read_chat.py:from whatsapp_desktop_mcp.sender import cross_chat_quote
+src/whatsapp_desktop_mcp/tools/read_chat.py:    # SEND-07 / D-15: feed projected message bodies into the cross-chat-quote LRU
+src/whatsapp_desktop_mcp/tools/read_chat.py:    cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
+src/whatsapp_desktop_mcp/tools/search_messages.py:from whatsapp_desktop_mcp.sender import cross_chat_quote
+src/whatsapp_desktop_mcp/tools/search_messages.py:    # SEND-07 / D-15: cross-chat-quote LRU recording. search_messages spans
+src/whatsapp_desktop_mcp/tools/search_messages.py:    cross_chat_quote.record_bodies(cid, bodies)
 ```
 
 Exactly 4 imports + 4 syntactic call sites (one per tool) + 4 comment-block lines explaining the hook. The 3 non-recording tools (`list_chats`, `get_chat_metadata`, `search_contacts`) produce no matches.
 
 ```
-$ grep -rE 'whatsapp_mcp\.reader' src/whatsapp_mcp/sender/
-src/whatsapp_mcp/sender/verify.py:from whatsapp_mcp.reader.connection import open_ro
+$ grep -rE 'whatsapp_desktop_mcp\.reader' src/whatsapp_desktop_mcp/sender/
+src/whatsapp_desktop_mcp/sender/verify.py:from whatsapp_desktop_mcp.reader.connection import open_ro
 ```
 
 Exactly ONE line — `sender/verify.py` importing `reader.connection.open_ro`. The W-5 W-LOCK is structurally satisfied.
@@ -269,8 +269,8 @@ tests/unit/test_isolation.py::test_sender_to_reader_edge_is_exactly_one_file PAS
 
 **1. [Rule 1 - AC miscount noted] Plan AC #4 said "5 lines total (4 + 1 from send_message.py)" but send_message.py has 4 sender-imports lines**
 
-- **Found during:** Task 1 acceptance-criteria check `grep -rE 'from whatsapp_mcp\.sender' src/whatsapp_mcp/tools/`.
-- **Issue:** The plan's AC #4 in Task 1 expected the total `from whatsapp_mcp.sender` line count across `src/whatsapp_mcp/tools/*.py` to be 5 (4 from this plan's edits + 1 from Plan 02-03's `tools/send_message.py`). Actual count is 8 because Plan 02-03's `send_message.py` has 4 separate from-import lines (`from whatsapp_mcp.sender import audit, cross_chat_quote, rate_limit, verify` + `from whatsapp_mcp.sender.audit import AuditEntry, body_sha256` + `from whatsapp_mcp.sender.cross_chat_quote import OffendingSource` + `from whatsapp_mcp.sender.ui_send import send_text`). The underlying invariant (this plan adds exactly 4 imports, one per tool, AND no other read tool imports cross_chat_quote) is satisfied — the AC's "1 from Plan 02-03" count is the planner-side miscount, not an executor deviation. Same near-miss class as Plan 02-02 deviation #1 (DDL CHECK clause split) and Plan 02-03 deviation #4 (8 literal-token AC greps over-inflated): plans frequently under-count when an upstream file evolves between planning and execution.
+- **Found during:** Task 1 acceptance-criteria check `grep -rE 'from whatsapp_desktop_mcp\.sender' src/whatsapp_desktop_mcp/tools/`.
+- **Issue:** The plan's AC #4 in Task 1 expected the total `from whatsapp_desktop_mcp.sender` line count across `src/whatsapp_desktop_mcp/tools/*.py` to be 5 (4 from this plan's edits + 1 from Plan 02-03's `tools/send_message.py`). Actual count is 8 because Plan 02-03's `send_message.py` has 4 separate from-import lines (`from whatsapp_desktop_mcp.sender import audit, cross_chat_quote, rate_limit, verify` + `from whatsapp_desktop_mcp.sender.audit import AuditEntry, body_sha256` + `from whatsapp_desktop_mcp.sender.cross_chat_quote import OffendingSource` + `from whatsapp_desktop_mcp.sender.ui_send import send_text`). The underlying invariant (this plan adds exactly 4 imports, one per tool, AND no other read tool imports cross_chat_quote) is satisfied — the AC's "1 from Plan 02-03" count is the planner-side miscount, not an executor deviation. Same near-miss class as Plan 02-02 deviation #1 (DDL CHECK clause split) and Plan 02-03 deviation #4 (8 literal-token AC greps over-inflated): plans frequently under-count when an upstream file evolves between planning and execution.
 - **Fix:** None needed — the actual structural invariant (4 read tools call `cross_chat_quote.record_bodies` exactly once each, 3 non-recording tools are untouched, send_message.py is the only OTHER tool importing from sender, REL-05 D-24 surgical edge holds) is fully satisfied. The 8 vs 5 line count is a numeric counting discrepancy in the AC, not a source-level regression.
 - **Files modified:** none (documentation in this SUMMARY only).
 - **Commit:** none.
@@ -327,10 +327,10 @@ This plan has `type: execute` (not `type: tdd`); no plan-level TDD gate applies.
 
 All key files exist and both task commits are present:
 
-- FOUND: `src/whatsapp_mcp/tools/read_chat.py` (modified — +8 LOC for SEND-07 hook)
-- FOUND: `src/whatsapp_mcp/tools/extract_recent.py` (modified — +5 LOC)
-- FOUND: `src/whatsapp_mcp/tools/search_messages.py` (modified — +14 LOC; defaultdict import + group-by-chat-id loop)
-- FOUND: `src/whatsapp_mcp/tools/get_message_context.py` (modified — +16 LOC; window+parent chat_id resolution)
+- FOUND: `src/whatsapp_desktop_mcp/tools/read_chat.py` (modified — +8 LOC for SEND-07 hook)
+- FOUND: `src/whatsapp_desktop_mcp/tools/extract_recent.py` (modified — +5 LOC)
+- FOUND: `src/whatsapp_desktop_mcp/tools/search_messages.py` (modified — +14 LOC; defaultdict import + group-by-chat-id loop)
+- FOUND: `src/whatsapp_desktop_mcp/tools/get_message_context.py` (modified — +16 LOC; window+parent chat_id resolution)
 - FOUND: `tests/unit/test_isolation.py` (modified — +148 / −29; 2 frozensets + relaxed test rewrite + 2 new tests)
 - FOUND: commit `769bb36` (Task 1 — feat(02-04): wire cross_chat_quote.record_bodies into 4 body-surfacing read tools)
 - FOUND: commit `11c486d` (Task 2 — test(02-04): tighten REL-05 D-24 evolution — sender→reader edge surgical + tools-may-import-both whitelist)

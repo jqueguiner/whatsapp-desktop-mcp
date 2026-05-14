@@ -20,9 +20,9 @@ import urllib.parse
 
 import pytest
 
-from whatsapp_mcp.exceptions import OsascriptError, SendTimeout
-from whatsapp_mcp.permissions.osascript import OsascriptResult
-from whatsapp_mcp.sender import deeplink
+from whatsapp_desktop_mcp.exceptions import OsascriptError, SendTimeout
+from whatsapp_desktop_mcp.permissions.osascript import OsascriptResult
+from whatsapp_desktop_mcp.sender import deeplink
 
 # ---------------------------------------------------------------------------
 # build_send_url — URL builder

@@ -18,7 +18,7 @@ from __future__ import annotations
 import pytest
 from pytest_subprocess.fake_process import FakeProcess
 
-from whatsapp_mcp.permissions.accessibility import check
+from whatsapp_desktop_mcp.permissions.accessibility import check
 
 _PROBE_CMD = [
     "/usr/bin/osascript",

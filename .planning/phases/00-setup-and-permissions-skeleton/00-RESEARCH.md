@@ -24,12 +24,12 @@ Three findings change the shape of plans the planner would otherwise produce:
 ### Locked Decisions
 
 **Project Layout**
-- **D-01:** `src/`-layout Python package named `whatsapp_mcp` (PyPI name `whatsapp-mcp`). Reserve `whatsapp_mcp/reader/`, `whatsapp_mcp/sender/`, `whatsapp_mcp/tools/`, `whatsapp_mcp/server.py`, `whatsapp_mcp/cli.py` as empty/stub siblings now so REL-05 (Reader↔Sender isolation) is enforced from day one by structure, not by convention.
-- **D-02:** Pyproject manages everything (`build-backend = hatchling.build`); no `setup.py`, no `setup.cfg`. Console script entry point `whatsapp-mcp = whatsapp_mcp.cli:main` so `uvx whatsapp-mcp` works.
+- **D-01:** `src/`-layout Python package named `whatsapp_desktop_mcp` (PyPI name `whatsapp-desktop-mcp`). Reserve `whatsapp_desktop_mcp/reader/`, `whatsapp_desktop_mcp/sender/`, `whatsapp_desktop_mcp/tools/`, `whatsapp_desktop_mcp/server.py`, `whatsapp_desktop_mcp/cli.py` as empty/stub siblings now so REL-05 (Reader↔Sender isolation) is enforced from day one by structure, not by convention.
+- **D-02:** Pyproject manages everything (`build-backend = hatchling.build`); no `setup.py`, no `setup.cfg`. Console script entry point `whatsapp-desktop-mcp = whatsapp_desktop_mcp.cli:main` so `uvx whatsapp-desktop-mcp` works.
 
 **MCP Framework**
 - **D-03:** Use `mcp[cli]==1.27.1` with FastMCP decorators (`@mcp.tool()`); register the `doctor` tool with `readOnlyHint=true`. Do not drop down to the lower-level `Server` class.
-- **D-04:** Transport is stdio only. No HTTP/SSE listener (anti-feature; `lharries/whatsapp-mcp` was hit by HTTP path-traversal CVEs).
+- **D-04:** Transport is stdio only. No HTTP/SSE listener (anti-feature; `lharries/whatsapp-desktop-mcp` was hit by HTTP path-traversal CVEs).
 - **D-05:** Server entry point sets `logging.basicConfig(stream=sys.stderr, level=...)` BEFORE importing anything that might log on import. Wrap any noisy third-party import in `contextlib.redirect_stdout(sys.stderr)` defensively.
 
 **`doctor` Tool Scope (this phase)**
@@ -53,7 +53,7 @@ Three findings change the shape of plans the planner would otherwise produce:
 - **D-16:** `tests/unit/test_stdout_purity.py` spawns the server, sends `initialize` + `tools/list` + `tools/call doctor`, reads stdout line-by-line, asserts every line parses as JSON-RPC. Required to pass in CI.
 
 **Distribution & CI**
-- **D-17:** Publish to PyPI as `whatsapp-mcp`. `uv build` + `uv publish` via PyPI's GitHub OIDC trusted-publisher (no API token in repo). DIST-01 acceptance: `uvx whatsapp-mcp doctor` works on a fresh Mac with Python 3.12+.
+- **D-17:** Publish to PyPI as `whatsapp-desktop-mcp`. `uv build` + `uv publish` via PyPI's GitHub OIDC trusted-publisher (no API token in repo). DIST-01 acceptance: `uvx whatsapp-desktop-mcp doctor` works on a fresh Mac with Python 3.12+.
 - **D-18:** Two GitHub Actions workflows on `macos-14`, Python 3.12: `ci.yml` (push + PR: ruff check, ruff format --check, mypy, pytest -m "not live") and `release.yml` (on `tags: ['v*']`: CI then `uv build` + `uv publish` via OIDC).
 - **D-19:** `requires-python = ">=3.12"`. No 3.10/3.11 support in Phase 0.
 
@@ -80,25 +80,25 @@ Three findings change the shape of plans the planner would otherwise produce:
 
 | ID | Description | Research Support |
 |----|-------------|------------------|
-| SETUP-01 | MCP server installs via single line in `claude_desktop_config.json` (`uvx whatsapp-mcp`) | §"Standard Stack" `[project.scripts]`; §"Code Examples" pyproject.toml + claude_desktop_config.json snippet |
+| SETUP-01 | MCP server installs via single line in `claude_desktop_config.json` (`uvx whatsapp-desktop-mcp`) | §"Standard Stack" `[project.scripts]`; §"Code Examples" pyproject.toml + claude_desktop_config.json snippet |
 | SETUP-02 | Server runs as MCP stdio server and registers with Claude Desktop / Claude Code without protocol errors | §"Standard Stack" mcp[cli]==1.27.1; §"Code Examples" minimal FastMCP server (verified API surface) |
 | SETUP-03 | All logging to stderr; stdout reserved for JSON-RPC frames (CI test enforces purity; ruff `T201` blocks `print`) | §"Standard Stack" ruff config; §"Code Examples" stdout-purity pytest pattern; §"Common Pitfalls" P-PHASE0-01 |
 | SETUP-04 | Missing macOS permission produces structured error (`FullDiskAccessRequired`, `AutomationPermissionRequired`, `AccessibilityPermissionRequired`) naming binary path + `x-apple.systempreferences:` deep-link | §"Architecture Patterns" exception hierarchy; §"Code Examples" probe functions; §"AppleScript Probe Error Code Map" |
 | SETUP-05 | README documents WhatsApp ToS automation risk, account-ban thresholds, "personal account, not bot" framing | CONTEXT.md D-20..D-22 verbatim; §"Code Examples" README skeleton |
-| DIST-01 | Project published to PyPI as `whatsapp-mcp`, installable via `uvx whatsapp-mcp` | §"Code Examples" release.yml + ci.yml verbatim; §"Common Pitfalls" P-PHASE0-04 |
+| DIST-01 | Project published to PyPI as `whatsapp-desktop-mcp`, installable via `uvx whatsapp-desktop-mcp` | §"Code Examples" release.yml + ci.yml verbatim; §"Common Pitfalls" P-PHASE0-04 |
 </phase_requirements>
 
 ## Architectural Responsibility Map
 
 | Capability | Primary Tier | Secondary Tier | Rationale |
 |------------|--------------|----------------|-----------|
-| Process lifecycle (parse argv, configure logging, run event loop) | `whatsapp_mcp.cli` | — | Single entry point for both `python -m whatsapp_mcp` and the `whatsapp-mcp` console script |
-| MCP protocol (FastMCP server, tool registration, stdio transport) | `whatsapp_mcp.server` | `whatsapp_mcp.tools/` | `server.py` owns the `FastMCP` instance and `mcp.run()`; `tools/` modules call `@mcp.tool()` against it |
-| `doctor` tool (orchestrate three probes, build `DoctorReport`) | `whatsapp_mcp.tools.doctor` | `whatsapp_mcp.permissions` | Tool layer maps probe results to Pydantic response model; never calls `osascript` directly |
-| Permission probes (FDA `os.stat`, Automation/Accessibility `osascript`) | `whatsapp_mcp.permissions` | — | Pure side-effect-bearing functions; isolated from MCP layer for testability |
-| Exception types (`PermissionRequired` hierarchy) | `whatsapp_mcp.exceptions` | — | Frozen public surface that Phase 1 tools import; lives outside `permissions` to avoid an import cycle |
-| Path resolution (resolve `~/Library/.../ChatStorage.sqlite`) | `whatsapp_mcp.paths` | — | Stable utility shared by Phase 0 (`doctor`) and Phase 1 (reader); ship a stub now so Phase 1 doesn't trigger a refactor |
-| Pydantic models (`DoctorReport`, `PermissionStatus`) | `whatsapp_mcp.models` | — | Empty package now with one `doctor.py` submodule; Phase 1 fills with `Chat`, `Message`, etc. |
+| Process lifecycle (parse argv, configure logging, run event loop) | `whatsapp_desktop_mcp.cli` | — | Single entry point for both `python -m whatsapp_desktop_mcp` and the `whatsapp-desktop-mcp` console script |
+| MCP protocol (FastMCP server, tool registration, stdio transport) | `whatsapp_desktop_mcp.server` | `whatsapp_desktop_mcp.tools/` | `server.py` owns the `FastMCP` instance and `mcp.run()`; `tools/` modules call `@mcp.tool()` against it |
+| `doctor` tool (orchestrate three probes, build `DoctorReport`) | `whatsapp_desktop_mcp.tools.doctor` | `whatsapp_desktop_mcp.permissions` | Tool layer maps probe results to Pydantic response model; never calls `osascript` directly |
+| Permission probes (FDA `os.stat`, Automation/Accessibility `osascript`) | `whatsapp_desktop_mcp.permissions` | — | Pure side-effect-bearing functions; isolated from MCP layer for testability |
+| Exception types (`PermissionRequired` hierarchy) | `whatsapp_desktop_mcp.exceptions` | — | Frozen public surface that Phase 1 tools import; lives outside `permissions` to avoid an import cycle |
+| Path resolution (resolve `~/Library/.../ChatStorage.sqlite`) | `whatsapp_desktop_mcp.paths` | — | Stable utility shared by Phase 0 (`doctor`) and Phase 1 (reader); ship a stub now so Phase 1 doesn't trigger a refactor |
+| Pydantic models (`DoctorReport`, `PermissionStatus`) | `whatsapp_desktop_mcp.models` | — | Empty package now with one `doctor.py` submodule; Phase 1 fills with `Chat`, `Message`, etc. |
 | Reader (`reader/`) and Sender (`sender/`) packages | (empty in Phase 0) | — | Ship `__init__.py` placeholders only — REL-05 isolation enforced by directory structure from day one |
 
 ## Standard Stack
@@ -151,13 +151,13 @@ uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-asyncio>=0.23" "pyte
                                  │ stdio (JSON-RPC)
                                  ▼
                     ┌──────────────────────────┐
-                    │   uvx whatsapp-mcp       │
+                    │   uvx whatsapp-desktop-mcp       │
                     │   (entry point)          │
                     └────────────┬─────────────┘
                                  │
                                  ▼
         ┌────────────────────────────────────────────┐
-        │          whatsapp_mcp.cli:main              │
+        │          whatsapp_desktop_mcp.cli:main              │
         │  1. configure logging → stderr (BEFORE      │
         │     any other import that might log)        │
         │  2. parse --version / --help                │
@@ -166,15 +166,15 @@ uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-asyncio>=0.23" "pyte
                              │
                              ▼
         ┌────────────────────────────────────────────┐
-        │         whatsapp_mcp.server                │
-        │  mcp = FastMCP("whatsapp-mcp")             │
+        │         whatsapp_desktop_mcp.server                │
+        │  mcp = FastMCP("whatsapp-desktop-mcp")             │
         │  imports tools.doctor (registers @mcp.tool)│
         │  mcp.run()  # transport='stdio' default    │
         └────────────────────┬────────────────────────┘
                              │ JSON-RPC: tools/call doctor
                              ▼
         ┌────────────────────────────────────────────┐
-        │         whatsapp_mcp.tools.doctor          │
+        │         whatsapp_desktop_mcp.tools.doctor          │
         │  @mcp.tool(annotations=                    │
         │      ToolAnnotations(readOnlyHint=True))   │
         │  async def doctor() -> DoctorReport:       │
@@ -204,11 +204,11 @@ uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-asyncio>=0.23" "pyte
         └──────────────────────────────────────────┘
 ```
 
-Note: `whatsapp_mcp.reader/`, `whatsapp_mcp.sender/`, `whatsapp_mcp.tools.send_message`, etc. are present as empty packages in Phase 0 (REL-05 enforced by directory structure) but are not on the data path.
+Note: `whatsapp_desktop_mcp.reader/`, `whatsapp_desktop_mcp.sender/`, `whatsapp_desktop_mcp.tools.send_message`, etc. are present as empty packages in Phase 0 (REL-05 enforced by directory structure) but are not on the data path.
 
 ### Recommended Project Structure
 ```
-whatsapp-mcp/
+whatsapp-desktop-mcp/
 ├── pyproject.toml                # build-backend hatchling, deps, ruff/mypy/pytest config
 ├── README.md                     # ToS warning + 60s quickstart (SETUP-05)
 ├── LICENSE                       # MIT or similar (Claude's discretion)
@@ -219,9 +219,9 @@ whatsapp-mcp/
 │       ├── ci.yml                # ruff + mypy + pytest -m "not live"
 │       └── release.yml           # uv build + uv publish (OIDC)
 ├── src/
-│   └── whatsapp_mcp/
+│   └── whatsapp_desktop_mcp/
 │       ├── __init__.py           # __version__ = "0.1.0"
-│       ├── __main__.py           # `python -m whatsapp_mcp` → cli.main()
+│       ├── __main__.py           # `python -m whatsapp_desktop_mcp` → cli.main()
 │       ├── cli.py                # main(): logging setup, --version, --help, server.run()
 │       ├── server.py             # FastMCP instance; imports tools to trigger registration
 │       ├── exceptions.py         # PermissionRequired hierarchy (frozen for Phase 1)
@@ -263,8 +263,8 @@ whatsapp-mcp/
 **Verified:** API surface confirmed by installing `mcp[cli]==1.27.1` in a scratch venv on 2026-05-13.
 
 ```python
-# src/whatsapp_mcp/server.py
-"""MCP server entry point for whatsapp-mcp."""
+# src/whatsapp_desktop_mcp/server.py
+"""MCP server entry point for whatsapp-desktop-mcp."""
 from __future__ import annotations
 
 import logging
@@ -279,11 +279,11 @@ logging.basicConfig(
 
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
-mcp: FastMCP = FastMCP("whatsapp-mcp")
+mcp: FastMCP = FastMCP("whatsapp-desktop-mcp")
 
 # Importing tool modules triggers @mcp.tool() side-effects.
 # Order does not matter; each module imports `mcp` from this file.
-from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
+from whatsapp_desktop_mcp.tools import doctor as _doctor  # noqa: E402, F401
 
 
 def run() -> None:
@@ -292,15 +292,15 @@ def run() -> None:
 ```
 
 ```python
-# src/whatsapp_mcp/tools/doctor.py
+# src/whatsapp_desktop_mcp/tools/doctor.py
 """The `doctor` MCP tool — preflight permission report."""
 from __future__ import annotations
 
 from mcp.types import ToolAnnotations
 
-from whatsapp_mcp.models.doctor import DoctorReport
-from whatsapp_mcp.permissions import accessibility, automation, fda
-from whatsapp_mcp.server import mcp
+from whatsapp_desktop_mcp.models.doctor import DoctorReport
+from whatsapp_desktop_mcp.permissions import accessibility, automation, fda
+from whatsapp_desktop_mcp.server import mcp
 
 
 @mcp.tool(
@@ -328,26 +328,26 @@ async def doctor() -> DoctorReport:
 ```
 
 ```python
-# src/whatsapp_mcp/cli.py
-"""Console-script entry point. Resolved by `whatsapp-mcp` and `python -m whatsapp_mcp`."""
+# src/whatsapp_desktop_mcp/cli.py
+"""Console-script entry point. Resolved by `whatsapp-desktop-mcp` and `python -m whatsapp_desktop_mcp`."""
 from __future__ import annotations
 
 import argparse
 import sys
 
-from whatsapp_mcp import __version__
+from whatsapp_desktop_mcp import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="whatsapp-mcp",
+        prog="whatsapp-desktop-mcp",
         description="MCP stdio server for the macOS WhatsApp Desktop app.",
     )
-    parser.add_argument("--version", action="version", version=f"whatsapp-mcp {__version__}")
+    parser.add_argument("--version", action="version", version=f"whatsapp-desktop-mcp {__version__}")
     parser.parse_args(argv)
 
     # Import server lazily so --version / --help work without booting the loop.
-    from whatsapp_mcp.server import run
+    from whatsapp_desktop_mcp.server import run
 
     run()
     return 0
@@ -358,8 +358,8 @@ if __name__ == "__main__":
 ```
 
 ```python
-# src/whatsapp_mcp/__main__.py
-from whatsapp_mcp.cli import main
+# src/whatsapp_desktop_mcp/__main__.py
+from whatsapp_desktop_mcp.cli import main
 import sys
 
 if __name__ == "__main__":
@@ -372,7 +372,7 @@ if __name__ == "__main__":
 **When to use:** Inside every probe in `permissions/`; same primitive Phase 2's sender will reuse.
 
 ```python
-# src/whatsapp_mcp/permissions/osascript.py
+# src/whatsapp_desktop_mcp/permissions/osascript.py
 """Run osascript snippets via asyncio with a hard timeout. Stderr is localized;
 parse the trailing numeric error code, never the prose."""
 from __future__ import annotations
@@ -444,11 +444,11 @@ See §"Code Examples / FDA probe" and §"Code Examples / Automation probe" below
 
 ### Pattern 4: Structured exception hierarchy (frozen for Phase 1 import)
 
-**What:** A 4-class hierarchy under `whatsapp_mcp.exceptions`. Phase 0 ships them; Phase 1 raises them.
+**What:** A 4-class hierarchy under `whatsapp_desktop_mcp.exceptions`. Phase 0 ships them; Phase 1 raises them.
 **When to use:** Phase 1 tools that fail because of a missing permission.
 
 ```python
-# src/whatsapp_mcp/exceptions.py
+# src/whatsapp_desktop_mcp/exceptions.py
 """Exception hierarchy for the WhatsApp MCP. Frozen public surface — Phase 1
 tools import `FullDiskAccessRequired` etc. by name. Renaming any of these is a
 breaking change for downstream tools."""
@@ -456,7 +456,7 @@ from __future__ import annotations
 
 
 class WhatsAppMCPError(Exception):
-    """Base class for all whatsapp-mcp errors. Never raise directly."""
+    """Base class for all whatsapp-desktop-mcp errors. Never raise directly."""
 
 
 class PermissionRequired(WhatsAppMCPError):
@@ -596,13 +596,13 @@ Verified format (in active use as of macOS 14/15/26 per multiple 2024-2026 sourc
 **Warning signs:** First tag push fails with "Trusted publishing exchange failure" and HTTP 403. [CITED: docs.pypi.org/trusted-publishers]
 
 ### P-PHASE0-05: Console-script entry point not actually installed by `uvx`
-**What goes wrong:** `pyproject.toml` declares `[project.scripts] whatsapp-mcp = "whatsapp_mcp.cli:main"`, but the wheel layout is wrong (e.g., the source is at `whatsapp_mcp/` not `src/whatsapp_mcp/`), so `uvx whatsapp-mcp` fails with "command not found" or imports fail.
-**How to avoid:** With src-layout, add `[tool.hatch.build.targets.wheel] packages = ["src/whatsapp_mcp"]` to pyproject.toml. Verify locally with `uv build && uvx --from ./dist/whatsapp_mcp-0.1.0-*.whl whatsapp-mcp --version`.
-**Warning signs:** Local `python -m whatsapp_mcp` works but `uvx whatsapp-mcp` doesn't.
+**What goes wrong:** `pyproject.toml` declares `[project.scripts] whatsapp-desktop-mcp = "whatsapp_desktop_mcp.cli:main"`, but the wheel layout is wrong (e.g., the source is at `whatsapp_desktop_mcp/` not `src/whatsapp_desktop_mcp/`), so `uvx whatsapp-desktop-mcp` fails with "command not found" or imports fail.
+**How to avoid:** With src-layout, add `[tool.hatch.build.targets.wheel] packages = ["src/whatsapp_desktop_mcp"]` to pyproject.toml. Verify locally with `uv build && uvx --from ./dist/whatsapp_desktop_mcp-0.1.0-*.whl whatsapp-desktop-mcp --version`.
+**Warning signs:** Local `python -m whatsapp_desktop_mcp` works but `uvx whatsapp-desktop-mcp` doesn't.
 
-### P-PHASE0-06: Importing `whatsapp_mcp.tools.doctor` triggers a circular import
-**What goes wrong:** `tools/doctor.py` does `from whatsapp_mcp.server import mcp`; `server.py` does `from whatsapp_mcp.tools import doctor`. With careless ordering this becomes circular.
-**How to avoid:** `server.py` defines `mcp = FastMCP(...)` BEFORE the `from whatsapp_mcp.tools import doctor` line. The `# noqa: F401` on the import documents that the side effect (decorator registration) is the point.
+### P-PHASE0-06: Importing `whatsapp_desktop_mcp.tools.doctor` triggers a circular import
+**What goes wrong:** `tools/doctor.py` does `from whatsapp_desktop_mcp.server import mcp`; `server.py` does `from whatsapp_desktop_mcp.tools import doctor`. With careless ordering this becomes circular.
+**How to avoid:** `server.py` defines `mcp = FastMCP(...)` BEFORE the `from whatsapp_desktop_mcp.tools import doctor` line. The `# noqa: F401` on the import documents that the side effect (decorator registration) is the point.
 **Warning signs:** `ImportError: cannot import name 'mcp' from partially initialized module`.
 
 ### P-PHASE0-07: `pytest -m "not live"` doesn't actually skip live tests
@@ -628,7 +628,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "whatsapp-mcp"
+name = "whatsapp-desktop-mcp"
 version = "0.1.0"
 description = "MCP stdio server for the macOS WhatsApp Desktop app — read history and send messages from Claude Desktop / Claude Code."
 readme = "README.md"
@@ -660,14 +660,14 @@ dev = [
 ]
 
 [project.scripts]
-whatsapp-mcp = "whatsapp_mcp.cli:main"
+whatsapp-desktop-mcp = "whatsapp_desktop_mcp.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/<org>/whatsapp-mcp"   # plan-time placeholder
-Issues = "https://github.com/<org>/whatsapp-mcp/issues"
+Homepage = "https://github.com/<org>/whatsapp-desktop-mcp"   # plan-time placeholder
+Issues = "https://github.com/<org>/whatsapp-desktop-mcp/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/whatsapp_mcp"]
+packages = ["src/whatsapp_desktop_mcp"]
 
 # ---------- Lint ----------
 [tool.ruff]
@@ -725,13 +725,13 @@ markers = [
 ### Console-script entry point + `uvx` resolution
 
 The flow is:
-1. `uvx whatsapp-mcp` → `uv` reads PyPI, installs `whatsapp-mcp` into an ephemeral venv.
-2. `uv` creates `<venv>/bin/whatsapp-mcp` from `[project.scripts] whatsapp-mcp = "whatsapp_mcp.cli:main"`.
-3. The shim runs `from whatsapp_mcp.cli import main; sys.exit(main())`.
-4. `main()` configures stderr logging, then imports `whatsapp_mcp.server.run` and calls it.
+1. `uvx whatsapp-desktop-mcp` → `uv` reads PyPI, installs `whatsapp-desktop-mcp` into an ephemeral venv.
+2. `uv` creates `<venv>/bin/whatsapp-desktop-mcp` from `[project.scripts] whatsapp-desktop-mcp = "whatsapp_desktop_mcp.cli:main"`.
+3. The shim runs `from whatsapp_desktop_mcp.cli import main; sys.exit(main())`.
+4. `main()` configures stderr logging, then imports `whatsapp_desktop_mcp.server.run` and calls it.
 5. `mcp.run()` (default transport `stdio`) blocks reading JSON-RPC from stdin.
 
-For `python -m whatsapp_mcp` to work identically, `__main__.py` exists and calls `cli.main()`.
+For `python -m whatsapp_desktop_mcp` to work identically, `__main__.py` exists and calls `cli.main()`.
 
 ### `claude_desktop_config.json` snippet (for `examples/`)
 
@@ -740,7 +740,7 @@ For `python -m whatsapp_mcp` to work identically, `__main__.py` exists and calls
   "mcpServers": {
     "whatsapp": {
       "command": "uvx",
-      "args": ["whatsapp-mcp"]
+      "args": ["whatsapp-desktop-mcp"]
     }
   }
 }
@@ -749,7 +749,7 @@ For `python -m whatsapp_mcp` to work identically, `__main__.py` exists and calls
 ### FDA probe
 
 ```python
-# src/whatsapp_mcp/permissions/fda.py
+# src/whatsapp_desktop_mcp/permissions/fda.py
 """Full Disk Access probe — try to stat the WhatsApp ChatStorage.sqlite path."""
 from __future__ import annotations
 
@@ -759,9 +759,9 @@ import logging
 import os
 import sys
 
-from whatsapp_mcp.exceptions import FullDiskAccessRequired
-from whatsapp_mcp.models.doctor import PermissionStatus
-from whatsapp_mcp.paths import resolve_chatstorage_path
+from whatsapp_desktop_mcp.exceptions import FullDiskAccessRequired
+from whatsapp_desktop_mcp.models.doctor import PermissionStatus
+from whatsapp_desktop_mcp.paths import resolve_chatstorage_path
 
 logger = logging.getLogger(__name__)
 
@@ -824,15 +824,15 @@ def _check_blocking(db_path: str) -> PermissionStatus:
 ### Automation probe (refined to handle -1708)
 
 ```python
-# src/whatsapp_mcp/permissions/automation.py
+# src/whatsapp_desktop_mcp/permissions/automation.py
 """Apple Events / Automation probe for WhatsApp."""
 from __future__ import annotations
 
 import sys
 
-from whatsapp_mcp.exceptions import AutomationPermissionRequired
-from whatsapp_mcp.models.doctor import PermissionStatus
-from whatsapp_mcp.permissions.osascript import run_osascript
+from whatsapp_desktop_mcp.exceptions import AutomationPermissionRequired
+from whatsapp_desktop_mcp.models.doctor import PermissionStatus
+from whatsapp_desktop_mcp.permissions.osascript import run_osascript
 
 _AUTOMATION_URL = AutomationPermissionRequired.system_settings_url
 _PROBE = 'id of application "WhatsApp"'
@@ -898,15 +898,15 @@ async def check_whatsapp() -> PermissionStatus:
 ### Accessibility probe
 
 ```python
-# src/whatsapp_mcp/permissions/accessibility.py
+# src/whatsapp_desktop_mcp/permissions/accessibility.py
 """Accessibility probe — try to query System Events."""
 from __future__ import annotations
 
 import sys
 
-from whatsapp_mcp.exceptions import AccessibilityPermissionRequired
-from whatsapp_mcp.models.doctor import PermissionStatus
-from whatsapp_mcp.permissions.osascript import run_osascript
+from whatsapp_desktop_mcp.exceptions import AccessibilityPermissionRequired
+from whatsapp_desktop_mcp.models.doctor import PermissionStatus
+from whatsapp_desktop_mcp.permissions.osascript import run_osascript
 
 _ACCESSIBILITY_URL = AccessibilityPermissionRequired.system_settings_url
 _PROBE = 'tell application "System Events" to count processes'
@@ -950,7 +950,7 @@ async def check() -> PermissionStatus:
 ### Pydantic models
 
 ```python
-# src/whatsapp_mcp/models/doctor.py
+# src/whatsapp_desktop_mcp/models/doctor.py
 """Public Pydantic models for the doctor tool. Frozen — Phase 1 reads these."""
 from __future__ import annotations
 
@@ -1005,7 +1005,7 @@ class DoctorReport(BaseModel):
 # tests/unit/test_stdout_purity.py
 """SETUP-03 gate — every byte on stdout must be a valid JSON-RPC frame.
 
-Spawns `python -m whatsapp_mcp` as a subprocess. Writes a minimal MCP handshake to
+Spawns `python -m whatsapp_desktop_mcp` as a subprocess. Writes a minimal MCP handshake to
 stdin (initialize → tools/list → tools/call doctor). Reads stdout line-by-line and
 asserts every line parses as JSON.
 """
@@ -1044,7 +1044,7 @@ async def test_stdout_is_pure_jsonrpc() -> None:
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
-        "whatsapp_mcp",
+        "whatsapp_desktop_mcp",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -1106,7 +1106,7 @@ import asyncio
 
 import pytest
 
-from whatsapp_mcp.server import mcp
+from whatsapp_desktop_mcp.server import mcp
 
 
 @pytest.mark.asyncio
@@ -1124,7 +1124,7 @@ async def test_doctor_is_registered_as_readonly() -> None:
 
 ```python
 # tests/unit/test_exceptions.py
-from whatsapp_mcp.exceptions import (
+from whatsapp_desktop_mcp.exceptions import (
     AccessibilityPermissionRequired,
     AutomationPermissionRequired,
     FullDiskAccessRequired,
@@ -1168,7 +1168,7 @@ def test_carries_remediation_payload() -> None:
 # tests/unit/test_permissions/test_automation.py
 import pytest
 
-from whatsapp_mcp.permissions.automation import check_whatsapp
+from whatsapp_desktop_mcp.permissions.automation import check_whatsapp
 
 
 @pytest.mark.asyncio
@@ -1282,7 +1282,7 @@ jobs:
     runs-on: macos-14
     environment:
       name: pypi
-      url: https://pypi.org/p/whatsapp-mcp
+      url: https://pypi.org/p/whatsapp-desktop-mcp
     permissions:
       id-token: write   # MANDATORY for OIDC trusted-publisher; without it, PyPI returns 403
     steps:
@@ -1310,9 +1310,9 @@ jobs:
 ```
 
 **Trusted-publisher one-time setup (manual, before first release):**
-1. On PyPI, create the project `whatsapp-mcp` (or reserve via first manual upload).
+1. On PyPI, create the project `whatsapp-desktop-mcp` (or reserve via first manual upload).
 2. Project Settings → Publishing → Add a new pending publisher.
-3. Owner: `<github-org>`, Repo: `whatsapp-mcp`, Workflow: `release.yml`, Environment: `pypi`.
+3. Owner: `<github-org>`, Repo: `whatsapp-desktop-mcp`, Workflow: `release.yml`, Environment: `pypi`.
 4. Save. First tag push will succeed; tokens become live.
 
 [CITED: docs.pypi.org/trusted-publishers/using-a-publisher/]
@@ -1320,7 +1320,7 @@ jobs:
 ### README skeleton (SETUP-05 disclaimers)
 
 ```markdown
-# whatsapp-mcp
+# whatsapp-desktop-mcp
 
 > **Warning — WhatsApp ToS automation risk.** This MCP server automates *your personal*
 > WhatsApp account by driving the macOS WhatsApp Desktop app the same way you do.
@@ -1344,7 +1344,7 @@ read and write your WhatsApp Desktop chats. macOS only. Single user, single Mac.
      "mcpServers": {
        "whatsapp": {
          "command": "uvx",
-         "args": ["whatsapp-mcp"]
+         "args": ["whatsapp-desktop-mcp"]
        }
      }
    }
@@ -1469,7 +1469,7 @@ send tools (Phase 1+) will work.
 
 | Constraint | Source | Phase 0 Implication |
 |------------|--------|---------------------|
-| Reader (`reader/`) and Sender (`sender/`) packages MUST NOT import each other | CLAUDE.md "Hard architectural rules" §1 | Ship `src/whatsapp_mcp/reader/__init__.py` and `src/whatsapp_mcp/sender/__init__.py` as empty placeholders. Add `tests/unit/test_isolation.py` asserting `import whatsapp_mcp.reader; import whatsapp_mcp.sender` succeed independently and that neither imports the other (use `importlib.metadata` or AST inspection — but in Phase 0 the test is trivially true since both are empty) |
+| Reader (`reader/`) and Sender (`sender/`) packages MUST NOT import each other | CLAUDE.md "Hard architectural rules" §1 | Ship `src/whatsapp_desktop_mcp/reader/__init__.py` and `src/whatsapp_desktop_mcp/sender/__init__.py` as empty placeholders. Add `tests/unit/test_isolation.py` asserting `import whatsapp_desktop_mcp.reader; import whatsapp_desktop_mcp.sender` succeed independently and that neither imports the other (use `importlib.metadata` or AST inspection — but in Phase 0 the test is trivially true since both are empty) |
 | `stdout` is the JSON-RPC channel; logging to stderr; `print` lint-blocked; CI test asserts stdout purity | CLAUDE.md §2 | All addressed in this RESEARCH.md (D-05, D-13, D-16; §"Code Examples / Stdout-purity test") |
 | Never write to `ChatStorage.sqlite` | CLAUDE.md §3 | Phase 0 doesn't touch SQLite. The FDA probe uses `os.stat` only (read-mode metadata); enforce via test that no `sqlite3.connect` exists in Phase 0 source |
 | Never inline media bytes in tool responses | CLAUDE.md §4 | Phase 0 has no media surface; not applicable |

@@ -12,7 +12,7 @@ After completing the steps below, every `git tag v* && git push --tags` will:
 3. Build a Developer-ID-signed + notarized + stapled `.pkg` and attach it to
    the GitHub release (only when the Apple cert secrets are present — see
    the **Skip-block** note below).
-4. Open a PR against `gladia/homebrew-whatsapp-mcp` with the regenerated
+4. Open a PR against `gladia/homebrew-whatsapp-desktop-mcp` with the regenerated
    Formula (only when `BREW_TAP_DEPLOY_KEY` is present).
 
 > **Skip-block (D-07).** If `APPLE_INSTALLER_CERT_P12` is not set, the
@@ -68,7 +68,7 @@ the first signed-`.pkg` release. Section 8 is the dry-run gate.
    **Individual** if shipping under a personal Apple ID.
    - **Organization:** requires legal-entity verification (D-U-N-S
      number, articles of incorporation). Apple typically takes 5–10
-     business days. This is the right path for `gladia/whatsapp-mcp`.
+     business days. This is the right path for `gladia/whatsapp-desktop-mcp`.
    - **Individual:** typically approved within 24 hours.
 3. Pay the $99/year membership fee.
 4. Wait for the welcome email confirming enrollment.
@@ -143,7 +143,7 @@ dashboard.
 1. Visit <https://appleid.apple.com>.
 2. Sign in → **Sign-In and Security** → **App-Specific Passwords**.
 3. Click **+** to generate a new password. Label it
-   `whatsapp-mcp notarization`.
+   `whatsapp-desktop-mcp notarization`.
 4. Copy the generated password (4 groups of 4 characters,
    `xxxx-xxxx-xxxx-xxxx`). This becomes `APPLE_APP_SPECIFIC_PASSWORD`.
 
@@ -160,7 +160,7 @@ You'll also need:
 
 ## 6. GitHub Actions secrets bootstrap
 
-Visit <https://github.com/gladia/whatsapp-mcp/settings/secrets/actions>
+Visit <https://github.com/gladia/whatsapp-desktop-mcp/settings/secrets/actions>
 and add the following secrets. The first six are required for signed
 `.pkg` builds; the remaining two are optional (Application-cert + brew
 tap deploy key).
@@ -188,23 +188,23 @@ tap deploy key).
 ## 7. Bootstrap the brew tap
 
 The Homebrew custom tap lives in a separate repository:
-<https://github.com/gladia/homebrew-whatsapp-mcp>. The `tap-update`
-job rewrites `Formula/whatsapp-mcp.rb` in this repo on every release.
+<https://github.com/gladia/homebrew-whatsapp-desktop-mcp>. The `tap-update`
+job rewrites `Formula/whatsapp-desktop-mcp.rb` in this repo on every release.
 
 To bootstrap:
 
-1. Create a new GitHub repo `gladia/homebrew-whatsapp-mcp` (empty;
+1. Create a new GitHub repo `gladia/homebrew-whatsapp-desktop-mcp` (empty;
    the name MUST start with `homebrew-` for `brew tap` to recognize it).
 2. Clone it locally:
    ```bash
-   git clone git@github.com:gladia/homebrew-whatsapp-mcp.git
-   cd homebrew-whatsapp-mcp
+   git clone git@github.com:gladia/homebrew-whatsapp-desktop-mcp.git
+   cd homebrew-whatsapp-desktop-mcp
    mkdir Formula
    ```
 3. Copy the seed Formula from this repo into the tap:
    ```bash
-   cp /path/to/whatsapp-mcp/Formula/whatsapp-mcp.rb Formula/whatsapp-mcp.rb
-   git add Formula/whatsapp-mcp.rb
+   cp /path/to/whatsapp-desktop-mcp/Formula/whatsapp-desktop-mcp.rb Formula/whatsapp-desktop-mcp.rb
+   git add Formula/whatsapp-desktop-mcp.rb
    git commit -m "bootstrap: initial Formula"
    git push origin main
    ```
@@ -214,17 +214,17 @@ To bootstrap:
      keys → Add deploy key. Generate via `ssh-keygen -t ed25519` and
      paste the public key. Tick **Allow write access**. Save the
      private key — this becomes `BREW_TAP_DEPLOY_KEY` in the
-     `gladia/whatsapp-mcp` repo's secrets.
+     `gladia/whatsapp-desktop-mcp` repo's secrets.
    - **Fine-grained PAT** (alternative): Generate at
      <https://github.com/settings/personal-access-tokens/new>, scope
-     to `gladia/homebrew-whatsapp-mcp` only, **Contents: Read and
+     to `gladia/homebrew-whatsapp-desktop-mcp` only, **Contents: Read and
      Write**. Save the token as `BREW_TAP_DEPLOY_KEY`.
 5. End users install via:
    ```bash
-   brew tap gladia/whatsapp-mcp        # add the tap
-   brew install whatsapp-mcp           # install the formula
+   brew tap gladia/whatsapp-desktop-mcp        # add the tap
+   brew install whatsapp-desktop-mcp           # install the formula
    ```
-   (Or the one-shot `brew install gladia/whatsapp-mcp/whatsapp-mcp`.)
+   (Or the one-shot `brew install gladia/whatsapp-desktop-mcp/whatsapp-desktop-mcp`.)
 
 ---
 
@@ -239,16 +239,16 @@ git push origin v0.0.1-rc1
 ```
 
 Watch the Actions run at
-<https://github.com/gladia/whatsapp-mcp/actions>.
+<https://github.com/gladia/whatsapp-desktop-mcp/actions>.
 
 Expected outputs (when all secrets are configured):
 
 | Job | Expected outcome |
 |-----|------------------|
 | `ci` | Lint + tests pass |
-| `publish` | PyPI release at `whatsapp-mcp 0.0.1rc1` |
-| `pkg-build` | GitHub release has `whatsapp-mcp-0.0.1rc1.pkg` attached; `spctl --assess` passes |
-| `tap-update` | PR opened against `gladia/homebrew-whatsapp-mcp` with the new Formula |
+| `publish` | PyPI release at `whatsapp-desktop-mcp 0.0.1rc1` |
+| `pkg-build` | GitHub release has `whatsapp-desktop-mcp-0.0.1rc1.pkg` attached; `spctl --assess` passes |
+| `tap-update` | PR opened against `gladia/homebrew-whatsapp-desktop-mcp` with the new Formula |
 
 > **Don't promote `0.0.1-rc1` to brew users.** This is a dry-run gate
 > only. Once everything is green, delete the test release and tag:
@@ -265,7 +265,7 @@ Expected outputs (when all secrets are configured):
 
 | Symptom | Likely cause | Fix |
 |---------|--------------|-----|
-| Gatekeeper dialog when running `whatsapp-mcp` post-install (Pitfall 2) | The launcher shell script at `/usr/local/bin/whatsapp-mcp` was flagged | Run `spctl --assess /usr/local/bin/whatsapp-mcp` to confirm. Usually shell scripts at `/usr/local/bin` skip Gatekeeper; if not, add a `codesign -s "Developer ID Application: …" /usr/local/bin/whatsapp-mcp` step in `build-pkg.sh` |
+| Gatekeeper dialog when running `whatsapp-desktop-mcp` post-install (Pitfall 2) | The launcher shell script at `/usr/local/bin/whatsapp-desktop-mcp` was flagged | Run `spctl --assess /usr/local/bin/whatsapp-desktop-mcp` to confirm. Usually shell scripts at `/usr/local/bin` skip Gatekeeper; if not, add a `codesign -s "Developer ID Application: …" /usr/local/bin/whatsapp-desktop-mcp` step in `build-pkg.sh` |
 | `notarytool submit --wait` returns "Invalid" status with errors about pyobjc `.so` files (Pitfall 8) | pyobjc wheels on PyPI are NOT signed with our Developer ID; notarization rejects | Provision the **Developer ID Application** cert (section 3 optional) and set `APPLE_DEVELOPER_ID_APP_CERT` + `APPLE_DEVELOPER_ID_APP_CERT_PASSWORD` secrets. The workflow then sets `SIGN_DYLIBS=1`, enabling the `build-pkg.sh` re-sign block |
 | `tap-update` step "Compute sdist sha256" fails with PyPI 404 (Pitfall 3) | PyPI CDN hasn't propagated the new release yet | Bump `sleep 30` to `sleep 60` in the `Wait for PyPI CDN propagation` step in `release.yml` |
 | `pkg-build` job skipped entirely on tag push (Pitfall 9) | `APPLE_INSTALLER_CERT_P12` secret is unset (D-07 skip-block fires) | Either complete Apple Developer enrollment + sections 3–6 above, or accept the unsigned-only release for this tag and add a "unsigned — see GitHub releases" note to the README install matrix |

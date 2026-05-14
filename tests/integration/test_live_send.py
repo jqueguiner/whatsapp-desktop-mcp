@@ -13,9 +13,9 @@ The ``_isolate_live_state`` autouse fixture monkey-patches
 This means:
 
 * The maintainer's daily WhatsApp budget (``~/Library/Application
-  Support/whatsapp-mcp/rate-limit.db``) is preserved — live tests
+  Support/whatsapp-desktop-mcp/rate-limit.db``) is preserved — live tests
   consume ZERO bytes of production rate-limit state.
-* The maintainer's audit log (``~/Library/Logs/whatsapp-mcp/audit.log``)
+* The maintainer's audit log (``~/Library/Logs/whatsapp-desktop-mcp/audit.log``)
   is preserved — live test entries land in tmp instead.
 
 What is NOT sandboxed: the WhatsApp send itself, the AX-API preflight
@@ -25,7 +25,7 @@ account (a real chat message lands in the self-chat).
 
 T-02-05-01 / T-02-05-02 mitigations
 ===================================
-* Self-chat discovery via env var ``WHATSAPP_MCP_LIVE_TEST_SELF_NAME``
+* Self-chat discovery via env var ``WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME``
   (no actual chat / phone in source).
 * Budget-burning test (``test_live_send_respects_rate_limit``) is
   double-gated by ``RUN_LIVE_BURN_BUDGET=1`` opt-in — the maintainer
@@ -65,7 +65,7 @@ def _isolate_live_state(
     guardrail persistence is sandboxed. The maintainer's daily budget
     is preserved; the maintainer's audit log is preserved.
     """
-    from whatsapp_mcp.sender import audit, rate_limit
+    from whatsapp_desktop_mcp.sender import audit, rate_limit
 
     rate_db = tmp_path / "rate-limit.db"
     audit_log = tmp_path / "audit.log"
@@ -79,10 +79,10 @@ def _isolate_live_state(
 
 def _self_chat_name() -> str:
     """Pull the self-chat display name from the env var, or skip."""
-    name = os.environ.get("WHATSAPP_MCP_LIVE_TEST_SELF_NAME")
+    name = os.environ.get("WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME")
     if not name:
         pytest.skip(
-            "set WHATSAPP_MCP_LIVE_TEST_SELF_NAME=<your self-chat display name> "
+            "set WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME=<your self-chat display name> "
             "to enable live send tests; this keeps the chat name out of source."
         )
     return name
@@ -90,7 +90,7 @@ def _self_chat_name() -> str:
 
 async def _find_self_chat(self_name: str) -> Any:
     """Resolve the maintainer's self-chat via the production reader."""
-    from whatsapp_mcp.tools.list_chats import list_chats
+    from whatsapp_desktop_mcp.tools.list_chats import list_chats
 
     resp = await list_chats(limit=200)
     chats = resp.get("chats", [])
@@ -99,7 +99,7 @@ async def _find_self_chat(self_name: str) -> Any:
             return chat
     pytest.skip(
         f"could not find direct chat named {self_name!r} on the maintainer's Mac; "
-        "verify WHATSAPP_MCP_LIVE_TEST_SELF_NAME and that the chat exists."
+        "verify WHATSAPP_DESKTOP_MCP_LIVE_TEST_SELF_NAME and that the chat exists."
     )
 
 
@@ -109,7 +109,7 @@ class _LiveContext:
     async def elicit(self, message: str, schema: type[Any]) -> Any:
         from mcp.server.elicitation import AcceptedElicitation
 
-        from whatsapp_mcp.models import ConfirmationSchema
+        from whatsapp_desktop_mcp.models import ConfirmationSchema
 
         return AcceptedElicitation[ConfirmationSchema](data=ConfirmationSchema(confirm=True))
 
@@ -124,14 +124,14 @@ async def test_live_send_to_self_chat_smoke() -> None:
     Shape assertion: SendResult.status ∈ {"sent", "sent_unverified"};
     one matching audit-log entry with body_sha256 of the test message.
     """
-    from whatsapp_mcp import server
-    from whatsapp_mcp.tools.send_message import send_message
+    from whatsapp_desktop_mcp import server
+    from whatsapp_desktop_mcp.tools.send_message import send_message
 
     server.read_only_mode = False
 
     chat = await _find_self_chat(_self_chat_name())
     iso_ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    body = f"[whatsapp-mcp live test {iso_ts}]"
+    body = f"[whatsapp-desktop-mcp live test {iso_ts}]"
 
     result = await send_message(
         chat_id=chat["chat_id"],
@@ -158,14 +158,14 @@ async def test_live_send_observes_post_hoc_verify() -> None:
     status="sent_unverified" as a soft-fail (D-22) but documents the
     expected happy path via the assertion message.
     """
-    from whatsapp_mcp import server
-    from whatsapp_mcp.tools.send_message import send_message
+    from whatsapp_desktop_mcp import server
+    from whatsapp_desktop_mcp.tools.send_message import send_message
 
     server.read_only_mode = False
 
     chat = await _find_self_chat(_self_chat_name())
     iso_ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    body = f"[whatsapp-mcp live test verify {iso_ts}]"
+    body = f"[whatsapp-desktop-mcp live test verify {iso_ts}]"
 
     result = await send_message(
         chat_id=chat["chat_id"],
@@ -199,9 +199,9 @@ async def test_live_send_respects_rate_limit() -> None:
             "the rate-limit-burning live test — 5 real messages will land in your self-chat."
         )
 
-    from whatsapp_mcp import server
-    from whatsapp_mcp.exceptions import RateLimitExceeded
-    from whatsapp_mcp.tools.send_message import send_message
+    from whatsapp_desktop_mcp import server
+    from whatsapp_desktop_mcp.exceptions import RateLimitExceeded
+    from whatsapp_desktop_mcp.tools.send_message import send_message
 
     server.read_only_mode = False
     chat = await _find_self_chat(_self_chat_name())
@@ -211,7 +211,7 @@ async def test_live_send_respects_rate_limit() -> None:
     for i in range(5):
         await send_message(
             chat_id=chat["chat_id"],
-            body=f"[whatsapp-mcp live rate-test {iso_base} #{i}]",
+            body=f"[whatsapp-desktop-mcp live rate-test {iso_base} #{i}]",
             ctx=_LiveContext(),
         )
 
@@ -221,6 +221,6 @@ async def test_live_send_respects_rate_limit() -> None:
     with pytest.raises((RateLimitExceeded, ValueError), match=r"(rate|budget|Per-minute)"):
         await send_message(
             chat_id=chat["chat_id"],
-            body=f"[whatsapp-mcp live rate-test {iso_base} #5]",
+            body=f"[whatsapp-desktop-mcp live rate-test {iso_base} #5]",
             ctx=_LiveContext(),
         )

@@ -6,48 +6,48 @@ subsystem: data
 tags: [pydantic-v2, models, cursor, time, paths, data-tier, foundation]
 requires: [phase-0]
 provides:
-  - whatsapp_mcp.models.Coverage
-  - whatsapp_mcp.models.encode_cursor
-  - whatsapp_mcp.models.decode_cursor
-  - whatsapp_mcp.models.CursorError
-  - whatsapp_mcp.models.AnchorKind
-  - whatsapp_mcp.models.Jid
-  - whatsapp_mcp.models.JidKind
-  - whatsapp_mcp.models.Contact
-  - whatsapp_mcp.models.MediaRef
-  - whatsapp_mcp.models.Chat
-  - whatsapp_mcp.models.ChatKind
-  - whatsapp_mcp.models.Message
-  - whatsapp_mcp.models.MessageKind
-  - whatsapp_mcp.models.GroupInfo
-  - whatsapp_mcp.models.GroupMember
-  - whatsapp_mcp.time.cocoa_to_unix
-  - whatsapp_mcp.time.unix_to_cocoa
-  - whatsapp_mcp.time.COCOA_EPOCH_OFFSET
-  - whatsapp_mcp.paths.resolve_lid_path
-  - whatsapp_mcp.paths.resolve_contactsv2_path
-  - whatsapp_mcp.paths.resolve_media_root
+  - whatsapp_desktop_mcp.models.Coverage
+  - whatsapp_desktop_mcp.models.encode_cursor
+  - whatsapp_desktop_mcp.models.decode_cursor
+  - whatsapp_desktop_mcp.models.CursorError
+  - whatsapp_desktop_mcp.models.AnchorKind
+  - whatsapp_desktop_mcp.models.Jid
+  - whatsapp_desktop_mcp.models.JidKind
+  - whatsapp_desktop_mcp.models.Contact
+  - whatsapp_desktop_mcp.models.MediaRef
+  - whatsapp_desktop_mcp.models.Chat
+  - whatsapp_desktop_mcp.models.ChatKind
+  - whatsapp_desktop_mcp.models.Message
+  - whatsapp_desktop_mcp.models.MessageKind
+  - whatsapp_desktop_mcp.models.GroupInfo
+  - whatsapp_desktop_mcp.models.GroupMember
+  - whatsapp_desktop_mcp.time.cocoa_to_unix
+  - whatsapp_desktop_mcp.time.unix_to_cocoa
+  - whatsapp_desktop_mcp.time.COCOA_EPOCH_OFFSET
+  - whatsapp_desktop_mcp.paths.resolve_lid_path
+  - whatsapp_desktop_mcp.paths.resolve_contactsv2_path
+  - whatsapp_desktop_mcp.paths.resolve_media_root
 affects: [Plan 01-02 reader, Plan 01-03 read-only flag, Plan 01-04 tools, Plan 01-05 doctor expansion, Plan 01-06 tests]
 tech-stack:
   added: []
   patterns:
     - "Pydantic v2 BaseModel with Literal-typed discriminator fields"
     - "Opaque base64-JSON pagination cursor with Literal-typed anchor_kind discriminator (W2 widened schema)"
-    - "Cross-cutting helper at package root (whatsapp_mcp.time) — neither reader/ nor sender/ needs to depend on the other (REL-05)"
+    - "Cross-cutting helper at package root (whatsapp_desktop_mcp.time) — neither reader/ nor sender/ needs to depend on the other (REL-05)"
     - "Pure path resolvers: no I/O, no syscalls beyond os.path.expanduser"
 key-files:
   created:
-    - src/whatsapp_mcp/models/coverage.py
-    - src/whatsapp_mcp/models/cursor.py
-    - src/whatsapp_mcp/models/contact.py
-    - src/whatsapp_mcp/models/media.py
-    - src/whatsapp_mcp/models/chat.py
-    - src/whatsapp_mcp/models/message.py
-    - src/whatsapp_mcp/models/group.py
-    - src/whatsapp_mcp/models/__init__.py
-    - src/whatsapp_mcp/time.py
+    - src/whatsapp_desktop_mcp/models/coverage.py
+    - src/whatsapp_desktop_mcp/models/cursor.py
+    - src/whatsapp_desktop_mcp/models/contact.py
+    - src/whatsapp_desktop_mcp/models/media.py
+    - src/whatsapp_desktop_mcp/models/chat.py
+    - src/whatsapp_desktop_mcp/models/message.py
+    - src/whatsapp_desktop_mcp/models/group.py
+    - src/whatsapp_desktop_mcp/models/__init__.py
+    - src/whatsapp_desktop_mcp/time.py
   modified:
-    - src/whatsapp_mcp/paths.py
+    - src/whatsapp_desktop_mcp/paths.py
 decisions:
   - "Cursor anchor_kind validated by frozenset membership (not just `in Literal.__args__` typing trick) — explicit runtime witness keeps mypy --strict happy without `# type: ignore`."
   - "Cursor decoder rejects extra keys in addition to missing keys — locks the schema to exactly {chat_id, anchor, anchor_kind} so future schema bumps must change `encode_cursor` AND get a CursorError on old payloads, never silently accept stale-shaped cursors."
@@ -72,7 +72,7 @@ behavior-free shapes that Plans 02-05 build against.
 
 ## What Shipped
 
-### Models package (`src/whatsapp_mcp/models/`)
+### Models package (`src/whatsapp_desktop_mcp/models/`)
 
 - **`coverage.py`** — `Coverage(BaseModel)`: `from_ts`, `to_ts`,
   `asked_window_seconds`, `have_window_seconds`, `is_full`. Every read tool
@@ -116,7 +116,7 @@ behavior-free shapes that Plans 02-05 build against.
   `decode_cursor`, `encode_cursor`). Phase 0's `models.doctor` module
   preserved unchanged.
 
-### Time helpers (`src/whatsapp_mcp/time.py`)
+### Time helpers (`src/whatsapp_desktop_mcp/time.py`)
 
 - `COCOA_EPOCH_OFFSET: int = 978_307_200`
 - `def cocoa_to_unix(cocoa_seconds: float) -> int`
@@ -125,14 +125,14 @@ behavior-free shapes that Plans 02-05 build against.
 Module placed at the package root (NOT under `reader/`) because both
 `reader/` (row projection) and `tools/` (e.g. `extract_recent` "last N
 hours") need it. Module name `time` does not shadow stdlib `time`
-because it is only ever imported as `whatsapp_mcp.time` and contains
+because it is only ever imported as `whatsapp_desktop_mcp.time` and contains
 no `import time` calls of its own.
 
 Live anchor verification (matches RESEARCH §"Cocoa Epoch ↔ Unix
 Conversion"): `cocoa_to_unix(800_352_916) == 1_778_660_116` =
 `2026-05-13 08:15:16 UTC`.
 
-### Path resolvers (`src/whatsapp_mcp/paths.py` — expanded)
+### Path resolvers (`src/whatsapp_desktop_mcp/paths.py` — expanded)
 
 - `resolve_chatstorage_path()` — preserved byte-for-byte from Phase 0.
 - `resolve_lid_path()` — sibling `LID.sqlite` (P11 JID/LID dedup).
@@ -146,9 +146,9 @@ All four resolvers are pure: no I/O, no syscalls beyond
 
 ## Acceptance Criteria — All Met
 
-- [x] `from whatsapp_mcp.models import Chat, Message, Contact, Jid, JidKind, GroupInfo, GroupMember, MediaRef, Coverage, AnchorKind, encode_cursor, decode_cursor, CursorError, DoctorReport, PermissionStatus, PermissionState, PermissionBucket, ChatKind, MessageKind` works (verified inline).
-- [x] `from whatsapp_mcp.time import cocoa_to_unix, unix_to_cocoa, COCOA_EPOCH_OFFSET` works; `cocoa_to_unix(0) == 978_307_200`; round-trip cocoa_to_unix(unix_to_cocoa(N)) == N for any int N.
-- [x] `from whatsapp_mcp.paths import resolve_chatstorage_path, resolve_lid_path, resolve_contactsv2_path, resolve_media_root` works; all return absolute paths (no leading `~`).
+- [x] `from whatsapp_desktop_mcp.models import Chat, Message, Contact, Jid, JidKind, GroupInfo, GroupMember, MediaRef, Coverage, AnchorKind, encode_cursor, decode_cursor, CursorError, DoctorReport, PermissionStatus, PermissionState, PermissionBucket, ChatKind, MessageKind` works (verified inline).
+- [x] `from whatsapp_desktop_mcp.time import cocoa_to_unix, unix_to_cocoa, COCOA_EPOCH_OFFSET` works; `cocoa_to_unix(0) == 978_307_200`; round-trip cocoa_to_unix(unix_to_cocoa(N)) == N for any int N.
+- [x] `from whatsapp_desktop_mcp.paths import resolve_chatstorage_path, resolve_lid_path, resolve_contactsv2_path, resolve_media_root` works; all return absolute paths (no leading `~`).
 - [x] Cursor round-trip: `decode_cursor(encode_cursor(42, 1.5e18, "z_sort")) == (42, 1.5e18, "z_sort")` AND `decode_cursor(encode_cursor(7, 1_747_140_000.0, "cocoa_ts")) == (7, 1_747_140_000.0, "cocoa_ts")`. Both `z_sort` and `cocoa_ts` anchor_kind values supported.
 - [x] `decode_cursor` raises `CursorError` (NOT raw ValueError) on garbage input, bad base64, missing keys, extra keys, wrong types, and anchor_kind values outside the Literal set.
 - [x] `Jid(kind="bogus", raw="x")` raises `ValidationError` (Literal enforced).
@@ -199,7 +199,7 @@ All four resolvers are pure: no I/O, no syscalls beyond
   to accept the assignment without a cast.
 - **Fix:** removed the `# type: ignore` comment, kept the comment text
   describing the runtime witness.
-- **Files modified:** `src/whatsapp_mcp/models/cursor.py`
+- **Files modified:** `src/whatsapp_desktop_mcp/models/cursor.py`
 - **Outcome:** mypy --strict green; runtime behavior unchanged
   (frozenset check still raises `CursorError` on invalid kinds).
 

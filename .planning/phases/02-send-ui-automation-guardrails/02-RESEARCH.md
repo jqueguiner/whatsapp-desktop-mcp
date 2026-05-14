@@ -29,15 +29,15 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 
 **Confirmation UX**
 - **D-07:** MCP elicitation confirmation is ALWAYS-ON by default. Every `send_message` call triggers an elicitation prompt that displays: resolved chat display name, recipient JID/LID (with kind tag), message body verbatim (no truncation), cross-chat-quote warning (if D-15..D-18 heuristic fires), rate limit budget remaining.
-- **D-08:** Opt-out via `WHATSAPP_MCP_SKIP_CONFIRM=1` env var. When set: elicitation is skipped, send proceeds, BUT every skipped confirmation is logged to audit log with `confirm_skipped: true`. Documented in README with stark warning.
+- **D-08:** Opt-out via `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1` env var. When set: elicitation is skipped, send proceeds, BUT every skipped confirmation is logged to audit log with `confirm_skipped: true`. Documented in README with stark warning.
 - **D-09:** No sticky-session confirmation cache. Each send gets its own confirmation.
 - **D-10:** Decline = clean cancellation. Returns structured `SendCancelled` result (NOT an error). Audit log `outcome: "cancelled"`.
 
 **Rate Limiter**
-- **D-11:** Persistent SQLite-backed rate limiter at `~/Library/Application Support/whatsapp-mcp/rate-limit.db` (mode 0600). Single file; one append-only `sends(ts INTEGER, chat_id INTEGER, body_sha256 TEXT, outcome TEXT)` table. Sliding-window query on `ts`. Defaults: 5/min, 30/day. Configurable via env vars `WHATSAPP_MCP_RATE_PER_MIN` / `WHATSAPP_MCP_RATE_PER_DAY` — bounded by hard maximums of 20/min and 200/day; beyond which env var is rejected with a structured config error.
+- **D-11:** Persistent SQLite-backed rate limiter at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db` (mode 0600). Single file; one append-only `sends(ts INTEGER, chat_id INTEGER, body_sha256 TEXT, outcome TEXT)` table. Sliding-window query on `ts`. Defaults: 5/min, 30/day. Configurable via env vars `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN` / `WHATSAPP_DESKTOP_MCP_RATE_PER_DAY` — bounded by hard maximums of 20/min and 200/day; beyond which env var is rejected with a structured config error.
 
 **Audit Log**
-- **D-12:** JSONL at `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600. One JSON object per send attempt with fields `ts, chat_id, chat_name, body_sha256, outcome, message_id, error, confirm_skipped, elapsed_ms`.
+- **D-12:** JSONL at `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600. One JSON object per send attempt with fields `ts, chat_id, chat_name, body_sha256, outcome, message_id, error, confirm_skipped, elapsed_ms`.
 - **D-13:** Body itself is NEVER logged (only SHA-256 fingerprint).
 - **D-14:** Append-only, line-buffered, no log rotation in v0.1.
 
@@ -48,7 +48,7 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 - **D-18:** Surface as a WARNING in the elicitation, not a HARD BLOCK. Warning: `Body contains a 47-char run from chat "Work" — confirm cross-chat reference is intentional.`
 
 **--read-only Interaction**
-- **D-19:** `send_message` checks `whatsapp_mcp.server.read_only_mode` at the top of its body and raises `ReadOnlyMode` exception (Phase 1 minted) if True. v0.1 default for the flag stays `True`; user must explicitly `uvx whatsapp-mcp --no-read-only`.
+- **D-19:** `send_message` checks `whatsapp_desktop_mcp.server.read_only_mode` at the top of its body and raises `ReadOnlyMode` exception (Phase 1 minted) if True. v0.1 default for the flag stays `True`; user must explicitly `uvx whatsapp-desktop-mcp --no-read-only`.
 - **D-20:** Tool annotations: `@mcp.tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True), meta={"anthropic/maxResultSizeChars": 60000})`.
 
 **Post-Hoc Verification (SEND-08)**
@@ -56,17 +56,17 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 - **D-22:** Verification timeout returns `outcome="sent_unverified"` (NOT "error"). Tool result: `{"status": "sent_unverified", "message_id": null, "verification_note": "..."}`.
 
 **Sender Package Layout**
-- **D-23:** Files under `src/whatsapp_mcp/sender/`: `deeplink.py`, `osascript_send.py`, `ax_assert.py`, `ui_send.py`, `verify.py`, `rate_limit.py`, `audit.py`, `cross_chat_quote.py`, `__init__.py` re-exporting `send_text(chat_id, body) -> SendResult`.
+- **D-23:** Files under `src/whatsapp_desktop_mcp/sender/`: `deeplink.py`, `osascript_send.py`, `ax_assert.py`, `ui_send.py`, `verify.py`, `rate_limit.py`, `audit.py`, `cross_chat_quote.py`, `__init__.py` re-exporting `send_text(chat_id, body) -> SendResult`.
 - **D-24:** REL-05 EVOLUTION: Reader MUST NOT import Sender. Sender MAY import Reader connection primitives only (`reader.connection.open_ro`), NOT reader.tools or reader business logic. Update `tests/unit/test_isolation.py` accordingly.
 
 **Tool Layer**
-- **D-25:** `src/whatsapp_mcp/tools/send_message.py` — `@mcp.tool(...)` async function. Body sequence:
+- **D-25:** `src/whatsapp_desktop_mcp/tools/send_message.py` — `@mcp.tool(...)` async function. Body sequence:
   1. Check `read_only_mode` → raise `ReadOnlyMode`.
   2. Validate `chat_id` exists via reader lookup → raise `InvalidChatId` if not found.
   3. Resolve chat name + recipient JID/LID from reader.
   4. Build cross-chat-quote warnings.
   5. Check rate limit → raise `RateLimitExceeded` if over budget.
-  6. MCP elicitation prompt (unless `WHATSAPP_MCP_SKIP_CONFIRM=1`); on decline → `SendCancelled`.
+  6. MCP elicitation prompt (unless `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1`); on decline → `SendCancelled`.
   7. AX state assertion → raise `ChatHeaderMismatch` on focus mismatch.
   8. Drive send (deep-link OR search-and-click).
   9. Post-hoc DB poll for verification (D-21).
@@ -76,8 +76,8 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 ### Claude's Discretion
 - AX-API exact selectors for the focused chat header (the `AXTitle` walk depth, fallback selectors if obvious one missing on specific Catalyst version)
 - Exact wording of the elicitation prompt's body display (must show body verbatim; framing is Claude's call)
-- Whether to add `WHATSAPP_MCP_DRY_RUN=1` env var
-- Whether to ship a tiny `whatsapp-mcp send-test` CLI subcommand for manual smoke testing
+- Whether to add `WHATSAPP_DESKTOP_MCP_DRY_RUN=1` env var
+- Whether to ship a tiny `whatsapp-desktop-mcp send-test` CLI subcommand for manual smoke testing
 
 ### Deferred Ideas (OUT OF SCOPE)
 - Send media (images/files) — v2 (SEND2-01)
@@ -86,8 +86,8 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 - Full Accessibility-API send path (replacing `keystroke return` with `AXTextArea.setValue:` + `AXButton.AXPress`) — v2 (SEND2-04)
 - Group send via deep-link — v2 (SEND2-05); requires WhatsApp to add group JID support to URL scheme
 - Audit log rotation — Phase 3
-- `whatsapp-mcp send-test` CLI subcommand — Claude's discretion
-- `WHATSAPP_MCP_DRY_RUN=1` env var — Claude's discretion
+- `whatsapp-desktop-mcp send-test` CLI subcommand — Claude's discretion
+- `WHATSAPP_DESKTOP_MCP_DRY_RUN=1` env var — Claude's discretion
 
 </user_constraints>
 
@@ -101,7 +101,7 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 | SEND-03 | Primary send path is `whatsapp://send?phone=<E164>&text=<urlencoded>` deep-link + `osascript` keystroke return; group fallback is search-and-click | §"Deep-Link Send Path (D-01)" + §"Group Send Fallback (D-02)" with verified `osascript` shapes |
 | SEND-04 | Pre-send AX-API state assertion verifies focused window's chat header matches resolved chat name | §"AX-API State Assertion (D-03)" — verified live AX tree (AXHeading nodes carry chat name; three invisible bidi chars must be stripped: U+200E / U+2068 / U+2069) |
 | SEND-05 | Rate limiter 5/min, 30/day default; structured error on hit | §"Persistent SQLite Rate Limiter (D-11)" with exact DDL + sliding-window queries |
-| SEND-06 | Audit log JSONL at `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600 | §"JSONL Audit Log (D-12)" with exact `os.chmod`/`open(...buffering=1)` pattern |
+| SEND-06 | Audit log JSONL at `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600 | §"JSONL Audit Log (D-12)" with exact `os.chmod`/`open(...buffering=1)` pattern |
 | SEND-07 | Cross-chat-quote heuristic detects body containing content recently quoted from another chat | §"Cross-Chat-Quote Heuristic (D-15..D-18)" with LRU + 40-char threshold + 30-min window |
 | SEND-08 | Send verified post-hoc by polling `ZWAMESSAGE` for new outgoing row within 10s | §"Post-Hoc Verification (D-21)" with exact SQL + 250ms × 40 cadence using `reader.connection.open_ro` (D-24 evolved REL-05) |
 
@@ -115,7 +115,7 @@ Every locked decision is honored. No alternatives are explored. Where a CONTEXT.
 | `osascript` keystroke wrapper | Sender (`sender/osascript_send.py`) | — | Reuses Phase 0's `permissions/osascript.py:run_osascript` async wrapper |
 | AX preflight (pyobjc) | Sender (`sender/ax_assert.py`) | — | pyobjc isolated to this one module; D-06 try/except ImportError lives here |
 | Group search-and-click orchestration | Sender (`sender/ui_send.py`) | osascript_send | Composes deeplink + osascript + ax_assert |
-| Rate limiting (persistent) | Sender (`sender/rate_limit.py`) | — | Owns its own SQLite at `~/Library/Application Support/whatsapp-mcp/rate-limit.db` — separate file from WhatsApp DB |
+| Rate limiting (persistent) | Sender (`sender/rate_limit.py`) | — | Owns its own SQLite at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db` — separate file from WhatsApp DB |
 | Audit log write | Sender (`sender/audit.py`) | — | Owns the JSONL append; no read tier coupling |
 | Cross-chat-quote LRU | Sender (`sender/cross_chat_quote.py`) | Tool layer (read tools call `record_bodies`) | LRU lives in sender; read tools call `record()` post-projection (one hook call site per read tool) |
 | Post-hoc DB verification poll | Sender (`sender/verify.py`) | Reader (`reader.connection.open_ro`) | D-24 evolution allows `sender → reader.connection` one-way edge |
@@ -213,7 +213,7 @@ Read-tool integration hook (Plan 02-04):
 ### Recommended Project Structure
 
 ```
-src/whatsapp_mcp/
+src/whatsapp_desktop_mcp/
 ├── sender/                                # NEW in Phase 2 (per D-23)
 │   ├── __init__.py                        # re-exports send_text + SendResult
 │   ├── deeplink.py                        # whatsapp:// URL builder + `open -g`
@@ -312,7 +312,7 @@ async def send_message(
         f"Rate budget: {budget_remaining_per_min}/min, {budget_remaining_per_day}/day remaining."
     )
 
-    if os.environ.get("WHATSAPP_MCP_SKIP_CONFIRM") == "1":
+    if os.environ.get("WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM") == "1":
         confirm_skipped = True
     else:
         result = await ctx.elicit(prompt, schema=ConfirmationSchema)
@@ -358,7 +358,7 @@ broken user install shouldn't crash the read tools).
 """
 from __future__ import annotations
 import unicodedata
-from whatsapp_mcp.exceptions import (
+from whatsapp_desktop_mcp.exceptions import (
     AccessibilityAPIUnavailable,
     ChatHeaderMismatch,
 )
@@ -628,7 +628,7 @@ async def send_group_via_search(chat_name: str, body: str) -> None:
 ```python
 # sender/rate_limit.py
 """Persistent SQLite-backed rate limiter at
-~/Library/Application Support/whatsapp-mcp/rate-limit.db (mode 0600, D-11).
+~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db (mode 0600, D-11).
 
 Persistence is load-bearing: an MCP server restart MUST NOT reset the daily
 count. The WhatsApp account is the protected resource; it doesn't restart
@@ -651,9 +651,9 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from whatsapp_mcp.exceptions import RateLimitExceeded
+from whatsapp_desktop_mcp.exceptions import RateLimitExceeded
 
-_DB_PATH = Path.home() / "Library" / "Application Support" / "whatsapp-mcp" / "rate-limit.db"
+_DB_PATH = Path.home() / "Library" / "Application Support" / "whatsapp-desktop-mcp" / "rate-limit.db"
 
 # D-11 bounded environment overrides — REJECT if user tries to expand beyond
 # the hard maxes (account-ban floor protection). These are raised at startup
@@ -677,18 +677,18 @@ CREATE INDEX IF NOT EXISTS sends_ts_idx ON sends(ts);
 
 def _resolve_limits() -> tuple[int, int]:
     """Resolve per-min / per-day caps from env, bounded by hard maxes."""
-    per_min_str = os.environ.get("WHATSAPP_MCP_RATE_PER_MIN")
-    per_day_str = os.environ.get("WHATSAPP_MCP_RATE_PER_DAY")
+    per_min_str = os.environ.get("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN")
+    per_day_str = os.environ.get("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY")
     per_min = int(per_min_str) if per_min_str else _DEFAULT_PER_MIN
     per_day = int(per_day_str) if per_day_str else _DEFAULT_PER_DAY
     if per_min > _HARD_MAX_PER_MIN:
         raise ValueError(
-            f"WHATSAPP_MCP_RATE_PER_MIN={per_min} exceeds hard max {_HARD_MAX_PER_MIN}; "
+            f"WHATSAPP_DESKTOP_MCP_RATE_PER_MIN={per_min} exceeds hard max {_HARD_MAX_PER_MIN}; "
             "raising the limit risks WhatsApp account ban. Refusing to start."
         )
     if per_day > _HARD_MAX_PER_DAY:
         raise ValueError(
-            f"WHATSAPP_MCP_RATE_PER_DAY={per_day} exceeds hard max {_HARD_MAX_PER_DAY}; "
+            f"WHATSAPP_DESKTOP_MCP_RATE_PER_DAY={per_day} exceeds hard max {_HARD_MAX_PER_DAY}; "
             "raising the limit risks WhatsApp account ban. Refusing to start."
         )
     return per_min, per_day
@@ -733,7 +733,7 @@ def _blocking_check_and_reserve(chat_id: int, body_sha256: str) -> tuple[int, in
     if cnt_day >= per_day:
         raise RateLimitExceeded(
             f"Per-day send budget exhausted: {cnt_day}/{per_day}. "
-            f"Retry tomorrow, or raise WHATSAPP_MCP_RATE_PER_DAY (bounded {_HARD_MAX_PER_DAY})."
+            f"Retry tomorrow, or raise WHATSAPP_DESKTOP_MCP_RATE_PER_DAY (bounded {_HARD_MAX_PER_DAY})."
         )
     return per_min - cnt_min, per_day - cnt_day
 
@@ -768,7 +768,7 @@ async def record_outcome(chat_id: int, body_sha256: str, outcome: str) -> None:
 
 ```python
 # sender/audit.py
-"""JSONL audit log at ~/Library/Logs/whatsapp-mcp/audit.log (mode 0600).
+"""JSONL audit log at ~/Library/Logs/whatsapp-desktop-mcp/audit.log (mode 0600).
 
 One JSON object per send attempt, including cancellations and rate-limit hits.
 Body is NEVER plaintext-logged (D-13) — SHA-256 fingerprint only. Append-only,
@@ -786,7 +786,7 @@ from pathlib import Path
 from typing import Literal
 from pydantic import BaseModel, Field
 
-_LOG_DIR = Path.home() / "Library" / "Logs" / "whatsapp-mcp"
+_LOG_DIR = Path.home() / "Library" / "Logs" / "whatsapp-desktop-mcp"
 _LOG_PATH = _LOG_DIR / "audit.log"
 
 Outcome = Literal[
@@ -937,7 +937,7 @@ Each of the 5 read tools (`list_chats`, `read_chat`, `extract_recent`, `search_m
 
 ```python
 # Plan 02-04 integration site — one line per read tool body
-from whatsapp_mcp.sender import cross_chat_quote
+from whatsapp_desktop_mcp.sender import cross_chat_quote
 # ... existing read-tool body ...
 cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
 return {"messages": [...], ...}
@@ -945,7 +945,7 @@ return {"messages": [...], ...}
 
 `list_chats` does not surface message bodies, so it does NOT call `record_bodies` — only the 4 tools that return message text do (`read_chat`, `extract_recent`, `search_messages`, `get_message_context`).
 
-**REL-05 impact:** this is the first time a read tool imports from `whatsapp_mcp.sender`. The D-24 evolved invariant allows it because the import is from `sender/cross_chat_quote.py` (a guard module), NOT from sender's send-path orchestration. **Update `tests/unit/test_isolation.py`:**
+**REL-05 impact:** this is the first time a read tool imports from `whatsapp_desktop_mcp.sender`. The D-24 evolved invariant allows it because the import is from `sender/cross_chat_quote.py` (a guard module), NOT from sender's send-path orchestration. **Update `tests/unit/test_isolation.py`:**
 - `test_isolation_reader_does_not_import_sender` — STAYS load-bearing for `reader/` (the data tier). Plan 02-04 modifies `tools/*.py`, NOT `reader/*.py`.
 - `test_isolation_sender_does_not_import_reader` — RELAXED per D-24: sender MAY import `reader.connection` only.
 - New test: `test_isolation_tools_may_import_both` — explicit allowlist that tools can pull from both reader and sender.
@@ -970,9 +970,9 @@ still forbidden). Verified in test_isolation.
 from __future__ import annotations
 import asyncio
 import sqlite3
-from whatsapp_mcp.paths import resolve_chatstorage_path
-from whatsapp_mcp.reader.connection import open_ro
-from whatsapp_mcp.time import unix_to_cocoa
+from whatsapp_desktop_mcp.paths import resolve_chatstorage_path
+from whatsapp_desktop_mcp.reader.connection import open_ro
+from whatsapp_desktop_mcp.time import unix_to_cocoa
 
 _POLL_INTERVAL_SECONDS = 0.25
 _MAX_POLLS = 40   # 10 s total
@@ -1016,11 +1016,11 @@ async def poll_for_outgoing(
 ```
 
 **Design notes:**
-- **`ZISFROMME = 1` verified** in `src/whatsapp_mcp/reader/schema_v1.py` lines 105, 209, 228 [VERIFIED: codebase grep]. The column exists on `ZWAMESSAGE` and the Phase 1 schema-v1 templates already select it.
+- **`ZISFROMME = 1` verified** in `src/whatsapp_desktop_mcp/reader/schema_v1.py` lines 105, 209, 228 [VERIFIED: codebase grep]. The column exists on `ZWAMESSAGE` and the Phase 1 schema-v1 templates already select it.
 - **`ZMESSAGEDATE > :send_started_cocoa`** prevents matching a pre-existing identical message body from earlier in the chat. The `send_started_unix` parameter is captured at the top of `send_message`'s body and persists across the whole orchestration.
 - **`ZTEXT = ?` exact match:** if WhatsApp normalizes whitespace / line endings before persisting (e.g., trims trailing whitespace), the equality miss leads to `outcome="sent_unverified"` per D-22. This is the right soft-fail: the message IS observable in the WA UI, we just couldn't confirm via DB in our window. Document the limitation in the tool description.
 - **Why not `ZTEXT LIKE '%body%'`:** would match false positives (a quoted-reply substring containing the body). Exact equality is the right tradeoff — false negatives (missed verification, soft fail) are user-acceptable; false positives (claiming success when actually a different message matched) would be a much worse failure mode.
-- **`reader.connection.open_ro` reuse:** per D-24 the one-way edge `sender/verify.py → reader.connection.open_ro` is explicitly allowed. Module-level `from whatsapp_mcp.reader.connection import open_ro` is the only `whatsapp_mcp.reader.*` import allowed in any `sender/` file. Plan 02-05's isolation test asserts this.
+- **`reader.connection.open_ro` reuse:** per D-24 the one-way edge `sender/verify.py → reader.connection.open_ro` is explicitly allowed. Module-level `from whatsapp_desktop_mcp.reader.connection import open_ro` is the only `whatsapp_desktop_mcp.reader.*` import allowed in any `sender/` file. Plan 02-05's isolation test asserts this.
 
 ### Pattern 9: TCC Re-Check at Send Time (T-6)
 
@@ -1029,8 +1029,8 @@ async def poll_for_outgoing(
 ```python
 # inside tools/send_message.py body, between D-25 step 1 (read_only_mode)
 # and step 2 (chat_id validation)
-from whatsapp_mcp.permissions import automation
-from whatsapp_mcp.exceptions import AutomationRevoked
+from whatsapp_desktop_mcp.permissions import automation
+from whatsapp_desktop_mcp.exceptions import AutomationRevoked
 
 automation_status = await automation.check_whatsapp()
 if automation_status.state != "granted":
@@ -1055,9 +1055,9 @@ class AutomationRevoked(WhatsAppMCPError):
 
 - **Logging body plaintext** (D-13 / D-14 violation; T-4 mitigation) — only SHA-256 fingerprint in audit log; body never persists.
 - **Auto-picking fuzzy chat-name matches** (D-25 / SEND-01 violation; P5) — chat_id MUST be an opaque int returned by Phase 1's `search_contacts` / `list_chats`. Free-form name string → `InvalidChatId` (caught at the Pydantic-validation layer when a string fails int coercion).
-- **Bypassing elicitation without `confirm_skipped: true` audit entry** (D-08 violation) — `WHATSAPP_MCP_SKIP_CONFIRM=1` MUST still write the audit entry with `confirm_skipped: true`.
+- **Bypassing elicitation without `confirm_skipped: true` audit entry** (D-08 violation) — `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1` MUST still write the audit entry with `confirm_skipped: true`.
 - **Exposing pyobjc ImportError as a Python traceback** (D-06 violation) — wrap in `try/except ImportError`; `_PYOBJC_AVAILABLE = False` flag; `send_message` returns `AccessibilityAPIUnavailable` structured error.
-- **Writing to ChatStorage.sqlite** (CLAUDE.md hard rule #3) — `sender/verify.py` uses `open_ro` only; rate-limit DB is a SEPARATE file at `~/Library/Application Support/whatsapp-mcp/rate-limit.db`.
+- **Writing to ChatStorage.sqlite** (CLAUDE.md hard rule #3) — `sender/verify.py` uses `open_ro` only; rate-limit DB is a SEPARATE file at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db`.
 - **Silently expanding rate-limit env-var override beyond hard max** (D-11 violation) — `_resolve_limits()` REJECTS with a structured config error at startup if env var > hard max.
 - **Raw `asyncio.TimeoutError` to client** (REL-03 / @timeout decorator pattern) — use the existing `@timeout(seconds=15)` decorator on `send_message` (REL-03) which maps to a structured `ValueError` → MCP error response.
 - **Sequencing keystroke before AX assertion** (D-03 violation; load-bearing P5 mitigation) — `assert_focused_chat_matches` MUST run BEFORE any `keystroke` call. The orchestrator in `ui_send.py` enforces this ordering.
@@ -1077,8 +1077,8 @@ class AutomationRevoked(WhatsAppMCPError):
 | LRU cache for cross-chat-quote | Custom dict + manual eviction | `collections.deque(maxlen=1000)` (stdlib) | Constant-time append, auto-eviction, no dependency |
 | JSONL writing | Custom newline-terminated bytestream | `pydantic.BaseModel.model_dump_json()` + manual `\n` write | Pydantic v2 handles all serialization edge cases |
 | SHA-256 of body | Custom hex-formatting loop | `hashlib.sha256(body.encode("utf-8")).hexdigest()` (stdlib) | Standard 64-char lowercase hex; matches what an investigator would compute |
-| Cocoa-epoch ↔ Unix conversion | Custom 978307200 arithmetic | Phase 1's `whatsapp_mcp.time.unix_to_cocoa` | Already shipped, tested |
-| Path to WhatsApp's ChatStorage.sqlite | Hardcoded string | Phase 0's `whatsapp_mcp.paths.resolve_chatstorage_path()` | Already shipped |
+| Cocoa-epoch ↔ Unix conversion | Custom 978307200 arithmetic | Phase 1's `whatsapp_desktop_mcp.time.unix_to_cocoa` | Already shipped, tested |
+| Path to WhatsApp's ChatStorage.sqlite | Hardcoded string | Phase 0's `whatsapp_desktop_mcp.paths.resolve_chatstorage_path()` | Already shipped |
 | Per-tool timeout wrapper | `try: await asyncio.wait_for(...)` inline | Phase 1's `tools._decorators.@timeout(seconds=15)` | Already shipped; uniform error mapping |
 
 **Key insight:** Phase 2 is fully **composable on top of Phase 0 + Phase 1's primitives**. The only genuinely new code is the sender package's six modules. Everything else (osascript wrapper, TCC probes, RO SQLite connection, async dispatch, structured errors, @timeout decorator, Pydantic models) is reused from earlier phases.
@@ -1089,10 +1089,10 @@ class AutomationRevoked(WhatsAppMCPError):
 
 | Category | Items Found | Action Required |
 |----------|-------------|------------------|
-| Stored data | `~/Library/Application Support/whatsapp-mcp/rate-limit.db` (Plan 02-02 creates on first send; D-11) — owned by this MCP server, NOT WhatsApp. Mode 0600. Append-only `sends` table. Phase 3 may add rotation/truncation; v0.1 lets it grow. | Plan 02-02 must create directory `~/Library/Application Support/whatsapp-mcp/` if missing; tests must clean up the test DB after running (use `tmp_path` fixture in pytest, not the real path). |
+| Stored data | `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db` (Plan 02-02 creates on first send; D-11) — owned by this MCP server, NOT WhatsApp. Mode 0600. Append-only `sends` table. Phase 3 may add rotation/truncation; v0.1 lets it grow. | Plan 02-02 must create directory `~/Library/Application Support/whatsapp-desktop-mcp/` if missing; tests must clean up the test DB after running (use `tmp_path` fixture in pytest, not the real path). |
 | Live service config | No external service configuration. Pure local-process state. | None. |
 | OS-registered state | macOS TCC entries: Automation permission for WhatsApp + Accessibility (already required by Phase 0; Phase 2 adds NO new TCC buckets — pyobjc AX-API uses the existing Accessibility bucket, not a new one). | None — verified by inspecting `~/Library/Application Support/com.apple.TCC/` is not touched by this phase; existing Phase 0 buckets cover us. |
-| Secrets/env vars | `WHATSAPP_MCP_SKIP_CONFIRM=1`, `WHATSAPP_MCP_RATE_PER_MIN=N`, `WHATSAPP_MCP_RATE_PER_DAY=N`. All optional. None are secrets — boolean / int overrides only. | README documents all three; tests for env-var validation (Plan 02-05). |
+| Secrets/env vars | `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1`, `WHATSAPP_DESKTOP_MCP_RATE_PER_MIN=N`, `WHATSAPP_DESKTOP_MCP_RATE_PER_DAY=N`. All optional. None are secrets — boolean / int overrides only. | README documents all three; tests for env-var validation (Plan 02-05). |
 | Build artifacts | pyobjc-core 12.1, pyobjc-framework-Cocoa 12.1, pyobjc-framework-ApplicationServices 12.1 — added to `[project] dependencies` per D-05. Adds ~30 MB to the wheel. `uv.lock` updates on first sync. | Plan 02-01 task 1 modifies `pyproject.toml`; `uv sync --extra dev` re-resolves; commit the updated `uv.lock`. |
 
 **Process-local (transient, no FS):**
@@ -1128,9 +1128,9 @@ class AutomationRevoked(WhatsAppMCPError):
 **Warning signs:** Group sends occasionally land in nearby-named chats during dev testing.
 
 ### Pitfall 5: Rate-limit env-var silently disables protection
-**What goes wrong:** `WHATSAPP_MCP_RATE_PER_DAY=10000` accepted; user agent fan-out blasts; account ban.
+**What goes wrong:** `WHATSAPP_DESKTOP_MCP_RATE_PER_DAY=10000` accepted; user agent fan-out blasts; account ban.
 **Why it happens:** D-11 bounded override exists, but if `_resolve_limits` doesn't enforce, the server happily accepts the override.
-**How to avoid:** `_resolve_limits` REJECTS env values above hard maxes (20/min, 200/day) with a `ValueError` at module-load time (before the server even starts). Test: set `WHATSAPP_MCP_RATE_PER_DAY=300`, `uvx whatsapp-mcp --no-read-only`, assert exit-1 with config-error.
+**How to avoid:** `_resolve_limits` REJECTS env values above hard maxes (20/min, 200/day) with a `ValueError` at module-load time (before the server even starts). Test: set `WHATSAPP_DESKTOP_MCP_RATE_PER_DAY=300`, `uvx whatsapp-desktop-mcp --no-read-only`, assert exit-1 with config-error.
 **Warning signs:** Server starts with logging level INFO showing `_resolve_limits` returning > 20 or > 200.
 
 ### Pitfall 6: Audit log written before rate-limit check
@@ -1149,10 +1149,10 @@ class AutomationRevoked(WhatsAppMCPError):
 **What goes wrong:** `import ApplicationServices` raises `ImportError` on a user's broken install; the WHOLE server fails to start (reader and sender both unavailable). Read-only mode also broken.
 **Why it happens:** D-06 requires `try/except ImportError` at sender module level. Forgetting it makes pyobjc a hard import.
 **How to avoid:** Every pyobjc symbol used by `ax_assert.py` lives behind a `try/except ImportError → _PYOBJC_AVAILABLE = False` guard. `send_message` returns `AccessibilityAPIUnavailable` structured error if `_PYOBJC_AVAILABLE` is False; read tools work fine.
-**Warning signs:** Test on a non-mac CI runner: `import whatsapp_mcp.sender.ax_assert` should NOT raise; calling `assert_focused_chat_matches(...)` should raise `AccessibilityAPIUnavailable` structured.
+**Warning signs:** Test on a non-mac CI runner: `import whatsapp_desktop_mcp.sender.ax_assert` should NOT raise; calling `assert_focused_chat_matches(...)` should raise `AccessibilityAPIUnavailable` structured.
 
 ### Pitfall 9: `flock` absence on audit log under multi-instance
-**What goes wrong:** Two MCP server instances both append to `~/Library/Logs/whatsapp-mcp/audit.log`; lines interleave mid-write; some lines unparseable.
+**What goes wrong:** Two MCP server instances both append to `~/Library/Logs/whatsapp-desktop-mcp/audit.log`; lines interleave mid-write; some lines unparseable.
 **Why it happens:** v0.1 ships with no per-process file locking (deferred per D-14). If the user starts a second instance (e.g., Claude Desktop + Claude Code simultaneously), races.
 **How to avoid:** Document in README: v0.1 supports a single MCP server instance per machine. Phase-3 candidate: add `fcntl.flock(LOCK_EX)` around the audit-log write. Test for v0.1: NOT critical (single instance is the supported config); flag in PITFALLS for future work.
 **Warning signs:** `audit.log` has unparseable lines after running Claude Desktop + Claude Code concurrently. Not in scope for Phase 2.
@@ -1215,8 +1215,8 @@ def _strip_bidi(s: str) -> str:
 
 ### Example 4: Reuse Phase 0's osascript wrapper
 ```python
-# Source: src/whatsapp_mcp/permissions/osascript.py:58 (already shipped)
-from whatsapp_mcp.permissions.osascript import run_osascript
+# Source: src/whatsapp_desktop_mcp/permissions/osascript.py:58 (already shipped)
+from whatsapp_desktop_mcp.permissions.osascript import run_osascript
 
 result = await run_osascript(
     'tell application "System Events" to keystroke return',
@@ -1241,8 +1241,8 @@ def body_sha256(body: str) -> str:
 
 ### Example 6: Add @timeout decorator to send_message
 ```python
-# Source: src/whatsapp_mcp/tools/_decorators.py (already shipped Phase 1)
-from whatsapp_mcp.tools._decorators import timeout
+# Source: src/whatsapp_desktop_mcp/tools/_decorators.py (already shipped Phase 1)
+from whatsapp_desktop_mcp.tools._decorators import timeout
 
 @mcp.tool(name="send_message", ...)
 @timeout(seconds=15)   # REL-03: 15s budget for the whole send orchestration
@@ -1254,7 +1254,7 @@ async def send_message(chat_id: int, body: str, ctx: Context) -> SendResult:
 ```python
 # Source: pattern to apply to read_chat, extract_recent, search_messages,
 # get_message_context — one-line addition each, after projection, before return.
-from whatsapp_mcp.sender import cross_chat_quote
+from whatsapp_desktop_mcp.sender import cross_chat_quote
 
 # At the END of each tool body, before `return`:
 cross_chat_quote.record_bodies(chat_id, [m.body for m in messages if m.body])
@@ -1282,25 +1282,25 @@ return {"messages": [m.model_dump() for m in messages], ...}
 **Coarse target (per `.planning/config.json` granularity=coarse):** 1-3 plans. Phase 2 has 8 requirements + heavy guardrail surface (rate limiter + audit + cross-chat-quote + AX preflight + deep-link + group fallback + post-hoc verify + MCP elicit). A 3-plan split is too tight for the genuine 5-component surface. **Recommend 5 plans** matching the natural file boundaries; this is consistent with Phase 1's 6-plan split for its 21 reqs.
 
 ### Plan 02-01: Sender Primitives (no MCP coupling)
-**Files:** `pyproject.toml` (add pyobjc deps), `src/whatsapp_mcp/sender/deeplink.py`, `src/whatsapp_mcp/sender/osascript_send.py`, `src/whatsapp_mcp/sender/ax_assert.py`, `src/whatsapp_mcp/exceptions.py` (append `ChatHeaderMismatch`, `AccessibilityAPIUnavailable`, `OsascriptError`, `SendTimeout`, `AutomationRevoked`)
+**Files:** `pyproject.toml` (add pyobjc deps), `src/whatsapp_desktop_mcp/sender/deeplink.py`, `src/whatsapp_desktop_mcp/sender/osascript_send.py`, `src/whatsapp_desktop_mcp/sender/ax_assert.py`, `src/whatsapp_desktop_mcp/exceptions.py` (append `ChatHeaderMismatch`, `AccessibilityAPIUnavailable`, `OsascriptError`, `SendTimeout`, `AutomationRevoked`)
 **Requirements:** SEND-03 (deep-link primary), SEND-04 (AX preflight)
 **Depends on:** Phase 0 (`permissions.osascript`, exception hierarchy), Phase 1 (none — sender primitives have no DB coupling)
 **Parallelizable with:** Plan 02-02 (disjoint files)
 **Wave 0 / spike:** Verify the actual sidebar-search shortcut on the user's WhatsApp (Cmd-F vs AX-click on "Rechercher" AXGenericElement). One-line spike: `osascript -e 'tell application "System Events" to keystroke "f" using {command down}'`; observe what gets focused.
 
 ### Plan 02-02: Guardrail Modules (no MCP coupling)
-**Files:** `src/whatsapp_mcp/sender/rate_limit.py`, `src/whatsapp_mcp/sender/audit.py`, `src/whatsapp_mcp/sender/cross_chat_quote.py`, `src/whatsapp_mcp/exceptions.py` (append `RateLimitExceeded`, `InvalidChatId`), `src/whatsapp_mcp/models/send.py` (`SendResult`, `OffendingSource`, `ConfirmationSchema`, `AuditEntry`)
+**Files:** `src/whatsapp_desktop_mcp/sender/rate_limit.py`, `src/whatsapp_desktop_mcp/sender/audit.py`, `src/whatsapp_desktop_mcp/sender/cross_chat_quote.py`, `src/whatsapp_desktop_mcp/exceptions.py` (append `RateLimitExceeded`, `InvalidChatId`), `src/whatsapp_desktop_mcp/models/send.py` (`SendResult`, `OffendingSource`, `ConfirmationSchema`, `AuditEntry`)
 **Requirements:** SEND-05 (rate limiter), SEND-06 (audit log), SEND-07 (cross-chat-quote heuristic)
 **Depends on:** Phase 0 exceptions
 **Parallelizable with:** Plan 02-01 (disjoint files)
 
 ### Plan 02-03: Send Tool + Orchestration
-**Files:** `src/whatsapp_mcp/sender/ui_send.py`, `src/whatsapp_mcp/sender/verify.py`, `src/whatsapp_mcp/sender/__init__.py` (re-export `send_text`, `SendResult`), `src/whatsapp_mcp/tools/send_message.py`, `src/whatsapp_mcp/server.py` (add the read-only-gated import block)
+**Files:** `src/whatsapp_desktop_mcp/sender/ui_send.py`, `src/whatsapp_desktop_mcp/sender/verify.py`, `src/whatsapp_desktop_mcp/sender/__init__.py` (re-export `send_text`, `SendResult`), `src/whatsapp_desktop_mcp/tools/send_message.py`, `src/whatsapp_desktop_mcp/server.py` (add the read-only-gated import block)
 **Requirements:** SEND-01 (opaque chat_id), SEND-02 (elicitation + destructiveHint), SEND-08 (post-hoc verification)
 **Depends on:** Plan 02-01 + Plan 02-02 (all sender primitives + guardrails), Phase 1 reader (`find_chat_by_id`, `open_ro` for `verify.py`)
 
 ### Plan 02-04: Read-Tool Integration (Cross-Chat-Quote Recording)
-**Files:** `src/whatsapp_mcp/tools/read_chat.py`, `extract_recent.py`, `search_messages.py`, `get_message_context.py` (each gains 1 line of `cross_chat_quote.record_bodies(...)` after projection)
+**Files:** `src/whatsapp_desktop_mcp/tools/read_chat.py`, `extract_recent.py`, `search_messages.py`, `get_message_context.py` (each gains 1 line of `cross_chat_quote.record_bodies(...)` after projection)
 **Requirements:** SEND-07 (the recording half of the heuristic)
 **Depends on:** Plan 02-02 (`sender.cross_chat_quote` module exists)
 **REL-05 impact:** This is the first time tool modules import from `sender/`. Update `test_isolation.py` to allowlist this edge.
@@ -1351,7 +1351,7 @@ The following CLAUDE.md hard rules constrain Phase 2 design:
 
 1. **Reader ↔ Sender isolation** (Hard rule #1) — Phase 2 EVOLVES this per D-24: sender MAY import `reader.connection.open_ro` only. Tests must enforce.
 2. **stdout = JSON-RPC** (Hard rule #2) — Phase 2 uses `permissions.osascript.run_osascript` (already routes to stderr) and `logging.basicConfig(stream=sys.stderr)` from Phase 0 server.py.
-3. **Never write to ChatStorage.sqlite** (Hard rule #3) — Phase 2's `verify.py` uses `open_ro` (RO URI flag). Rate-limit DB is a SEPARATE file at `~/Library/Application Support/whatsapp-mcp/rate-limit.db`.
+3. **Never write to ChatStorage.sqlite** (Hard rule #3) — Phase 2's `verify.py` uses `open_ro` (RO URI flag). Rate-limit DB is a SEPARATE file at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db`.
 4. **Never inline media bytes** (Hard rule #4) — Phase 2 sends text only; no media path.
 5. **Stdio only, no HTTP** (Hard rule #5) — Phase 2 adds zero network surface.
 6. **Never compare JID strings directly** (Hard rule #6) — Phase 2 surfaces JID/LID in elicitation prompt via the existing `Jid` model from Phase 1.
@@ -1410,7 +1410,7 @@ The following CLAUDE.md hard rules constrain Phase 2 design:
 ## Sources
 
 ### Primary (HIGH confidence — VERIFIED LIVE 2026-05-13)
-- **Installed MCP SDK source** at `/Users/jlqueguiner/dev/whatsapp-mcp/.venv/lib/python3.12/site-packages/mcp/` — verified `ctx.elicit` signature (`server.py:1194`), `ElicitationResult` union (`elicitation.py:17-36`), schema-validator constraints (`elicitation.py:48-68`), `ElicitResult` content shape (`types.py:1895`), Context parameter exclusion from JSON schema (`server.py:598`)
+- **Installed MCP SDK source** at `/Users/jlqueguiner/dev/whatsapp-desktop-mcp/.venv/lib/python3.12/site-packages/mcp/` — verified `ctx.elicit` signature (`server.py:1194`), `ElicitationResult` union (`elicitation.py:17-36`), schema-validator constraints (`elicitation.py:48-68`), `ElicitResult` content shape (`types.py:1895`), Context parameter exclusion from JSON schema (`server.py:598`)
 - **WhatsApp Desktop 26.16.74 on user's Mac, macOS 26.4** — verified via `osascript`:
   - Front window name is `‎WhatsApp` (U+200E prefix) — confirms invisible-LRM trap
   - AXTree depth-walk via `entire contents of front window` — captured ~30 AXHeading + AXStaticText nodes with their descriptions
@@ -1418,7 +1418,7 @@ The following CLAUDE.md hard rules constrain Phase 2 design:
   - UI locale: French (`Discussions`, `Paramètres`, `Nouvelle discussion`)
   - `defaults read /Applications/WhatsApp.app/Contents/Info.plist CFBundleShortVersionString` → `26.16.74`
 - **PyPI registry** at `https://pypi.org/pypi/pyobjc-core/json` — verified `pyobjc-core` latest = 12.1, uploaded 2025-11-14
-- **Existing codebase** (`src/whatsapp_mcp/`) — `ZISFROMME` column verified present in `reader/schema_v1.py` lines 105, 209, 228; `reader.connection.open_ro` signature verified; `permissions.osascript.run_osascript` async wrapper verified; `tools/_decorators.py @timeout` pattern verified
+- **Existing codebase** (`src/whatsapp_desktop_mcp/`) — `ZISFROMME` column verified present in `reader/schema_v1.py` lines 105, 209, 228; `reader.connection.open_ro` signature verified; `permissions.osascript.run_osascript` async wrapper verified; `tools/_decorators.py @timeout` pattern verified
 
 ### Secondary (HIGH-MEDIUM confidence — verified from research bundle + corroborated by codebase)
 - `.planning/research/SUMMARY.md` §"Send-path constraints" — `whatsapp://send?phone=...&text=...` URL scheme registered; invisible-LRM in window title; no AppleScript dictionary
@@ -1467,7 +1467,7 @@ The following CLAUDE.md hard rules constrain Phase 2 design:
 - **Anti-patterns enumerated:** body plaintext logging, auto-pick fuzzy chat names, bypass elicitation without `confirm_skipped: true`, raw pyobjc ImportError, write to ChatStorage.sqlite, silent env-var rate-limit expansion, raw TimeoutError to client, keystroke-before-AX-assertion, AX comparison without bidi-strip, search-result-click without AX preflight. Each maps to a CONTEXT.md decision violation.
 
 ### File Created
-`/Users/jlqueguiner/dev/whatsapp-mcp/.planning/phases/02-send-ui-automation-guardrails/02-RESEARCH.md`
+`/Users/jlqueguiner/dev/whatsapp-desktop-mcp/.planning/phases/02-send-ui-automation-guardrails/02-RESEARCH.md`
 
 ### Confidence Assessment
 

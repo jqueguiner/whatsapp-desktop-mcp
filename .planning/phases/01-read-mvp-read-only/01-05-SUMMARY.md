@@ -6,12 +6,12 @@ subsystem: mcp-tool-layer
 tags: [diagnostics, doctor-tool, schema-fingerprint, plistlib, defensive-probing, diag-01, diag-02, w1-meta, w3-no-timeout]
 requires: [phase-1-plan-01-01, phase-1-plan-01-02, phase-1-plan-01-04]
 provides:
-  - whatsapp_mcp.models.doctor.SchemaState
-  - whatsapp_mcp.models.doctor.SchemaFingerprint
-  - whatsapp_mcp.models.doctor.DoctorReport (extended — 8 fields)
-  - whatsapp_mcp.models.SchemaFingerprint (re-export)
-  - whatsapp_mcp.models.SchemaState (re-export)
-  - whatsapp_mcp.tools.doctor.doctor (expanded body — 8-field DoctorReport)
+  - whatsapp_desktop_mcp.models.doctor.SchemaState
+  - whatsapp_desktop_mcp.models.doctor.SchemaFingerprint
+  - whatsapp_desktop_mcp.models.doctor.DoctorReport (extended — 8 fields)
+  - whatsapp_desktop_mcp.models.SchemaFingerprint (re-export)
+  - whatsapp_desktop_mcp.models.SchemaState (re-export)
+  - whatsapp_desktop_mcp.tools.doctor.doctor (expanded body — 8-field DoctorReport)
 affects:
   - Plan 01-06 tests (will mock _probe_db_safely + _probe_whatsapp_version to codify DIAG-02 partial-result invariant; will assert SchemaFingerprint state semantics + the W3 no-@timeout invariant on doctor)
 tech-stack:
@@ -28,9 +28,9 @@ tech-stack:
 key-files:
   created: []
   modified:
-    - src/whatsapp_mcp/models/doctor.py
-    - src/whatsapp_mcp/models/__init__.py
-    - src/whatsapp_mcp/tools/doctor.py
+    - src/whatsapp_desktop_mcp/models/doctor.py
+    - src/whatsapp_desktop_mcp/models/__init__.py
+    - src/whatsapp_desktop_mcp/tools/doctor.py
 decisions:
   - "DIAG-02 partial-result avoidance via per-probe try/except + bounded I/O; outer @timeout deliberately omitted on doctor (W3 lock)"
   - "_probe_db_safely catches sqlite3.OperationalError + sqlite3.DatabaseError + FileNotFoundError + PermissionError + RuntimeError + OSError — the union of every plausible failure mode for the short-lived RO connection + the empty-Z_METADATA edge from probe_z_version (which raises RuntimeError per Plan 01-02)"
@@ -70,7 +70,7 @@ return a partial ``DoctorReport`` that violates DIAG-02).
 
 ### Task 1 — Extended `DoctorReport` + new `SchemaFingerprint` model
 
-**`src/whatsapp_mcp/models/doctor.py`** — Three additions:
+**`src/whatsapp_desktop_mcp/models/doctor.py`** — Three additions:
 
 1. **`SchemaState` Literal alias** — `"supported" | "unsupported" | "unreachable"`.
 2. **`SchemaFingerprint` Pydantic model** with 4 fields:
@@ -86,7 +86,7 @@ return a partial ``DoctorReport`` that violates DIAG-02).
    - `last_message_ts: int | None` — max Unix-second timestamp across chats.
    - `coverage_summary: Coverage` — global from/to/have_window across all chats.
 
-**`src/whatsapp_mcp/models/__init__.py`** — Added `SchemaFingerprint` and
+**`src/whatsapp_desktop_mcp/models/__init__.py`** — Added `SchemaFingerprint` and
 `SchemaState` to the public re-export surface; `__all__` now enumerates
 21 names (was 19).
 
@@ -101,7 +101,7 @@ return a partial ``DoctorReport`` that violates DIAG-02).
 
 ### Task 2 — Expanded `doctor()` body with defensive probes
 
-**`src/whatsapp_mcp/tools/doctor.py`** — Three additions, one preservation:
+**`src/whatsapp_desktop_mcp/tools/doctor.py`** — Three additions, one preservation:
 
 1. **`@mcp.tool(...)` decorator preserved verbatim** (D-08 single-tool
    invariant): name, title, description, `ToolAnnotations(readOnlyHint=True,
@@ -168,7 +168,7 @@ return a partial ``DoctorReport`` that violates DIAG-02).
 | `readOnlyHint=True` | `tools/doctor.py` | 1 | =1 (Phase 0 annotation preserved) |
 | `anthropic/maxResultSizeChars` | `tools/doctor.py` | 1 | =1 (W1 lock — meta annotation preserved) |
 | `@timeout\(` (W3 lock — must NOT match) | `tools/doctor.py` | 0 | =0 |
-| `from whatsapp_mcp\.sender\|import whatsapp_mcp\.sender` (REL-05) | `tools/doctor.py` | 0 | =0 |
+| `from whatsapp_desktop_mcp\.sender\|import whatsapp_desktop_mcp\.sender` (REL-05) | `tools/doctor.py` | 0 | =0 |
 
 ## Behavior Verification — all pass
 
@@ -176,7 +176,7 @@ return a partial ``DoctorReport`` that violates DIAG-02).
   `model_dump_json()` produces valid JSON; `all_granted` returns `True`
   iff all 3 `PermissionStatus.state` are `"granted"` (Phase 0
   invariant — does NOT consider the new schema/version fields).
-- `from whatsapp_mcp.models import SchemaFingerprint, SchemaState`
+- `from whatsapp_desktop_mcp.models import SchemaFingerprint, SchemaState`
   succeeds.
 - `mcp.list_tools()` returns exactly **8 tools** (doctor + 7 read
   tools from Plan 01-04); doctor's `annotations.readOnlyHint is True`.
@@ -206,7 +206,7 @@ all_granted               = True
 
 ### DIAG-02 verification (FDA-denied simulation)
 
-`unittest.mock.patch('whatsapp_mcp.tools.doctor.fda.check', _denied_check)`
+`unittest.mock.patch('whatsapp_desktop_mcp.tools.doctor.fda.check', _denied_check)`
 substitutes a stub returning `PermissionStatus(bucket='fda', state='denied', ...)`.
 `asyncio.run(doctor())` returns successfully (NO exception propagates):
 
@@ -225,9 +225,9 @@ lives in `/Applications`, outside the TCC-protected container).
 
 ### W1 / W3 / D-08 lock verification
 
-- W1: `grep -cE 'anthropic/maxResultSizeChars' src/whatsapp_mcp/tools/doctor.py` returns 1 (already in place from Plan 01-04 Task 3; this plan preserves it).
-- W3: `grep -nE '@timeout\(' src/whatsapp_mcp/tools/doctor.py` returns no matches (deliberately no outer `@timeout` decorator — DIAG-02 partial-result invariant).
-- D-08: `grep -cE '^@mcp\.tool\(' src/whatsapp_mcp/tools/doctor.py` returns 1 (exactly one tool named `doctor` registered); `mcp.list_tools()` returns 8 tools total (doctor + 7 read tools from Plan 01-04 — no new tools added by Plan 01-05).
+- W1: `grep -cE 'anthropic/maxResultSizeChars' src/whatsapp_desktop_mcp/tools/doctor.py` returns 1 (already in place from Plan 01-04 Task 3; this plan preserves it).
+- W3: `grep -nE '@timeout\(' src/whatsapp_desktop_mcp/tools/doctor.py` returns no matches (deliberately no outer `@timeout` decorator — DIAG-02 partial-result invariant).
+- D-08: `grep -cE '^@mcp\.tool\(' src/whatsapp_desktop_mcp/tools/doctor.py` returns 1 (exactly one tool named `doctor` registered); `mcp.list_tools()` returns 8 tools total (doctor + 7 read tools from Plan 01-04 — no new tools added by Plan 01-05).
 
 ## Acceptance Criteria — all met
 
@@ -237,7 +237,7 @@ lives in `/Applications`, outside the TCC-protected container).
 - [x] `mcp.list_tools()` returns exactly 8 tools (doctor + 7 read tools) — Plan 01-05 does NOT add new tools.
 - [x] Phase 0 baseline 28 tests still pass.
 - [x] ruff full ruleset + ruff format --check + mypy --strict green across 56 source files.
-- [x] REL-05 invariant maintained: no `whatsapp_mcp.sender` imports in `tools/doctor.py`.
+- [x] REL-05 invariant maintained: no `whatsapp_desktop_mcp.sender` imports in `tools/doctor.py`.
 - [x] W1 lock: `meta={"anthropic/maxResultSizeChars": 60000}` present on doctor's `@mcp.tool` (already in place from Plan 01-04 Task 3 — preserved verbatim).
 - [x] W3 lock: no outer `@timeout` decorator on doctor (DIAG-02 partial-result invariant).
 - [x] DIAG-02 verified via FDA-denied mock: doctor returns successfully with `state="unreachable"` / `None` fields rather than raising.
@@ -259,13 +259,13 @@ lives in `/Applications`, outside the TCC-protected container).
 - **Issues:**
   - (a) Docstring referenced `readOnlyHint=True` verbatim inside the
     annotation-choices bullet list, which inflated the source-grep
-    count for the strict gate `grep -cE 'readOnlyHint=True' src/whatsapp_mcp/tools/doctor.py == 1` to 2 (one in the decorator, one in the docstring).
+    count for the strict gate `grep -cE 'readOnlyHint=True' src/whatsapp_desktop_mcp/tools/doctor.py == 1` to 2 (one in the decorator, one in the docstring).
   - (b) Docstring referenced `anthropic/maxResultSizeChars` verbatim in
     the W1 annotation bullet, which inflated the strict gate
-    `grep -cE 'anthropic/maxResultSizeChars' src/whatsapp_mcp/tools/doctor.py == 1` to 2 (one in the decorator, one in the docstring).
+    `grep -cE 'anthropic/maxResultSizeChars' src/whatsapp_desktop_mcp/tools/doctor.py == 1` to 2 (one in the decorator, one in the docstring).
   - (c) Docstring referenced `@timeout(seconds=N)` verbatim in the W3
     section, which made the W3 lock gate
-    `! grep -nE '@timeout\(' src/whatsapp_mcp/tools/doctor.py` fail
+    `! grep -nE '@timeout\(' src/whatsapp_desktop_mcp/tools/doctor.py` fail
     (it matched the docstring sentence). The functional W3 invariant
     is "no `@timeout` decorator on `doctor`" — the grep gate is a
     textual proxy for that; the docstring mention was harmless
@@ -275,12 +275,12 @@ lives in `/Applications`, outside the TCC-protected container).
   "per-tool timeout decorator" — without naming the literal tokens. The
   actual decorator invocation on the function is untouched. Same
   near-miss class as Plan 01-02's `immutable=1` reword, Plan 01-03's
-  `from whatsapp_mcp.server import run` reword, Plan 01-04's
+  `from whatsapp_desktop_mcp.server import run` reword, Plan 01-04's
   `@timeout(seconds=5)` / `readOnlyHint=True` /
   `anthropic/maxResultSizeChars` docstring rewords — strict file-wide
   grep gates around literal tokens are the cause, prose rewording is
   the fix.
-- **Files modified:** `src/whatsapp_mcp/tools/doctor.py`.
+- **Files modified:** `src/whatsapp_desktop_mcp/tools/doctor.py`.
 - **Commit:** `bea108e` (Task 2; folded into the same commit as the
   body expansion since both surfaces were touched together).
 - **Outcome:** All three previously failing grep gates now match the
@@ -301,7 +301,7 @@ lives in `/Applications`, outside the TCC-protected container).
   (plist bomb / malformed plist with a non-string version key) — the
   doctor must never raise to FastMCP, so returning `None` on
   unexpected types is the right fallback.
-- **Files modified:** `src/whatsapp_mcp/tools/doctor.py` (Task 2 commit).
+- **Files modified:** `src/whatsapp_desktop_mcp/tools/doctor.py` (Task 2 commit).
 - **Outcome:** mypy --strict green; T-05-02 threat-model entry
   explicitly addressed.
 
@@ -314,7 +314,7 @@ lives in `/Applications`, outside the TCC-protected container).
   100-char line-length cap.
 - **Fix:** Accepted the format change (cosmetic only; SQL still
   parameter-free static text).
-- **Files modified:** `src/whatsapp_mcp/tools/doctor.py` (Task 2 commit).
+- **Files modified:** `src/whatsapp_desktop_mcp/tools/doctor.py` (Task 2 commit).
 - **Outcome:** ruff format --check clean.
 
 ## SchemaFingerprint Runbook
@@ -329,7 +329,7 @@ When a user reports `schema_fingerprint.state == "unsupported"`:
    the user's `ChatStorage.sqlite` (or just runs the v1 SQL templates
    against the live new-version DB).
 4. **If columns the v1 SQL references are still present:** add the
-   new `Z_VERSION` to `whatsapp_mcp.reader.schema_v1.SUPPORTED_VERSIONS`,
+   new `Z_VERSION` to `whatsapp_desktop_mcp.reader.schema_v1.SUPPORTED_VERSIONS`,
    ship a patch release. Doctor's `state` flips to `"supported"` on
    the upgraded install.
 5. **If columns changed:** add `reader/schema_v2.py` mirroring the v1
@@ -370,7 +370,7 @@ already named:
   is admin-protected; if compromised, every other defense is moot.
 - **T-05-05** (accidental `@timeout` regression): mitigated by the
   explicit absence + docstring rationale + plan source assertion
-  (`! grep -nE '@timeout\(' src/whatsapp_mcp/tools/doctor.py`
+  (`! grep -nE '@timeout\(' src/whatsapp_desktop_mcp/tools/doctor.py`
   succeeds). Plan 01-06's `test_doctor_does_not_have_tool_level_timeout`
   will be the runtime check.
 - **T-05-06** (`open_ro` accidentally writes): mitigated structurally
@@ -407,13 +407,13 @@ None. Plan 01-05 ships a fully functional 8-field `DoctorReport`.
 
 Plan 01-06 should add tests asserting:
 
-1. **DIAG-02 invariant:** `mock.patch('whatsapp_mcp.tools.doctor.fda.check', ...)`
+1. **DIAG-02 invariant:** `mock.patch('whatsapp_desktop_mcp.tools.doctor.fda.check', ...)`
    to return `state='denied'` → assert `doctor()` returns successfully
    with `schema_fingerprint.state == "unreachable"`, `last_message_ts is None`,
    `coverage_summary.from_ts is None`, `coverage_summary.to_ts is None`,
    `whatsapp_app_version` populated (or None, depending on test
    machine — assertion should accept either).
-2. **W3 lock:** `! grep -nE '@timeout\(' src/whatsapp_mcp/tools/doctor.py`
+2. **W3 lock:** `! grep -nE '@timeout\(' src/whatsapp_desktop_mcp/tools/doctor.py`
    succeeds as a source-grep test (or via introspection of the doctor
    function for a `_timeout_seconds` attribute).
 3. **D-08 invariant:** `await mcp.list_tools()` returns exactly 8 tools
@@ -435,11 +435,11 @@ Plan 01-06 should add tests asserting:
 
 ## Self-Check: PASSED
 
-- `src/whatsapp_mcp/models/doctor.py` exists with the extended 8-field
+- `src/whatsapp_desktop_mcp/models/doctor.py` exists with the extended 8-field
   `DoctorReport` + `SchemaFingerprint` model + `SchemaState` Literal alias.
-- `src/whatsapp_mcp/models/__init__.py` re-exports `SchemaFingerprint`
+- `src/whatsapp_desktop_mcp/models/__init__.py` re-exports `SchemaFingerprint`
   and `SchemaState` (21-name `__all__`).
-- `src/whatsapp_mcp/tools/doctor.py` carries the 8-field response body,
+- `src/whatsapp_desktop_mcp/tools/doctor.py` carries the 8-field response body,
   the `_probe_whatsapp_version` + `_probe_db_safely` private helpers,
   the W1 meta annotation, no `@timeout` decorator, and no sender
   imports.

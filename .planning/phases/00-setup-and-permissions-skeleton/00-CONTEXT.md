@@ -22,12 +22,12 @@ Out of scope (this phase): every read tool, every send tool, schema parsing, FTS
 ## Implementation Decisions
 
 ### Project Layout
-- **D-01:** `src/`-layout Python package named `whatsapp_mcp` (PyPI name `whatsapp-mcp`). Reserve `whatsapp_mcp/reader/`, `whatsapp_mcp/sender/`, `whatsapp_mcp/tools/`, `whatsapp_mcp/server.py`, `whatsapp_mcp/cli.py` as empty/stub siblings now so REL-05 (Reader↔Sender isolation) is enforced from day one by structure, not by convention.
-- **D-02:** Pyproject manages everything (`build-backend = hatchling.build`); no `setup.py`, no `setup.cfg`. Console script entry point `whatsapp-mcp = whatsapp_mcp.cli:main` so `uvx whatsapp-mcp` works.
+- **D-01:** `src/`-layout Python package named `whatsapp_desktop_mcp` (PyPI name `whatsapp-desktop-mcp`). Reserve `whatsapp_desktop_mcp/reader/`, `whatsapp_desktop_mcp/sender/`, `whatsapp_desktop_mcp/tools/`, `whatsapp_desktop_mcp/server.py`, `whatsapp_desktop_mcp/cli.py` as empty/stub siblings now so REL-05 (Reader↔Sender isolation) is enforced from day one by structure, not by convention.
+- **D-02:** Pyproject manages everything (`build-backend = hatchling.build`); no `setup.py`, no `setup.cfg`. Console script entry point `whatsapp-desktop-mcp = whatsapp_desktop_mcp.cli:main` so `uvx whatsapp-desktop-mcp` works.
 
 ### MCP Framework
 - **D-03:** Use `mcp[cli]==1.27.1` with FastMCP decorators (`@mcp.tool()`); register the `doctor` tool with `readOnlyHint=true`. Do not drop down to the lower-level `Server` class.
-- **D-04:** Transport is stdio only. No HTTP/SSE listener (encoded as an anti-feature in REQUIREMENTS.md — `lharries/whatsapp-mcp` was hit by HTTP path-traversal CVEs).
+- **D-04:** Transport is stdio only. No HTTP/SSE listener (encoded as an anti-feature in REQUIREMENTS.md — `lharries/whatsapp-desktop-mcp` was hit by HTTP path-traversal CVEs).
 - **D-05:** Server entry point sets `logging.basicConfig(stream=sys.stderr, level=...)` BEFORE importing anything that might log on import. Wrap any noisy third-party import in `contextlib.redirect_stdout(sys.stderr)` defensively.
 
 ### `doctor` Tool Scope (this phase)
@@ -58,7 +58,7 @@ Out of scope (this phase): every read tool, every send tool, schema parsing, FTS
 - **D-16:** A `tests/unit/test_stdout_purity.py` test spawns the MCP server as a subprocess, writes a valid `initialize` + `tools/list` + `tools/call doctor` JSON-RPC sequence to its stdin, reads stdout line-by-line, and **asserts every line parses as JSON-RPC**. Anything else (including a stray `print`, a third-party deprecation warning hitting stdout) fails the test. This test is the gate for SETUP-03 and is required to pass in CI.
 
 ### Distribution & CI
-- **D-17:** Publish to PyPI as `whatsapp-mcp`. Use `uv build` + `uv publish` (trusted publisher via PyPI's GitHub OIDC — no secret API token in repo). DIST-01 acceptance is "`uvx whatsapp-mcp doctor` works on a fresh Mac with Python 3.12+ available via uv."
+- **D-17:** Publish to PyPI as `whatsapp-desktop-mcp`. Use `uv build` + `uv publish` (trusted publisher via PyPI's GitHub OIDC — no secret API token in repo). DIST-01 acceptance is "`uvx whatsapp-desktop-mcp doctor` works on a fresh Mac with Python 3.12+ available via uv."
 - **D-18:** GitHub Actions, two workflows:
   - `.github/workflows/ci.yml`: triggers on push + PR, runs `ruff check`, `ruff format --check`, `mypy`, `pytest -m "not live"`. Single job on `macos-14` (Apple Silicon — matches user environment). Python matrix [3.12]. Caches via `actions/setup-python` + `uv`.
   - `.github/workflows/release.yml`: triggers on `tags: ['v*']`, runs CI then `uv build` + `uv publish` via OIDC trusted-publisher.
@@ -106,15 +106,15 @@ Out of scope (this phase): every read tool, every send tool, schema parsing, FTS
 ## Existing Code Insights
 
 ### Reusable Assets
-- None. This is the first phase of a greenfield repo. Nothing exists in `whatsapp_mcp/` yet.
+- None. This is the first phase of a greenfield repo. Nothing exists in `whatsapp_desktop_mcp/` yet.
 
 ### Established Patterns
-- `.planning/research/ARCHITECTURE.md` §"Recommended Project Structure" prescribes a `src/whatsapp_mcp/{server,cli,tools,reader,sender,models}.py` layout with the reader/sender isolation rule. Phase 0 must instantiate this layout (mostly as empty `__init__.py` placeholders) so Phase 1+ can fill it in without restructuring.
+- `.planning/research/ARCHITECTURE.md` §"Recommended Project Structure" prescribes a `src/whatsapp_desktop_mcp/{server,cli,tools,reader,sender,models}.py` layout with the reader/sender isolation rule. Phase 0 must instantiate this layout (mostly as empty `__init__.py` placeholders) so Phase 1+ can fill it in without restructuring.
 - Lint/type/test config style: standard 2026 Python project — `pyproject.toml` for everything; no `setup.cfg`; no `requirements*.txt` (use `uv lock`).
 
 ### Integration Points
 - The only external integration this phase touches is the user's local macOS environment (TCC permissions and an installed WhatsApp.app, both probed via `osascript`/`os.stat` only — no SQLite reads in Phase 0).
-- The MCP integration point is Claude Desktop's `claude_desktop_config.json`, which gets a single `whatsapp-mcp` entry (the README ships the exact JSON snippet).
+- The MCP integration point is Claude Desktop's `claude_desktop_config.json`, which gets a single `whatsapp-desktop-mcp` entry (the README ships the exact JSON snippet).
 
 </code_context>
 
@@ -122,7 +122,7 @@ Out of scope (this phase): every read tool, every send tool, schema parsing, FTS
 ## Specific Ideas
 
 - The 3-permission `doctor` design intentionally mirrors `anipotts/imessage-mcp`'s preflight pattern (cited in research/FEATURES.md) — every iMessage MCP that didn't ship a `doctor` regretted it.
-- The structured `*Required` exception classes ship in Phase 0 even though Phase 0 doesn't raise them — Phase 1's tools will import these classes from `whatsapp_mcp.exceptions`, so freezing the names + fields now avoids a Phase 1 refactor.
+- The structured `*Required` exception classes ship in Phase 0 even though Phase 0 doesn't raise them — Phase 1's tools will import these classes from `whatsapp_desktop_mcp.exceptions`, so freezing the names + fields now avoids a Phase 1 refactor.
 - "60-second quickstart" in README is a literal target — the four commands are: edit `claude_desktop_config.json`, restart Claude Desktop, ask Claude "call the WhatsApp doctor tool," follow the linked System Settings URLs.
 
 </specifics>
@@ -135,7 +135,7 @@ Out of scope (this phase): every read tool, every send tool, schema parsing, FTS
 - **Brew formula** — Phase 3 (DIST-02). Phase 0 stays `uvx`-only.
 - **Signed `.pkg` installer** — Phase 3 (DIST-02). The TCC churn problem (`uvx`'s Python path changes between upgrades, breaking FDA grants) is the explicit reason `.pkg` is in the roadmap; Phase 0 documents the caveat in the README but does not solve it.
 - **Schema fingerprint, WhatsApp.app version detection, `coverage` window** — Phase 1 (DIAG-01). Phase 0's `doctor` deliberately stops at the 3 permission probes.
-- **Auto-injection of the `claude_desktop_config.json` snippet** (some MCPs ship a `whatsapp-mcp install --client claude-desktop` subcommand) — nice-to-have, defer.
+- **Auto-injection of the `claude_desktop_config.json` snippet** (some MCPs ship a `whatsapp-desktop-mcp install --client claude-desktop` subcommand) — nice-to-have, defer.
 
 </deferred>
 

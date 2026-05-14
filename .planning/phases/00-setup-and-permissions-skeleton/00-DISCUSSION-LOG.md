@@ -73,4 +73,4 @@
 - **Brew formula** — Phase 3 (DIST-02)
 - **Signed `.pkg` installer** — Phase 3 (DIST-02); README documents the TCC churn caveat in Phase 0
 - **Schema fingerprint, WhatsApp.app version detection, `coverage` window** — Phase 1 (DIAG-01)
-- **`whatsapp-mcp install --client claude-desktop` autoinjector subcommand** — nice-to-have, defer
+- **`whatsapp-desktop-mcp install --client claude-desktop` autoinjector subcommand** — nice-to-have, defer

@@ -104,7 +104,7 @@ From Phase 0 carry-over (`.planning/STATE.md` §"Todos / Carry-overs"):
 | Pagination + char-cap | `tools/` (response shaping) | `reader/` (LIMIT clauses) | Reader emits up to N rows; tool measures encoded char length and truncates with `next_cursor` if needed |
 | Permission preflight on read tool entry | `tools/` (raise `FullDiskAccessRequired`) | `permissions/fda.py` (existing Phase 0 probe) | Tools raise the Phase 0 exception; preflight is `os.stat` in the same code path |
 
-**Why this matters:** The Phase 0 doctor returns a *report*; Phase 1 read tools must *raise* `FullDiskAccessRequired` on a real read failure so MCP clients get a structured error, not a Python traceback. The exception classes are already wired in `whatsapp_mcp.exceptions` from Phase 0 — Phase 1 is the first phase to raise them.
+**Why this matters:** The Phase 0 doctor returns a *report*; Phase 1 read tools must *raise* `FullDiskAccessRequired` on a real read failure so MCP clients get a structured error, not a Python traceback. The exception classes are already wired in `whatsapp_desktop_mcp.exceptions` from Phase 0 — Phase 1 is the first phase to raise them.
 
 ## Standard Stack
 
@@ -145,7 +145,7 @@ No new runtime dependencies in Phase 1. Everything is already pinned by Phase 0.
 └─────────────────────────────────┬────────────────────────────────────────┘
                                   │  JSON-RPC over stdio
 ┌─────────────────────────────────▼────────────────────────────────────────┐
-│                       whatsapp-mcp (Phase 1)                             │
+│                       whatsapp-desktop-mcp (Phase 1)                             │
 │                                                                          │
 │   cli.py (argparse: --read-only, --version)                              │
 │      │                                                                   │
@@ -212,7 +212,7 @@ No new runtime dependencies in Phase 1. Everything is already pinned by Phase 0.
 ### Recommended Project Structure
 
 ```
-src/whatsapp_mcp/
+src/whatsapp_desktop_mcp/
 ├── server.py              # (existing — Phase 1 modifies: add read_only_mode flag + conditional tool import gate)
 ├── cli.py                 # (existing — Phase 1 modifies: add --read-only argparse flag)
 ├── exceptions.py          # (existing — Phase 1 ADDS: ReadOnlyMode exception)
@@ -258,7 +258,7 @@ src/whatsapp_mcp/
 **Concrete recommendation** (planner can lift verbatim into a task `<action>` field):
 
 ```python
-# src/whatsapp_mcp/reader/connection.py
+# src/whatsapp_desktop_mcp/reader/connection.py
 """Short-lived read-only WAL connection to ChatStorage.sqlite (REL-01, P3 mitigation).
 
 Why this exact shape:
@@ -314,8 +314,8 @@ def open_ro(db_path: str | Path) -> Iterator[sqlite3.Connection]:
 ```python
 # Inside reader/messages.py (example)
 import asyncio
-from whatsapp_mcp.reader.connection import open_ro
-from whatsapp_mcp.paths import resolve_chatstorage_path
+from whatsapp_desktop_mcp.reader.connection import open_ro
+from whatsapp_desktop_mcp.paths import resolve_chatstorage_path
 
 async def window(chat_id: int, before_z_sort: float | None, limit: int) -> list[Message]:
     db_path = resolve_chatstorage_path()
@@ -344,7 +344,7 @@ Phase 0 already implements this pattern for `osascript` (`permissions/osascript.
 - Per-tool timeout enforced at the tool layer (NOT the reader) via `@timeout(seconds=N)` → `asyncio.wait_for(self._body(...), timeout=N)`.
 
 ```python
-# src/whatsapp_mcp/tools/_decorators.py
+# src/whatsapp_desktop_mcp/tools/_decorators.py
 """@timeout decorator — wraps an async tool body in asyncio.wait_for."""
 from __future__ import annotations
 
@@ -382,7 +382,7 @@ def timeout(seconds: float) -> Callable[[Callable[P, Awaitable[R]]], Callable[P,
 **Concrete recommendation:**
 
 ```python
-# src/whatsapp_mcp/reader/schema_v1.py
+# src/whatsapp_desktop_mcp/reader/schema_v1.py
 """Schema fingerprint probe (REL-04) + the v1 SQL template registry.
 
 VERIFIED LIVE on 2026-05-13: ``SELECT Z_VERSION FROM Z_METADATA`` returned
@@ -426,7 +426,7 @@ def is_supported(version: int) -> bool:
 **Concrete recommendation:**
 
 ```python
-# src/whatsapp_mcp/models/coverage.py
+# src/whatsapp_desktop_mcp/models/coverage.py
 """Coverage — every read tool's "cache vs truth" disclosure (P1 mitigation, REL-01 enforcement).
 
 The WhatsApp Desktop ``ChatStorage.sqlite`` is a sync cache that backfills
@@ -468,7 +468,7 @@ For `extract_recent` (READ-03 explicit wording), the tool also emits a human-rea
 **Concrete recommendation — opaque cursor format:**
 
 ```python
-# src/whatsapp_mcp/models/cursor.py
+# src/whatsapp_desktop_mcp/models/cursor.py
 """Opaque pagination cursor — base64-encoded JSON.
 
 Format: ``base64(json.dumps({"chat_id": int, "before_z_sort": float}))``.
@@ -550,7 +550,7 @@ async def read_chat(...): ...
 **Concrete recommendation:**
 
 ```python
-# src/whatsapp_mcp/reader/tombstones.py
+# src/whatsapp_desktop_mcp/reader/tombstones.py
 """Tombstone predicate (READ-08, P10 mitigation).
 
 Empirical decision rule from live distribution on the user's Mac
@@ -609,7 +609,7 @@ Indexes on both `ZLID` and `ZPHONENUMBER` exist — both lookup directions are O
 **Concrete recommendation:**
 
 ```python
-# src/whatsapp_mcp/models/contact.py
+# src/whatsapp_desktop_mcp/models/contact.py
 """Contact / Jid types — kind-tagged, never compared as strings (P11)."""
 from __future__ import annotations
 
@@ -662,7 +662,7 @@ async def search_contacts(query: str, limit: int = 20) -> list[Contact]:
 **Concrete recommendation:**
 
 ```python
-# src/whatsapp_mcp/cli.py — add to existing argparse setup
+# src/whatsapp_desktop_mcp/cli.py — add to existing argparse setup
 parser.add_argument(
     "--read-only",
     action="store_true",
@@ -674,22 +674,22 @@ parser.add_argument(
 
 args = parser.parse_args(argv)
 # Import server lazily AFTER argparse — set state before tool registration runs.
-from whatsapp_mcp import server
+from whatsapp_desktop_mcp import server
 server.read_only_mode = args.read_only
-from whatsapp_mcp.server import run
+from whatsapp_desktop_mcp.server import run
 run()
 ```
 
 ```python
-# src/whatsapp_mcp/server.py — add module-level state
-mcp: FastMCP = FastMCP("whatsapp-mcp")
+# src/whatsapp_desktop_mcp/server.py — add module-level state
+mcp: FastMCP = FastMCP("whatsapp-desktop-mcp")
 read_only_mode: bool = True  # set by cli.main() before tool imports trigger
 
 # (existing tool import line — unchanged)
-from whatsapp_mcp.tools import doctor as _doctor  # noqa: E402, F401
+from whatsapp_desktop_mcp.tools import doctor as _doctor  # noqa: E402, F401
 
 # Phase 1 ships 8 read tools — they always register:
-from whatsapp_mcp.tools import (  # noqa: E402, F401
+from whatsapp_desktop_mcp.tools import (  # noqa: E402, F401
     list_chats as _list_chats,
     read_chat as _read_chat,
     extract_recent as _extract_recent,
@@ -699,13 +699,13 @@ from whatsapp_mcp.tools import (  # noqa: E402, F401
     get_message_context as _get_message_context,
 )
 
-# Phase 2 will add: `if not read_only_mode: from whatsapp_mcp.tools import send_message`
+# Phase 2 will add: `if not read_only_mode: from whatsapp_desktop_mcp.tools import send_message`
 ```
 
 **`ReadOnlyMode` exception** (Phase 1 mints, Phase 2 raises):
 
 ```python
-# src/whatsapp_mcp/exceptions.py — APPEND to existing module
+# src/whatsapp_desktop_mcp/exceptions.py — APPEND to existing module
 class ReadOnlyMode(WhatsAppMCPError):
     """Raised by a send tool when the server was started with --read-only.
 
@@ -727,13 +727,13 @@ async def test_read_only_lists_only_read_tools():
 
 ### Pattern 9: FastMCP Tool Registration in Phase 1 `[VERIFIED]`
 
-**What:** Phase 0 used **one** tool with a single import-side-effect line (`from whatsapp_mcp.tools import doctor as _doctor`). Phase 1 has **8 tools** — `doctor` (expanded) + 7 new. Two options exist; recommendation is to import all tools in `server.py` (the Phase 0 pattern, just extended), NOT to use `tools/__init__.py` as the registration aggregator.
+**What:** Phase 0 used **one** tool with a single import-side-effect line (`from whatsapp_desktop_mcp.tools import doctor as _doctor`). Phase 1 has **8 tools** — `doctor` (expanded) + 7 new. Two options exist; recommendation is to import all tools in `server.py` (the Phase 0 pattern, just extended), NOT to use `tools/__init__.py` as the registration aggregator.
 
 **Why this option (verified by inspection on 2026-05-13):**
 
 - `FastMCP.tool` is a *decorator factory* (`@mcp.tool(name=..., annotations=...)`) that runs at module import time. The side effect is the registration. Order of imports does not matter for correctness.
 - `tools/__init__.py` aggregator would still need to import each tool module — same number of import lines, just moved. The aggregator adds an indirection layer with zero benefit and one cost: `server.py` no longer documents which tools exist.
-- Putting the 8 imports in `server.py` makes `tools/list` return order match source order (one place to read), and a `grep` for `from whatsapp_mcp.tools import` in `server.py` enumerates the entire tool surface.
+- Putting the 8 imports in `server.py` makes `tools/list` return order match source order (one place to read), and a `grep` for `from whatsapp_desktop_mcp.tools import` in `server.py` enumerates the entire tool surface.
 
 **Verified `tools/list` ordering:** FastMCP returns tools in registration order (insertion order in its internal `dict`); this is the order they were imported. The 8 read tools + `doctor` will be listed in the order they appear in the `server.py` import block.
 
@@ -907,11 +907,11 @@ Verified live: `ZIDENTIFIER`, `ZFULLNAME`, `ZGIVENNAME`, `ZLASTNAME`, `ZPHONENUM
 ## Pydantic Models — Locked Surface (DATA-01)
 
 ```python
-# src/whatsapp_mcp/models/chat.py
+# src/whatsapp_desktop_mcp/models/chat.py
 from typing import Literal
 from pydantic import BaseModel
-from whatsapp_mcp.models.coverage import Coverage
-from whatsapp_mcp.models.contact import Jid
+from whatsapp_desktop_mcp.models.coverage import Coverage
+from whatsapp_desktop_mcp.models.contact import Jid
 
 ChatKind = Literal["direct", "group", "broadcast", "community", "other"]
 
@@ -929,11 +929,11 @@ class Chat(BaseModel):
 ```
 
 ```python
-# src/whatsapp_mcp/models/message.py
+# src/whatsapp_desktop_mcp/models/message.py
 from typing import Literal
 from pydantic import BaseModel
-from whatsapp_mcp.models.contact import Jid
-from whatsapp_mcp.models.media import MediaRef
+from whatsapp_desktop_mcp.models.contact import Jid
+from whatsapp_desktop_mcp.models.media import MediaRef
 
 MessageKind = Literal["text", "image", "video", "audio", "system", "location", "contact", "sticker", "call", "revoked", "ephemeral", "poll", "reaction", "other"]
 
@@ -951,7 +951,7 @@ class Message(BaseModel):
 ```
 
 ```python
-# src/whatsapp_mcp/models/group.py
+# src/whatsapp_desktop_mcp/models/group.py
 class GroupMember(BaseModel):
     jid: Jid
     display_name: str
@@ -970,7 +970,7 @@ class GroupInfo(BaseModel):
 ```
 
 ```python
-# src/whatsapp_mcp/models/media.py
+# src/whatsapp_desktop_mcp/models/media.py
 class MediaRef(BaseModel):
     local_path: str  # Absolute path inside ~/.../Message/ root
     filename: str
@@ -985,12 +985,12 @@ class MediaRef(BaseModel):
 
 Constant: **`COCOA_EPOCH_OFFSET = 978_307_200`** (seconds between 1970-01-01 UTC and 2001-01-01 UTC).
 
-**Module placement decision:** Put in `whatsapp_mcp/time.py` (top-level), NOT `whatsapp_mcp/reader/time.py`. Rationale: it's used by `tools/` (when computing `extract_recent` cutoffs from a human-readable "last N hours") AND by `reader/` (when converting row values). Cross-cutting helper belongs at the package root, not inside `reader/`. The `time.py` module name does NOT shadow Python's stdlib `time` (we import via fully-qualified `whatsapp_mcp.time`, never `import time` from inside it).
+**Module placement decision:** Put in `whatsapp_desktop_mcp/time.py` (top-level), NOT `whatsapp_desktop_mcp/reader/time.py`. Rationale: it's used by `tools/` (when computing `extract_recent` cutoffs from a human-readable "last N hours") AND by `reader/` (when converting row values). Cross-cutting helper belongs at the package root, not inside `reader/`. The `time.py` module name does NOT shadow Python's stdlib `time` (we import via fully-qualified `whatsapp_desktop_mcp.time`, never `import time` from inside it).
 
 **Concrete recommendation:**
 
 ```python
-# src/whatsapp_mcp/time.py
+# src/whatsapp_desktop_mcp/time.py
 """Cocoa-epoch (Core Data) ↔ Unix-epoch helpers.
 
 WhatsApp Desktop on macOS inherits the iOS Core Data convention: dates
@@ -1076,7 +1076,7 @@ Implementation: `@timeout(seconds=N)` decorator from §"Pattern 2" applied to ea
 The Phase 0 `doctor` returns 3 permission probes only. Phase 1 expands the `DoctorReport` Pydantic model with five new fields:
 
 ```python
-# src/whatsapp_mcp/models/doctor.py — EXTEND existing DoctorReport
+# src/whatsapp_desktop_mcp/models/doctor.py — EXTEND existing DoctorReport
 class SchemaFingerprint(BaseModel):
     state: Literal["supported", "unsupported", "unreachable"]
     observed_version: int | None  # null when DB couldn't be opened
@@ -1137,7 +1137,7 @@ async def doctor() -> DoctorReport:
 |---------|-------------|-------------|-----|
 | Protocol message-id generation / parsing | Custom `message_id` schemes | `ZSTANZAID` directly | WhatsApp already generated a globally-unique 32-hex-char id per protocol message; using it is round-trip stable across re-sync. |
 | FTS / search ranking | Custom tokenizer, custom rank function | LIKE for v0.1, SQLite FTS5 with bm25 in Phase 3 | SQLite already has FTS5 + bm25 built-in; rolling your own is years of work for worse results. |
-| Cocoa-epoch conversion | Re-deriving the offset | The single `cocoa_to_unix` helper in `whatsapp_mcp.time` | Centralize so a future calendar bug fix is one line. |
+| Cocoa-epoch conversion | Re-deriving the offset | The single `cocoa_to_unix` helper in `whatsapp_desktop_mcp.time` | Centralize so a future calendar bug fix is one line. |
 | Async sqlite wrapping | Threading library / actor model | `asyncio.to_thread(fn, ...)` | One stdlib call; documented; tested in production. |
 | Protobuf BLOB parsing (`ZMEDIAKEY` / `ZMETADATA` / `ZRECEIPTINFO`) | Reverse-engineer the protobuf | **Leave alone — DATA-04** | Schema can change without notice; high effort, low value, ratchets fragility for every WhatsApp release. |
 | Cursor format | Custom binary encoding | base64(JSON) | Reversible, debuggable, no extra deps. |
@@ -1193,7 +1193,7 @@ async def doctor() -> DoctorReport:
 ### Open a read-only WAL connection (verified live)
 
 ```python
-# src/whatsapp_mcp/reader/connection.py — see §"Pattern 1" above for full code
+# src/whatsapp_desktop_mcp/reader/connection.py — see §"Pattern 1" above for full code
 import sqlite3
 from contextlib import contextmanager
 
@@ -1215,7 +1215,7 @@ Source: ARCHITECTURE.md Pattern 1; verified live 2026-05-13 against user's 89 MB
 ### Read a chat window using the killer compound index
 
 ```python
-# src/whatsapp_mcp/reader/messages.py
+# src/whatsapp_desktop_mcp/reader/messages.py
 _SQL_WINDOW = """
 SELECT Z_PK, ZCHATSESSION, ZGROUPMEMBER, ZMESSAGETYPE, ZISFROMME, ZSORT,
        ZMESSAGEDATE, ZFROMJID, ZTOJID, ZSTANZAID, ZTEXT, ZPUSHNAME, ZFLAGS,
@@ -1232,10 +1232,10 @@ Source: §"Core Data Schema Essentials → ZWAMESSAGE Query shape for read_chat"
 ### Register a read tool with size annotation
 
 ```python
-# src/whatsapp_mcp/tools/read_chat.py
+# src/whatsapp_desktop_mcp/tools/read_chat.py
 from mcp.types import ToolAnnotations
-from whatsapp_mcp.server import mcp
-from whatsapp_mcp.tools._decorators import timeout
+from whatsapp_desktop_mcp.server import mcp
+from whatsapp_desktop_mcp.tools._decorators import timeout
 
 @mcp.tool(
     name="read_chat",
@@ -1432,7 +1432,7 @@ Per `.planning/config.json`, `workflow.nyquist_validation` is explicitly `false`
 - All 21 requirements (SETUP-06, READ-01..09, DATA-01..04, REL-01..05, DIAG-01..02) are mapped to concrete patterns with VERIFIED-LIVE schema queries and code examples planners can lift verbatim.
 - Schema essentials verified live on user's Mac: `Z_VERSION = 1` (not the 60-80 range research speculated), `ZSESSIONTYPE` distribution (0=588, 1=384, 2=1, 3=6, 4=9), `ZMESSAGETYPE` distribution including 532 tombstones at type=14, `ZFLAGS` 0x05000000 high-bit correlation with `ZTEXT IS NULL`, compound index `(ZCHATSESSION, ZSORT)` confirmed.
 - FastMCP `tool(meta=...)` parameter verified — `_meta["anthropic/maxResultSizeChars"] = 60000` flows correctly into `tools/list` advertising; cursor + char-cap implementation pattern is concrete.
-- Cocoa epoch offset (`978_307_200`) anchored by live probe (`ZMESSAGEDATE=800352916 → 2026-05-13 08:15:16 UTC`). Helper module placement: top-level `whatsapp_mcp/time.py`.
+- Cocoa epoch offset (`978_307_200`) anchored by live probe (`ZMESSAGEDATE=800352916 → 2026-05-13 08:15:16 UTC`). Helper module placement: top-level `whatsapp_desktop_mcp/time.py`.
 - Five `[ASSUMED]` claims (Pattern 6 tombstone mask, group description column absence, group mute column location, `ZSESSIONTYPE=2` semantics, `Z_VERSION = {1}` upper bound) flagged for Phase 1 execution to confirm before v0.1 ships.
 - REL-05 (Reader↔Sender isolation) re-asserted via Plan 6's `test_isolation.py` re-run; Phase 0's vacuous-true assertion becomes load-bearing in Phase 1.
 - `--read-only` default = True for v0.1 recommended (carry-over from STATE.md Open Question #2); `ReadOnlyMode` exception minted by Phase 1, raised by Phase 2.

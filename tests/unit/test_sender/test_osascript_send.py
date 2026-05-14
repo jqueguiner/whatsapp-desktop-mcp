@@ -8,7 +8,7 @@ Covers:
   offending code point in the message); AppleScript double-quote +
   backslash escaping; -1743 mid-typing → AutomationRevoked.
 
-All tests patch :func:`whatsapp_mcp.sender.osascript_send.run_osascript`
+All tests patch :func:`whatsapp_desktop_mcp.sender.osascript_send.run_osascript`
 so no real ``/usr/bin/osascript`` subprocess fires.
 """
 
@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import pytest
 
-from whatsapp_mcp.exceptions import AutomationRevoked, OsascriptError
-from whatsapp_mcp.permissions.osascript import OsascriptResult
-from whatsapp_mcp.sender import osascript_send
+from whatsapp_desktop_mcp.exceptions import AutomationRevoked, OsascriptError
+from whatsapp_desktop_mcp.permissions.osascript import OsascriptResult
+from whatsapp_desktop_mcp.sender import osascript_send
 
 # ---------------------------------------------------------------------------
 # press_return

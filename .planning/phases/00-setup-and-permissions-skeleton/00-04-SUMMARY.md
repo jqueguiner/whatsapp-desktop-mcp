@@ -5,14 +5,14 @@ subsystem: test-suite
 tags: [pytest, pytest-asyncio, pytest-subprocess, stdout-purity, fastmcp-introspection, isolation, regression]
 dependency_graph:
   requires:
-    - "Plan 02: FastMCP `mcp` instance + `python -m whatsapp_mcp` shim, frozen `WhatsAppMCPError`/`PermissionRequired`/{`FullDiskAccess`,`Automation`,`Accessibility`}`Required` exception hierarchy with `bucket` + `system_settings_url` class attrs, Pydantic `DoctorReport`/`PermissionStatus` contracts"
+    - "Plan 02: FastMCP `mcp` instance + `python -m whatsapp_desktop_mcp` shim, frozen `WhatsAppMCPError`/`PermissionRequired`/{`FullDiskAccess`,`Automation`,`Accessibility`}`Required` exception hierarchy with `bucket` + `system_settings_url` class attrs, Pydantic `DoctorReport`/`PermissionStatus` contracts"
     - "Plan 03: live `doctor` tool registered with `readOnlyHint=True` (D-08 — exactly one tool); D-09 PATCHED Automation probe `id of application \"WhatsApp\"` baked into `automation.py`; async `run_osascript` with locale-blind regex; `permissions.fda.check()`, `permissions.automation.check_whatsapp()`, `permissions.accessibility.check()` async entry points"
     - "Plan 01: pyproject.toml with pytest>=8.2 + pytest-asyncio + pytest-subprocess + ruff T201 + mypy strict + `[tool.pytest.ini_options].markers = [\"live: ...\"]` (P-PHASE0-07 mitigation) + `[tool.ruff.lint.per-file-ignores]` exempting tests from T201"
   provides:
-    - "SETUP-03 CI gate: `tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_mcp`, drives a full `initialize → notifications/initialized → tools/list → tools/call doctor` JSON-RPC handshake, asserts every stdout line parses as JSON-RPC 2.0 (the single test that justifies Phase 0's existence per ROADMAP success criterion 3)"
+    - "SETUP-03 CI gate: `tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_desktop_mcp`, drives a full `initialize → notifications/initialized → tools/list → tools/call doctor` JSON-RPC handshake, asserts every stdout line parses as JSON-RPC 2.0 (the single test that justifies Phase 0's existence per ROADMAP success criterion 3)"
     - "Doctor-tool registration assertion: `tests/unit/test_doctor_tool.py` introspects `mcp.list_tools()` and asserts exactly one tool named `doctor` with `readOnlyHint=True` and `destructiveHint in (False, None)` (D-08 import-by-name guard)"
-    - "Frozen-exception-surface assertion: `tests/unit/test_exceptions.py` (3 tests) asserts the issubclass hierarchy + bucket literals (`fda` / `automation` / `accessibility`) + Privacy_* URL substrings + the keyword-only constructor payload (D-12 — Phase 1's `from whatsapp_mcp.exceptions import ...` lines cannot silently rename anything)"
-    - "REL-05 structural isolation assertion: `tests/unit/test_isolation.py` (4 tests) — `whatsapp_mcp.reader` and `whatsapp_mcp.sender` import independently AND no `.py` file in either package contains `from whatsapp_mcp.{sender,reader}` or `import whatsapp_mcp.{sender,reader}` (vacuous in Phase 0; gains teeth in Phase 1+)"
+    - "Frozen-exception-surface assertion: `tests/unit/test_exceptions.py` (3 tests) asserts the issubclass hierarchy + bucket literals (`fda` / `automation` / `accessibility`) + Privacy_* URL substrings + the keyword-only constructor payload (D-12 — Phase 1's `from whatsapp_desktop_mcp.exceptions import ...` lines cannot silently rename anything)"
+    - "REL-05 structural isolation assertion: `tests/unit/test_isolation.py` (4 tests) — `whatsapp_desktop_mcp.reader` and `whatsapp_desktop_mcp.sender` import independently AND no `.py` file in either package contains `from whatsapp_desktop_mcp.{sender,reader}` or `import whatsapp_desktop_mcp.{sender,reader}` (vacuous in Phase 0; gains teeth in Phase 1+)"
     - "Permission-probe regression suite (19 tests under `tests/unit/test_permissions/`): every state value in `PermissionState` × `PermissionBucket` Literals is exercised via `pytest-subprocess` `fp` fixture mocking the EXACT command shape the production code spawns; P-PHASE0-02 (French stderr regex) and P-PHASE0-03 (-1708 = granted) regression guards explicit"
     - "RUN_LIVE=1-gated end-to-end smoke: `tests/integration/test_live_doctor.py` runs the real `doctor()` against the live macOS environment; deselected by `-m \"not live\"` in CI; opt-in for pre-release verification (P-PHASE0-07 marker exercised)"
   affects:
@@ -23,16 +23,16 @@ tech_stack:
   added:
     - "pytest-subprocess `fp` fixture (>=1.5) — registers expected `[cmd, arg1, ...]` invocations; production `asyncio.create_subprocess_exec(...)` resolves to the registered fake"
     - "pytest-asyncio `asyncio_mode='auto'` (already configured in Plan 01) — async tests work without per-test `@pytest.mark.asyncio` decorators, but the verbatim RESEARCH.md sources keep them for clarity"
-    - "`asyncio.create_subprocess_exec(sys.executable, '-m', 'whatsapp_mcp', ...)` — the stdout-purity test's black-box subprocess invocation that exercises the real `python -m whatsapp_mcp` startup path Claude Desktop uses"
+    - "`asyncio.create_subprocess_exec(sys.executable, '-m', 'whatsapp_desktop_mcp', ...)` — the stdout-purity test's black-box subprocess invocation that exercises the real `python -m whatsapp_desktop_mcp` startup path Claude Desktop uses"
     - "`pytest-subprocess.fake_process.FakeProcess` (typed import for mypy strict) — explicit type for the `fp: FakeProcess` parameter on every probe-mocking test so `--strict` does not error on the implicit `Any`"
   patterns:
-    - "**Black-box server testing**: stdout-purity test spawns the server as a subprocess via `sys.executable -m whatsapp_mcp` rather than importing it — this is the only way to catch stdout pollution that originates outside the in-process import path (e.g., third-party modules that print on first invocation, not on import)"
-    - "**Source-grep gates as authoritative**: every test contains a literal token (`json.loads`, `protocolVersion`, `len(tools) == 1`, `issubclass(FullDiskAccessRequired`, `import whatsapp_mcp.{reader,sender}`) that the plan's `<verify><automated>` block greps; the gate is the source of truth, the test is the runtime mirror"
+    - "**Black-box server testing**: stdout-purity test spawns the server as a subprocess via `sys.executable -m whatsapp_desktop_mcp` rather than importing it — this is the only way to catch stdout pollution that originates outside the in-process import path (e.g., third-party modules that print on first invocation, not on import)"
+    - "**Source-grep gates as authoritative**: every test contains a literal token (`json.loads`, `protocolVersion`, `len(tools) == 1`, `issubclass(FullDiskAccessRequired`, `import whatsapp_desktop_mcp.{reader,sender}`) that the plan's `<verify><automated>` block greps; the gate is the source of truth, the test is the runtime mirror"
     - "**Locale-blind regex tests** (P-PHASE0-02): `test_run_osascript_parses_french_stderr_error_code` uses the verbatim shape of the user's machine output (fr_FR, including the right-single-quotation-mark in `d’execution`) — proves the production regex `r'\\((-?\\d+)\\)\\s*\\Z'` works regardless of stderr language"
     - "**Decision-matrix coverage**: each probe-mocking test asserts ONE row of the AppleScript Probe Error Code Map from RESEARCH.md — granted (exit 0), granted (-1708, P-PHASE0-03 regression), granted (-600), denied (-1743 / -1719 / -25211), whatsapp_not_installed (-1728), denied (unknown code → safe-default branch). A future executor that 'simplifies' the production decision matrix will surface as a failing test"
-    - "**String-path monkeypatch for FDA tests**: `monkeypatch.setattr('whatsapp_mcp.permissions.fda.os.stat', _raise)` instead of `setattr(fda.os, 'stat', _raise)` — mypy `--strict` does not let an external module access another module's namespaced `os` attribute (it's implicit re-export); the string-path form sidesteps the type check while exercising the same production code path"
+    - "**String-path monkeypatch for FDA tests**: `monkeypatch.setattr('whatsapp_desktop_mcp.permissions.fda.os.stat', _raise)` instead of `setattr(fda.os, 'stat', _raise)` — mypy `--strict` does not let an external module access another module's namespaced `os` attribute (it's implicit re-export); the string-path form sidesteps the type check while exercising the same production code path"
     - "**Belt-and-braces live-test gating**: `@pytest.mark.live` decorator AND `if os.environ.get('RUN_LIVE') not in ('1', 'true', 'yes'): pytest.skip(...)` — the marker alone suffices when invoked as `pytest -m \"not live\"` (CI default) but the env-var skip protects against accidental `pytest -m live` on a bare CI runner"
-    - "**Dynamic test-package directory resolution** (REL-05 isolation test): uses `importlib.util.find_spec('whatsapp_mcp.reader')` + `Path(spec.origin).parent` instead of a hard-coded relative path — works whether the test runs from the repo root, a tmp checkout, or an installed wheel layout (where source is under `site-packages`)"
+    - "**Dynamic test-package directory resolution** (REL-05 isolation test): uses `importlib.util.find_spec('whatsapp_desktop_mcp.reader')` + `Path(spec.origin).parent` instead of a hard-coded relative path — works whether the test runs from the repo root, a tmp checkout, or an installed wheel layout (where source is under `site-packages`)"
 key_files:
   created:
     - tests/conftest.py
@@ -48,9 +48,9 @@ key_files:
     - .planning/phases/00-setup-and-permissions-skeleton/00-04-SUMMARY.md
   modified: []
 decisions:
-  - "Stdout-purity test uses `protocolVersion = '2025-06-18'` verbatim from MCP spec revision (verified in `00-RESEARCH.md` §'Standard Stack / Core'); spawns via `-m whatsapp_mcp` confirming Plan 02's `__main__.py` shim still works end-to-end"
+  - "Stdout-purity test uses `protocolVersion = '2025-06-18'` verbatim from MCP spec revision (verified in `00-RESEARCH.md` §'Standard Stack / Core'); spawns via `-m whatsapp_desktop_mcp` confirming Plan 02's `__main__.py` shim still works end-to-end"
   - "Exception-shape test does NOT assert constructor signature (`inspect.signature(...)`) — the plan's frozen surface is the *behavior* (`issubclass`, `bucket` literal, URL substring, kwargs survive on the instance), and behavior tests are more refactor-resilient than signature tests"
-  - "REL-05 isolation test is implemented as both runtime (independent imports) AND structural (file-scan for `from whatsapp_mcp.{sender,reader}`) — Phase 0 the structural assertions are vacuous, Phase 1+ they gain teeth; the runtime independent-imports check is non-vacuous even today as a collateral-damage guard"
+  - "REL-05 isolation test is implemented as both runtime (independent imports) AND structural (file-scan for `from whatsapp_desktop_mcp.{sender,reader}`) — Phase 0 the structural assertions are vacuous, Phase 1+ they gain teeth; the runtime independent-imports check is non-vacuous even today as a collateral-damage guard"
   - "Live integration test shipped with belt-and-braces gating (`@pytest.mark.live` + `RUN_LIVE` env-var skip) per plan; assertions are SHAPE-only (state in allowed Literal set, URL contains right Privacy_* token) NOT VALUE-only — the maintainer's machine state varies and the test must remain green across grant changes"
   - "The plan's `tests/unit/test_exceptions.py` filename was honored (the prompt's `<deliverables>` text said `test_exception_shape.py`, but PLAN.md's `files_modified` and the `<artifacts>` block both say `test_exceptions.py` and the verbatim RESEARCH.md source uses `test_exceptions.py` as the comment header — the PLAN/RESEARCH source is the authoritative spelling). No deviation — followed the PLAN."
 metrics:
@@ -65,7 +65,7 @@ metrics:
 
 ## One-liner
 
-Shipped the 28-test pytest suite that gates Phase 0's invariants in CI: the stdout-purity test (SETUP-03's authoritative gate — spawns `python -m whatsapp_mcp` and asserts every byte on stdout is JSON-RPC 2.0 after a full `initialize → notifications/initialized → tools/list → tools/call doctor` handshake), the doctor-registration introspection test (D-08 — exactly one tool with `readOnlyHint=True`), the frozen-exception-surface tests (D-12 — the import-by-name guard for Phase 1), the REL-05 structural isolation tests (CLAUDE.md §1 — vacuous now but gains teeth in Phase 1+), the 19-test permission-probe mocking suite using `pytest-subprocess` (every error-code branch in the AppleScript decision matrix exercised, with explicit P-PHASE0-02 and P-PHASE0-03 regression guards), and the `RUN_LIVE=1`-gated end-to-end smoke that lets the maintainer spot-check the live `doctor` against the real macOS environment before tagging a release.
+Shipped the 28-test pytest suite that gates Phase 0's invariants in CI: the stdout-purity test (SETUP-03's authoritative gate — spawns `python -m whatsapp_desktop_mcp` and asserts every byte on stdout is JSON-RPC 2.0 after a full `initialize → notifications/initialized → tools/list → tools/call doctor` handshake), the doctor-registration introspection test (D-08 — exactly one tool with `readOnlyHint=True`), the frozen-exception-surface tests (D-12 — the import-by-name guard for Phase 1), the REL-05 structural isolation tests (CLAUDE.md §1 — vacuous now but gains teeth in Phase 1+), the 19-test permission-probe mocking suite using `pytest-subprocess` (every error-code branch in the AppleScript decision matrix exercised, with explicit P-PHASE0-02 and P-PHASE0-03 regression guards), and the `RUN_LIVE=1`-gated end-to-end smoke that lets the maintainer spot-check the live `doctor` against the real macOS environment before tagging a release.
 
 ## What was built
 
@@ -115,12 +115,12 @@ tests/
 
 | Test | Catches |
 | ---- | ------- |
-| `test_stdout_is_pure_jsonrpc` (`test_stdout_purity.py`) | A future executor adding a `print()` (despite ruff `T201`); a third-party `DeprecationWarning` defaulting to stdout; a `logging.basicConfig()` regression onto the wrong stream; any third-party module under `whatsapp_mcp.tools` or `permissions.*` that prints on first invocation (not just on import) — caught only by spawning the server, not by importing it |
+| `test_stdout_is_pure_jsonrpc` (`test_stdout_purity.py`) | A future executor adding a `print()` (despite ruff `T201`); a third-party `DeprecationWarning` defaulting to stdout; a `logging.basicConfig()` regression onto the wrong stream; any third-party module under `whatsapp_desktop_mcp.tools` or `permissions.*` that prints on first invocation (not just on import) — caught only by spawning the server, not by importing it |
 | `test_doctor_is_registered_as_readonly` | Adding a second tool to Phase 0 (would break D-08); dropping `readOnlyHint=True` annotation; renaming `doctor` to anything else (would break the README quickstart) |
 | `test_permission_hierarchy_is_stable` | Re-parenting `FullDiskAccessRequired` to `Exception` directly (would break Phase 1's `try ... except PermissionRequired` blocks); accidentally inverting the inheritance chain |
 | `test_subclass_buckets_and_urls` | Renaming `bucket = "fda"` to `bucket = "full_disk_access"`; replacing `Privacy_AllFiles` with the modern `com.apple.settings.Privacy.AllFiles` form (which docs say works but is less battle-tested per RESEARCH.md) |
 | `test_carries_remediation_payload` | Removing `db_path` keyword from the constructor; switching `binary_path` from kwarg to positional (would break Phase 1's call sites) |
-| `test_isolation_reader_does_not_import_sender` and `test_isolation_sender_does_not_import_reader` | A future Phase 1 executor convenience-importing `from whatsapp_mcp.sender import ...` inside a reader module (or vice versa in Phase 2) |
+| `test_isolation_reader_does_not_import_sender` and `test_isolation_sender_does_not_import_reader` | A future Phase 1 executor convenience-importing `from whatsapp_desktop_mcp.sender import ...` inside a reader module (or vice versa in Phase 2) |
 | `test_run_osascript_parses_french_stderr_error_code` | Replacing the locale-blind regex with `if 'Not authorized' in stderr` (the literal P-PHASE0-02 regression) — would mis-classify denied as granted on the user's fr_FR Mac |
 | `test_automation_handler_not_found_is_granted` | Removing the `error_code == -1708 → granted` mapping in `automation.py` (the literal P-PHASE0-03 regression) — would mis-classify granted Automation as denied if probe shape ever drifts back to `tell ... to count` |
 | `test_automation_app_not_running_is_granted` | Removing the `-600 → granted` mapping (procNotFound when WhatsApp is closed); would falsely report Automation denied whenever the user has WhatsApp quit |
@@ -157,7 +157,7 @@ tests/unit/test_stdout_purity.py .                                       [100%]
 ```
 collected 1 item
 
-<Dir whatsapp-mcp>
+<Dir whatsapp-desktop-mcp>
   <Package tests>
     <Package integration>
       <Module test_live_doctor.py>
@@ -199,7 +199,7 @@ Sampled task-level acceptance criteria (all passed):
   - `grep -E 'protocolVersion.*2025-06-18' tests/unit/test_stdout_purity.py` → matches ✓
   - `grep -E "len\(tools\) == 1" tests/unit/test_doctor_tool.py` → matches ✓
   - `grep -E "issubclass\(FullDiskAccessRequired" tests/unit/test_exceptions.py` → matches ✓
-  - `grep -E "import whatsapp_mcp\.(reader|sender)" tests/unit/test_isolation.py` → matches (4 occurrences across the file) ✓
+  - `grep -E "import whatsapp_desktop_mcp\.(reader|sender)" tests/unit/test_isolation.py` → matches (4 occurrences across the file) ✓
 - **Task 2 (probe mocking):**
   - `uv run pytest tests/unit/test_permissions/` → 19 passed in 0.12s ✓
   - `test_automation_handler_not_found_is_granted` PASSED — P-PHASE0-03 regression guard explicit ✓
@@ -257,8 +257,8 @@ All three commits use the `(00-04)` Conventional Commits scope per the executor 
 **4. [Rule 1 - Bug, minor] `test_permissions/test_fda.py` mypy strict — `monkeypatch.setattr(fda.os, ...)` → string-path form**
 
 - **Found during:** Task 2 verification (`uv run mypy`).
-- **Issue:** First draft used `monkeypatch.setattr(fda.os, "stat", _raise_*)` to patch the `os.stat` symbol *as imported into* `permissions/fda.py`. mypy `--strict` rejects this with `Module "whatsapp_mcp.permissions.fda" does not explicitly export attribute "os"  [attr-defined]` — because `fda.py` imports `os` for its own use but never re-exports it via `__all__`, mypy refuses to let an external module access `fda.os` even though Python itself permits the attribute access via the module's namespace dict.
-- **Fix:** Switched to the string-path monkeypatch form: `monkeypatch.setattr("whatsapp_mcp.permissions.fda.os.stat", _raise_*)`. Same production code path is exercised (the `os.stat` call inside `_check_blocking` resolves to the patched callable); mypy is sidestepped because the string is opaque to the type checker.
+- **Issue:** First draft used `monkeypatch.setattr(fda.os, "stat", _raise_*)` to patch the `os.stat` symbol *as imported into* `permissions/fda.py`. mypy `--strict` rejects this with `Module "whatsapp_desktop_mcp.permissions.fda" does not explicitly export attribute "os"  [attr-defined]` — because `fda.py` imports `os` for its own use but never re-exports it via `__all__`, mypy refuses to let an external module access `fda.os` even though Python itself permits the attribute access via the module's namespace dict.
+- **Fix:** Switched to the string-path monkeypatch form: `monkeypatch.setattr("whatsapp_desktop_mcp.permissions.fda.os.stat", _raise_*)`. Same production code path is exercised (the `os.stat` call inside `_check_blocking` resolves to the patched callable); mypy is sidestepped because the string is opaque to the type checker.
 - **Files modified:** `tests/unit/test_permissions/test_fda.py` (three monkeypatch call sites).
 - **Commit:** Folded into Task 2's commit `3227311`.
 - **Why this is Rule 1, not a checkpoint:** Type-checker correctness fix with zero behavioral impact; the production code path under test (`fda._check_blocking → os.stat`) is exercised identically before and after.

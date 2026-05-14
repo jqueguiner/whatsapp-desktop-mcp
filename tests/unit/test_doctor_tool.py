@@ -14,7 +14,7 @@ Plan 01-04 adds 7 read tools (``list_chats``, ``read_chat``,
 01-06 will ship a dedicated test of the full read-tool surface.
 
 This is the runtime counterpart to the Plan 03 source-grep gate
-(``grep -E 'readOnlyHint=True' src/whatsapp_mcp/tools/doctor.py``): together
+(``grep -E 'readOnlyHint=True' src/whatsapp_desktop_mcp/tools/doctor.py``): together
 they catch both source-level and registration-level drift.
 """
 
@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import pytest
 
-from whatsapp_mcp.server import mcp
+from whatsapp_desktop_mcp.server import mcp
 
 
 @pytest.mark.asyncio

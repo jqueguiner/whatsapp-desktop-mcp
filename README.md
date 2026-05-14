@@ -1,4 +1,4 @@
-# whatsapp-mcp
+# whatsapp-desktop-mcp
 
 > **Warning — WhatsApp ToS automation risk.** This MCP server automates *your personal*
 > WhatsApp account by driving the macOS WhatsApp Desktop app the same way you do.
@@ -24,7 +24,7 @@ read and write your WhatsApp Desktop chats. macOS only. Single user, single Mac.
      "mcpServers": {
        "whatsapp": {
          "command": "uvx",
-         "args": ["whatsapp-mcp"]
+         "args": ["whatsapp-desktop-mcp"]
        }
      }
    }
@@ -87,7 +87,7 @@ This project deliberately does NOT include the following — they are anti-featu
   elicitation confirmation; the server does not subscribe to incoming messages
   for the purpose of responding.
 - **No HTTP / REST / TCP / UDP listener.** The MCP server speaks stdio only.
-  (`lharries/whatsapp-mcp` was hit by a path-traversal class CVE via its HTTP
+  (`lharries/whatsapp-desktop-mcp` was hit by a path-traversal class CVE via its HTTP
   surface — that mistake is structurally avoided here.)
 - **No writes to `ChatStorage.sqlite`.** WhatsApp owns the writer; reads only,
   short-lived connections, `?mode=ro`.
@@ -104,8 +104,8 @@ asserts every byte the server emits on stdout is a JSON-RPC 2.0 frame).
 ## Development
 
 ```sh
-git clone https://github.com/gladia/whatsapp-mcp
-cd whatsapp-mcp
+git clone https://github.com/gladia/whatsapp-desktop-mcp
+cd whatsapp-desktop-mcp
 uv sync --extra dev
 ```
 
@@ -135,10 +135,10 @@ The release workflow (`.github/workflows/release.yml`) triggers on
 PyPI credential in this repo. Before the first release, configure PyPI's
 trusted-publisher binding once:
 
-1. On PyPI, create (or claim) the project `whatsapp-mcp`.
+1. On PyPI, create (or claim) the project `whatsapp-desktop-mcp`.
 2. Project settings → Publishing → Add a new pending publisher.
 3. Fill in: Owner = `gladia` (your GitHub org / user),
-   Repository = `whatsapp-mcp`, Workflow = `release.yml`, Environment = `pypi`.
+   Repository = `whatsapp-desktop-mcp`, Workflow = `release.yml`, Environment = `pypi`.
 4. Save.
 
 Subsequent releases are just:
@@ -150,7 +150,7 @@ git push --tags
 
 The release workflow runs CI first; if it passes, the `publish` job builds the
 distribution with `uv build` and uploads it with `uv publish` over the OIDC
-handshake. After the first successful publish, `uvx whatsapp-mcp --version`
+handshake. After the first successful publish, `uvx whatsapp-desktop-mcp --version`
 will resolve from PyPI on any Mac with `uv` installed.
 
 ## License

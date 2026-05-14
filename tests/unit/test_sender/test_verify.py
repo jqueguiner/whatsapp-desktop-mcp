@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pytest
 
-from whatsapp_mcp.sender import verify
-from whatsapp_mcp.time import unix_to_cocoa
+from whatsapp_desktop_mcp.sender import verify
+from whatsapp_desktop_mcp.time import unix_to_cocoa
 
 # Minimal ZWAMESSAGE schema subset matching the columns ``verify._SQL``
 # references. Mirrors the live shape (read-side schema_v1 reference,

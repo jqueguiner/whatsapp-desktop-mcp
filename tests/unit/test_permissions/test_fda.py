@@ -22,7 +22,7 @@ from typing import Any
 
 import pytest
 
-from whatsapp_mcp.permissions import fda
+from whatsapp_desktop_mcp.permissions import fda
 
 
 @pytest.mark.asyncio
@@ -64,7 +64,7 @@ async def test_fda_denied_on_eacces(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise_eacces(*_args: Any, **_kwargs: Any) -> None:
         raise PermissionError(errno.EACCES, "denied")
 
-    monkeypatch.setattr("whatsapp_mcp.permissions.fda.os.stat", _raise_eacces)
+    monkeypatch.setattr("whatsapp_desktop_mcp.permissions.fda.os.stat", _raise_eacces)
 
     status = await fda.check()
     assert status.bucket == "fda"
@@ -82,7 +82,7 @@ async def test_fda_denied_on_eperm(monkeypatch: pytest.MonkeyPatch) -> None:
     def _raise_eperm(*_args: Any, **_kwargs: Any) -> None:
         raise PermissionError(errno.EPERM, "operation not permitted")
 
-    monkeypatch.setattr("whatsapp_mcp.permissions.fda.os.stat", _raise_eperm)
+    monkeypatch.setattr("whatsapp_desktop_mcp.permissions.fda.os.stat", _raise_eperm)
 
     status = await fda.check()
     assert status.state == "denied"
@@ -97,7 +97,7 @@ async def test_fda_denied_on_unexpected_errno(monkeypatch: pytest.MonkeyPatch) -
     def _raise_eio(*_args: Any, **_kwargs: Any) -> None:
         raise PermissionError(errno.EIO, "io error")
 
-    monkeypatch.setattr("whatsapp_mcp.permissions.fda.os.stat", _raise_eio)
+    monkeypatch.setattr("whatsapp_desktop_mcp.permissions.fda.os.stat", _raise_eio)
 
     status = await fda.check()
     assert status.bucket == "fda"

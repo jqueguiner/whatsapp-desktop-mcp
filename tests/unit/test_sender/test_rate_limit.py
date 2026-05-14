@@ -24,8 +24,8 @@ from pathlib import Path
 
 import pytest
 
-from whatsapp_mcp.exceptions import RateLimitExceeded
-from whatsapp_mcp.sender import rate_limit
+from whatsapp_desktop_mcp.exceptions import RateLimitExceeded
+from whatsapp_desktop_mcp.sender import rate_limit
 
 # ---------------------------------------------------------------------------
 # _resolve_limits — env-var bounds
@@ -34,8 +34,8 @@ from whatsapp_mcp.sender import rate_limit
 
 def test_resolve_limits_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     """Env unset → (5, 30) per D-11 defaults."""
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_MIN", raising=False)
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_DAY", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", raising=False)
 
     assert rate_limit._resolve_limits() == (5, 30)
 
@@ -44,8 +44,8 @@ def test_resolve_limits_env_override_within_bounds(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Env vars override defaults when within hard-max bounds."""
-    monkeypatch.setenv("WHATSAPP_MCP_RATE_PER_MIN", "10")
-    monkeypatch.setenv("WHATSAPP_MCP_RATE_PER_DAY", "100")
+    monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", "10")
+    monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", "100")
 
     assert rate_limit._resolve_limits() == (10, 100)
 
@@ -54,8 +54,8 @@ def test_resolve_limits_rejects_per_min_above_hard_max(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """PER_MIN > 20 → ValueError (Pitfall 5 / account-ban floor protection)."""
-    monkeypatch.setenv("WHATSAPP_MCP_RATE_PER_MIN", "21")
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_DAY", raising=False)
+    monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", "21")
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", raising=False)
 
     with pytest.raises(ValueError, match="exceeds hard max"):
         rate_limit._resolve_limits()
@@ -65,8 +65,8 @@ def test_resolve_limits_rejects_per_day_above_hard_max(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """PER_DAY > 200 → ValueError."""
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_MIN", raising=False)
-    monkeypatch.setenv("WHATSAPP_MCP_RATE_PER_DAY", "201")
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", raising=False)
+    monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", "201")
 
     with pytest.raises(ValueError, match="exceeds hard max"):
         rate_limit._resolve_limits()
@@ -108,8 +108,8 @@ async def test_rate_limit_minute_window_trips_at_per_min(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """5 ``sent`` outcomes within the last minute → next check raises."""
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_MIN", raising=False)
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_DAY", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", raising=False)
 
     # Record 5 "sent" outcomes against the tmp DB.
     for _ in range(5):
@@ -132,8 +132,8 @@ async def test_rate_limit_day_window_counts_only_sent_outcomes(
     ``rate_limited`` / ``error`` rows. So a user who declines 30
     elicitations does NOT burn against the daily budget.
     """
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_MIN", raising=False)
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_DAY", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", raising=False)
 
     # 30 cancelled rows.
     for _ in range(30):
@@ -168,7 +168,7 @@ async def test_send_message_rate_limit_persists_across_restart(
     This test proves T-5 by:
 
     1. Recording 5 ``sent`` outcomes against the tmp DB.
-    2. Forcibly deleting ``whatsapp_mcp.sender.rate_limit`` from
+    2. Forcibly deleting ``whatsapp_desktop_mcp.sender.rate_limit`` from
        ``sys.modules`` and re-importing it (simulates a server restart
        — module state reset but the SQLite file persists at the same path).
     3. Re-pointing the freshly-imported module's ``_DB_PATH`` at the
@@ -178,8 +178,8 @@ async def test_send_message_rate_limit_persists_across_restart(
        the post-restart count is still 5/5 against the per-minute
        budget.
     """
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_MIN", raising=False)
-    monkeypatch.delenv("WHATSAPP_MCP_RATE_PER_DAY", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_MIN", raising=False)
+    monkeypatch.delenv("WHATSAPP_DESKTOP_MCP_RATE_PER_DAY", raising=False)
 
     # Step 1 — record 5 sent outcomes against the tmp DB.
     for _ in range(5):
@@ -194,10 +194,10 @@ async def test_send_message_rate_limit_persists_across_restart(
     # we can restore it after the test (other tests still import the
     # module by name; leaving sys.modules in a re-imported state may
     # alter the global ``_DB_PATH`` initial value seen by sibling tests).
-    original_module = sys.modules["whatsapp_mcp.sender.rate_limit"]
-    del sys.modules["whatsapp_mcp.sender.rate_limit"]
+    original_module = sys.modules["whatsapp_desktop_mcp.sender.rate_limit"]
+    del sys.modules["whatsapp_desktop_mcp.sender.rate_limit"]
     try:
-        fresh_rate_limit = importlib.import_module("whatsapp_mcp.sender.rate_limit")
+        fresh_rate_limit = importlib.import_module("whatsapp_desktop_mcp.sender.rate_limit")
 
         # Step 3 — re-point _DB_PATH on the fresh module to the SAME tmp file.
         monkeypatch.setattr(fresh_rate_limit, "_DB_PATH", tmp_rate_limit_db)
@@ -209,9 +209,9 @@ async def test_send_message_rate_limit_persists_across_restart(
     finally:
         # Restore the original module reference so sibling tests still
         # see the pre-reload module (otherwise pytest-collected tests
-        # that imported ``from whatsapp_mcp.sender import rate_limit``
+        # that imported ``from whatsapp_desktop_mcp.sender import rate_limit``
         # at module load now reference a stale module not in sys.modules).
-        sys.modules["whatsapp_mcp.sender.rate_limit"] = original_module
+        sys.modules["whatsapp_desktop_mcp.sender.rate_limit"] = original_module
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +229,7 @@ def test_check_db_path_distinct_passes_when_paths_differ(
     # the live module from sys.modules is the robust pattern.
     import sys as _sys
 
-    rl_live = _sys.modules["whatsapp_mcp.sender.rate_limit"]
+    rl_live = _sys.modules["whatsapp_desktop_mcp.sender.rate_limit"]
     monkeypatch.setattr(rl_live, "_DB_PATH", tmp_rate_limit_db)
     monkeypatch.setattr(
         rl_live,
@@ -256,7 +256,7 @@ def test_check_db_path_distinct_raises_when_paths_collide(
     # ``check_and_reserve`` consults at runtime.
     import sys as _sys
 
-    rl_live = _sys.modules["whatsapp_mcp.sender.rate_limit"]
+    rl_live = _sys.modules["whatsapp_desktop_mcp.sender.rate_limit"]
     # The fixture monkeypatch sets _DB_PATH on the original module
     # reference (the one imported at this test module's load). Ensure
     # the live module sees the same patched _DB_PATH.

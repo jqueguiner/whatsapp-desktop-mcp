@@ -1,7 +1,7 @@
 """Phase 2 Plan 02-05 — tests for the sender package.
 
 Mirrors ``tests/unit/test_reader/`` shape. Each test file under this
-directory targets ONE module under ``src/whatsapp_mcp/sender/``.
+directory targets ONE module under ``src/whatsapp_desktop_mcp/sender/``.
 
 The four mandatory regression tests from CONTEXT.md §Specifics ship in
 two locations:

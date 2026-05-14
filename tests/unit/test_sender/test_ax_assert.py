@@ -23,11 +23,11 @@ from __future__ import annotations
 
 import pytest
 
-from whatsapp_mcp.exceptions import (
+from whatsapp_desktop_mcp.exceptions import (
     AccessibilityAPIUnavailable,
     ChatHeaderMismatch,
 )
-from whatsapp_mcp.sender import ax_assert
+from whatsapp_desktop_mcp.sender import ax_assert
 
 # ---------------------------------------------------------------------------
 # _strip_bidi — pure helper, no AX-API dependency

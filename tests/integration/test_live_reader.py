@@ -28,14 +28,14 @@ from typing import Any
 
 import pytest
 
-from whatsapp_mcp.tools.doctor import doctor
-from whatsapp_mcp.tools.extract_recent import extract_recent
-from whatsapp_mcp.tools.get_chat_metadata import get_chat_metadata
-from whatsapp_mcp.tools.get_message_context import get_message_context
-from whatsapp_mcp.tools.list_chats import list_chats
-from whatsapp_mcp.tools.read_chat import read_chat
-from whatsapp_mcp.tools.search_contacts import search_contacts
-from whatsapp_mcp.tools.search_messages import search_messages
+from whatsapp_desktop_mcp.tools.doctor import doctor
+from whatsapp_desktop_mcp.tools.extract_recent import extract_recent
+from whatsapp_desktop_mcp.tools.get_chat_metadata import get_chat_metadata
+from whatsapp_desktop_mcp.tools.get_message_context import get_message_context
+from whatsapp_desktop_mcp.tools.list_chats import list_chats
+from whatsapp_desktop_mcp.tools.read_chat import read_chat
+from whatsapp_desktop_mcp.tools.search_contacts import search_contacts
+from whatsapp_desktop_mcp.tools.search_messages import search_messages
 
 pytestmark = [
     pytest.mark.live,

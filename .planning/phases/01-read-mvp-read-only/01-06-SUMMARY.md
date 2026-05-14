@@ -27,9 +27,9 @@ tech-stack:
     - "Synthetic ChatStorage-shaped sqlite fixture: tempfile in WAL mode with 5 tables (Z_METADATA / ZWACHATSESSION / ZWAMESSAGE / ZWAGROUPINFO / ZWAGROUPMEMBER / ZWAMEDIAITEM) using verified-live column shapes from RESEARCH §'Core Data Schema Essentials'; all 19 schema_v1 SQL templates execute against the fixture without rewrite"
     - "Concurrency stress: 10 reader coroutines × 10 reads each via asyncio.to_thread + 1 background writer thread INSERTing every 10ms; assertion is ZERO `database is locked` errors over 100 reader calls (P3 mitigation empirical witness)"
     - "monkeypatch_paths fixture redirects all 4 path resolvers AT EACH CALLER MODULE (paths.resolve_*, plus reader.chats / reader.contacts / reader.groups / reader.messages / reader.search) so module-level cached references are also patched"
-    - "Subprocess JSON-RPC handshake test (--read-only): asyncio.create_subprocess_exec spawns python -m whatsapp_mcp --read-only, drives initialize → notifications/initialized → tools/list, parses tools/list response, asserts the 8-tool name set + readOnlyHint=True on every tool — mirrors the Phase 0 test_stdout_purity.py pattern verbatim"
-    - "REL-05 AST walk: ast.parse + ast.walk over every .py file under reader/ (10 modules), collecting Import + ImportFrom dotted names; assertion is no dotted name starts with whatsapp_mcp.sender (LOAD-BEARING in Phase 1 — Phase 0 was vacuously true)"
-    - "Positive-whitelist drift detector: every whatsapp_mcp.* import in reader/*.py must be in {models, paths, time, exceptions, reader} — catches accidental drift into tools/, permissions/, or sender/ that the negative test would miss"
+    - "Subprocess JSON-RPC handshake test (--read-only): asyncio.create_subprocess_exec spawns python -m whatsapp_desktop_mcp --read-only, drives initialize → notifications/initialized → tools/list, parses tools/list response, asserts the 8-tool name set + readOnlyHint=True on every tool — mirrors the Phase 0 test_stdout_purity.py pattern verbatim"
+    - "REL-05 AST walk: ast.parse + ast.walk over every .py file under reader/ (10 modules), collecting Import + ImportFrom dotted names; assertion is no dotted name starts with whatsapp_desktop_mcp.sender (LOAD-BEARING in Phase 1 — Phase 0 was vacuously true)"
+    - "Positive-whitelist drift detector: every whatsapp_desktop_mcp.* import in reader/*.py must be in {models, paths, time, exceptions, reader} — catches accidental drift into tools/, permissions/, or sender/ that the negative test would miss"
     - "Live integration mirroring Phase 0 shape: pytestmark = [pytest.mark.live, pytest.mark.skipif(not RUN_LIVE, ...)] at module scope; shape-correct asserts only (len(chats)>0, json.dumps(body)≤60_000, semver-regex on whatsapp_app_version, last_message_ts within 30d) — never value-correct"
     - "Tool-level W1/W2/W3 guards centralised in test_read_tools_registration.py: W1 (every tool has 60k meta, no carve-out), W2 (cursor anchor_kind cross-tool reuse rejected, both directions; T-04-01 chat_id mismatch rejected), W3 (source-grep guard for @timeout absence on doctor + runtime introspection counterpart in test_doctor_phase1.py)"
     - "DIAG-02 monkeypatch tests: substitute fda.check / _probe_db_blocking / _probe_whatsapp_version_blocking with synthetic failure functions; assert doctor() still returns successfully with degraded fields (schema_fingerprint.state='unreachable' / whatsapp_app_version=None / last_message_ts=None) — never raises"
@@ -66,7 +66,7 @@ decisions:
   - "Phase 0's 28-test baseline is preserved verbatim (no Phase 0 test modified except test_isolation.py which gained 1 new positive-whitelist test on top of the existing 4 — extends, never rewrites)"
   - "tests/unit/test_isolation.py REL-05 update: kept the Phase 0 string-scan layer AND added an AST-walk layer + positive whitelist; the string-scan was vacuously true in Phase 0 and is now LOAD-BEARING because reader/ ships 10 modules"
   - "Subprocess JSON-RPC handshake reuses the Phase 0 test_stdout_purity.py pattern verbatim — same _INITIALIZE / _INITIALIZED / _TOOLS_LIST frames + same async write/read loop + same 15s timeout — so Plan 01-06 inherits the proven-correct handshake recipe"
-  - "Several test files use ``import whatsapp_mcp.server`` (full module path) instead of ``from whatsapp_mcp import server`` — mypy --strict resolves the former cleanly; the latter would require a py.typed marker that the project doesn't ship (this is the same near-miss class as Plan 01-04 noqa rewords; behavior identical)"
+  - "Several test files use ``import whatsapp_desktop_mcp.server`` (full module path) instead of ``from whatsapp_desktop_mcp import server`` — mypy --strict resolves the former cleanly; the latter would require a py.typed marker that the project doesn't ship (this is the same near-miss class as Plan 01-04 noqa rewords; behavior identical)"
 metrics:
   duration_seconds: 925
   tasks: 3
@@ -155,10 +155,10 @@ well-formed `DoctorReport` with the offending field degraded to
   scan in both directions).
 - AST walk added on top of the string scan: `ast.parse` + `ast.walk`
   over every `.py` file under `reader/` (10 modules); asserts no
-  dotted-name `Import` / `ImportFrom` references `whatsapp_mcp.sender`.
+  dotted-name `Import` / `ImportFrom` references `whatsapp_desktop_mcp.sender`.
 - New positive-whitelist test
   (`test_reader_imports_models_paths_time_only`): every
-  `whatsapp_mcp.*` import in `reader/*.py` must come from
+  `whatsapp_desktop_mcp.*` import in `reader/*.py` must come from
   `{models, paths, time, exceptions, reader}` — catches drift into
   `tools/` / `permissions/` / `sender/`.
 
@@ -167,13 +167,13 @@ well-formed `DoctorReport` with the offending field degraded to
 - In-process: `server.read_only_mode is True` at import time;
   assignment observably persists.
 - Subprocess JSON-RPC handshake (mirrors `test_stdout_purity.py`
-  pattern): spawns `python -m whatsapp_mcp --read-only`, drives the
+  pattern): spawns `python -m whatsapp_desktop_mcp --read-only`, drives the
   full `initialize → notifications/initialized → tools/list`
   sequence, asserts the `tools/list` response names equal
   `{doctor, list_chats, read_chat, extract_recent, search_messages,
   search_contacts, get_chat_metadata, get_message_context}` AND every
   tool advertises `annotations.readOnlyHint == True`.
-- CLI smoke: `python -m whatsapp_mcp --no-read-only --help` exits 0
+- CLI smoke: `python -m whatsapp_desktop_mcp --no-read-only --help` exits 0
   AND `--no-read-only` is rendered in usage (argparse
   `BooleanOptionalAction` shape).
 
@@ -451,14 +451,14 @@ passing:
 **2. [Rule 1 - Bug class: mypy --strict noise] Module attribute access**
 
 - **Found during:** Task 1 lint+type pass.
-- **Issue:** `from whatsapp_mcp import server` then `server.read_only_mode`
+- **Issue:** `from whatsapp_desktop_mcp import server` then `server.read_only_mode`
   triggers mypy's `attr-defined` error because the package re-exports
   surface (`__init__.py`) doesn't list the sub-module
   (mypy treats `server` as an attribute of the package rather than
   resolving the sub-module). Same issue would affect any test that
   uses the `from package import submodule` access pattern.
-- **Fix:** Changed to `import whatsapp_mcp.server` then
-  `whatsapp_mcp.server.read_only_mode` (the full module path). This
+- **Fix:** Changed to `import whatsapp_desktop_mcp.server` then
+  `whatsapp_desktop_mcp.server.read_only_mode` (the full module path). This
   resolves cleanly under mypy --strict. Same near-miss class as Plan
   01-04 noqa rewords — type-checker rule pacification, zero behavior
   change.
@@ -519,7 +519,7 @@ $ uv run ruff format --check src tests
 75 files already formatted
 
 $ uv run mypy
-tests/unit/test_permissions/test_fda.py:25: error: Module "whatsapp_mcp.permissions"
+tests/unit/test_permissions/test_fda.py:25: error: Module "whatsapp_desktop_mcp.permissions"
     has no attribute "fda"  [attr-defined]
 Found 1 error in 1 file (checked 75 source files)
 # (Pre-existing Phase 0 baseline error — not introduced by Plan 01-06)

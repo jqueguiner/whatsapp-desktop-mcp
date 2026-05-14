@@ -18,7 +18,7 @@
 └──────────────────────────────────┬───────────────────────────────────┘
                                    │  JSON-RPC over stdio
 ┌──────────────────────────────────▼───────────────────────────────────┐
-│                       whatsapp-mcp server (this project)             │
+│                       whatsapp-desktop-mcp server (this project)             │
 │                                                                      │
 │  ┌────────────────────────────────────────────────────────────────┐  │
 │  │  (1) MCP Boundary                                              │  │
@@ -66,7 +66,7 @@
 | 3 | **Sender** (`sender/`) | Opening chats via `whatsapp://` URL scheme, AppleScript/UI-automation send, send verification, retry on UI race | Reading history, model shape |
 | 4 | **Models** (`models.py`) | Typed dataclasses (`Chat`, `Message`, `Contact`, `GroupInfo`, `MediaRef`), JID parser/normalizer, Cocoa-epoch ↔ Unix conversion, JSON serialization | DB queries, MCP framing |
 | 5 | **Tool Layer** (`tools/`) | Mapping each MCP tool name → reader/sender call sequence, parameter coercion, output trimming/pagination | Transport, schema details |
-| 6 | **CLI** (`cli.py`) | `whatsapp-mcp-cli list-chats / read / send` for local debugging without an MCP client | Anything runtime-MCP-only |
+| 6 | **CLI** (`cli.py`) | `whatsapp-desktop-mcp-cli list-chats / read / send` for local debugging without an MCP client | Anything runtime-MCP-only |
 
 **Boundary rule:** MCP Boundary (1) and CLI (6) both call only into Tool Layer (5). Tool Layer calls only into Reader (2), Sender (3), and Models (4). Reader and Sender never call each other and never import Tool Layer or MCP Boundary code.
 
@@ -241,8 +241,8 @@ Recommendation: ship v1 with `LIKE` (good enough up to ~10k messages per chat) a
 ## Recommended Project Structure
 
 ```
-whatsapp-mcp/
-├── src/whatsapp_mcp/
+whatsapp-desktop-mcp/
+├── src/whatsapp_desktop_mcp/
 │   ├── __init__.py
 │   ├── server.py              # (1) MCP boundary — registers tools, runs stdio loop
 │   ├── cli.py                 # (6) Click-based CLI mirroring the tools
@@ -286,7 +286,7 @@ whatsapp-mcp/
 - **`reader/` and `sender/` are sibling packages, not subpackages of `tools/`.** Tools depend on them, never the reverse. This is the boundary that makes a future schema or UI change isolated.
 - **`reader/schema_vN.py` is named for the schema version.** When WhatsApp ships a breaking change, we add `schema_v2.py` and a dispatcher in `connection.py`; the Tool Layer never knows.
 - **`tools/` files are 1-per-MCP-tool.** Each is small (10-40 lines): coerce inputs, call reader/sender, shape output. Easy to read, easy to add a tool.
-- **`cli.py` reuses the same Tool Layer** so anything reproducible from Claude Desktop is reproducible from `whatsapp-mcp-cli`.
+- **`cli.py` reuses the same Tool Layer** so anything reproducible from Claude Desktop is reproducible from `whatsapp-desktop-mcp-cli`.
 - **`tests/fixtures/` carries an anonymized SQLite snapshot** so reader tests run without WhatsApp installed; sender tests are opt-in.
 
 ---
@@ -355,7 +355,7 @@ tell application "System Events" to tell process "WhatsApp"
 end tell
 ```
 
-**Why this is more reliable than search-and-click** (which is what `gfb-47/whatsapp-mcp-server` does):
+**Why this is more reliable than search-and-click** (which is what `gfb-47/whatsapp-desktop-mcp-server` does):
 - No locale dependence (search box label is localized; deep-link is not).
 - No UI-tree walk (the AXGroup/AXButton tree we observed has no AXTextField with a stable role — search-bar focus depends on screen position, which breaks if the user resized the window).
 - The window title contains an invisible LRM character (we verified: returned name was `‎WhatsApp` not `WhatsApp`) — anything that string-compares window names will silently fail. Deep-link bypasses the issue.
@@ -574,7 +574,7 @@ This is a single-user local tool, so "scaling" means "DB size on this Mac" not "
 - [SQLite WAL documentation](https://sqlite.org/wal.html) — readers don't block writers; reader needs `-wal`/`-shm` access; WAL must accompany DB on copy.
 - [WhatsApp URL scheme reference — fvdm.com](https://fvdm.com/code/note-whatsapp-url-scheme) and [MacStories tutorial](https://www.macstories.net/tutorials/use-whatsapps-url-scheme-with-drafts-launch-center-pro-or-a-bookmarklet/) — `whatsapp://send?phone=...&text=...` and `?abid=...` parameters.
 - [WhatsApp LID overview — whapi.cloud help](https://support.whapi.cloud/help-desk/faq/whatsapp-lid-lid) and [Baileys v7 LID migration notes](https://baileys.wiki/docs/migration/to-v7.0.0/) — LID is account-scoped, opaque to outsiders, increasing in 2025-2026 deployments.
-- [gfb-47/whatsapp-mcp-server](https://github.com/gfb-47/whatsapp-mcp-server) — existing Node MCP using `osascript`-driven search-and-click; we improve on its send path with deep-links.
+- [gfb-47/whatsapp-desktop-mcp-server](https://github.com/gfb-47/whatsapp-desktop-mcp-server) — existing Node MCP using `osascript`-driven search-and-click; we improve on its send path with deep-links.
 - [victor-torres/whatsapp-applescript](https://github.com/victor-torres/whatsapp-applescript) — older AppleScript reference (drives Chrome WhatsApp Web tab, not Desktop — kept for prior-art context).
 - **Direct verification on this machine** (2026-05-13, WhatsApp Desktop 26.16.74, macOS 26.4): file paths, schema, journal mode (`wal`), `sdef` returning -192 (no scripting dictionary), URL schemes registered, live RO query during active write succeeded, `ZSESSIONTYPE` distribution, `ZMESSAGETYPE` distribution.
 

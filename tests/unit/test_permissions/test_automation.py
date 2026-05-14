@@ -20,7 +20,7 @@ from __future__ import annotations
 import pytest
 from pytest_subprocess.fake_process import FakeProcess
 
-from whatsapp_mcp.permissions.automation import check_whatsapp
+from whatsapp_desktop_mcp.permissions.automation import check_whatsapp
 
 
 @pytest.mark.asyncio

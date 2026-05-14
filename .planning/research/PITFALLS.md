@@ -16,7 +16,7 @@ This file is opinionated. Each pitfall has a concrete warning sign, a concrete p
 The agent calls `read_chat` immediately after sending a message and gets stale or missing data. Older history that the user can clearly scroll back to in the WhatsApp UI is not in the DB at all because WhatsApp Desktop only persists what the linked-device protocol opportunistically streams down from the phone. A "give me last 6 months of #group-x" query comes back with three weeks because that's all the local cache holds.
 
 **Why it happens:**
-WhatsApp Desktop (macOS Catalyst, after the September 2024 deprecation of Electron) is a *linked secondary device*, not the source of record. It populates `ChatStorage.sqlite` by replaying messages received over the multi-device protocol. The phone is the canonical store; the desktop cache fills lazily and can be evicted. `lharries/whatsapp-mcp` issue [#97](https://github.com/lharries/whatsapp-mcp/issues/97) — "Messages not syncing with messages.db after sent by MCP Client" — is the same shape of bug. The official "Waiting for this message" prompt in WhatsApp itself is the user-facing tell that history materializes asynchronously ([WA help center](https://faq.whatsapp.com/3398056720476987)).
+WhatsApp Desktop (macOS Catalyst, after the September 2024 deprecation of Electron) is a *linked secondary device*, not the source of record. It populates `ChatStorage.sqlite` by replaying messages received over the multi-device protocol. The phone is the canonical store; the desktop cache fills lazily and can be evicted. `lharries/whatsapp-desktop-mcp` issue [#97](https://github.com/lharries/whatsapp-desktop-mcp/issues/97) — "Messages not syncing with messages.db after sent by MCP Client" — is the same shape of bug. The official "Waiting for this message" prompt in WhatsApp itself is the user-facing tell that history materializes asynchronously ([WA help center](https://faq.whatsapp.com/3398056720476987)).
 
 **How to avoid:**
 - Document explicitly in tool descriptions: "Reads return what the WhatsApp Desktop app has currently synced. Older messages may be missing until the linked device backfills them."
@@ -88,7 +88,7 @@ macOS TCC does not propagate Full Disk Access through arbitrary subprocess chain
 
 **How to avoid:**
 - **Do not rely on FDA inheritance.** Document instead which exact binary needs FDA for each launch mode.
-- Recommended install path: ship a small, code-signed launcher binary at a stable path (e.g., `/usr/local/bin/whatsapp-mcp`) that the user grants FDA to once. The launcher then `execve`s into the Python interpreter. (Following Steipete's [AppleScript CLI guide](https://steipete.me/posts/2025/applescript-cli-macos-complete-guide), the launcher should use `responsibility_spawnattrs_setdisclaim` so it owns its own permissions rather than inheriting from Claude Desktop.)
+- Recommended install path: ship a small, code-signed launcher binary at a stable path (e.g., `/usr/local/bin/whatsapp-desktop-mcp`) that the user grants FDA to once. The launcher then `execve`s into the Python interpreter. (Following Steipete's [AppleScript CLI guide](https://steipete.me/posts/2025/applescript-cli-macos-complete-guide), the launcher should use `responsibility_spawnattrs_setdisclaim` so it owns its own permissions rather than inheriting from Claude Desktop.)
 - Fallback path (no signed launcher): instruct the user to add `/opt/homebrew/bin/uv` (or wherever `uv` lives) to FDA. Document that this also gives `uv` itself FDA, which the user should know.
 - At startup, the MCP server attempts to `os.stat()` the WhatsApp DB path and immediately surfaces `FullDiskAccessRequired` as a structured error with the exact path the user must add — including resolving symlinks (`/opt/homebrew/bin/uv` → `/opt/homebrew/Cellar/uv/.../bin/uv`).
 - Detect "we got launched by Claude Desktop vs. a terminal" via parent process inspection (`os.getppid()` → name) and tailor the error message.
@@ -349,13 +349,13 @@ WhatsApp's anti-spam systems detect timing patterns (regular intervals, bulk fan
 ### Pitfall 15: Distribution — pipx/uvx install creates a TCC nightmare
 
 **What goes wrong:**
-User runs `uvx whatsapp-mcp`. uv installs to `~/.local/share/uv/tools/whatsapp-mcp/`, the executable is at `~/.local/bin/whatsapp-mcp` which is a symlink to a hashed venv path that *changes every upgrade*. Each upgrade requires re-granting FDA + Automation. Confused users uninstall.
+User runs `uvx whatsapp-desktop-mcp`. uv installs to `~/.local/share/uv/tools/whatsapp-desktop-mcp/`, the executable is at `~/.local/bin/whatsapp-desktop-mcp` which is a symlink to a hashed venv path that *changes every upgrade*. Each upgrade requires re-granting FDA + Automation. Confused users uninstall.
 
 **Why it happens:**
 [uv docs on Tools](https://docs.astral.sh/uv/concepts/tools/) confirm uv symlinks tool executables on Unix; the actual interpreter resolves through layers of resolution that TCC sees as different binaries. pipx has the same shape.
 
 **How to avoid:**
-- **Provide a brew formula and/or a notarized `.pkg` installer** that drops a single signed launcher binary at a stable path (`/usr/local/bin/whatsapp-mcp` → `/Applications/WhatsApp MCP.app/Contents/MacOS/whatsapp-mcp`). Ask user to grant FDA + Automation to that one path. Upgrades replace the binary at the same path, preserving permissions.
+- **Provide a brew formula and/or a notarized `.pkg` installer** that drops a single signed launcher binary at a stable path (`/usr/local/bin/whatsapp-desktop-mcp` → `/Applications/WhatsApp MCP.app/Contents/MacOS/whatsapp-desktop-mcp`). Ask user to grant FDA + Automation to that one path. Upgrades replace the binary at the same path, preserving permissions.
 - **Document uvx as the "for developers" path**, not the recommended path. Make the `.pkg` install primary.
 - **Detect environment churn.** On startup, log the launcher path; if it differs from the previous startup, surface a prominent log line: "Launcher path changed — you may need to re-grant Full Disk Access to <new path>." Don't let users debug this blind.
 
@@ -407,9 +407,9 @@ User runs `uvx whatsapp-mcp`. uv installs to `~/.local/share/uv/tools/whatsapp-m
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Binding an HTTP transport to `0.0.0.0` (the lharries bug, [#215](https://github.com/lharries/whatsapp-mcp/issues/215)) | Anyone on the LAN can read all chats and send messages | Stdio-only by default; if HTTP added later, bind to `127.0.0.1`, require token, document loudly |
-| Logging message bodies to a world-readable file | Plaintext WA history on disk in a non-WA-controlled location | Audit log records *send* events only (chat, time, body hash + first 40 chars), never read content; default location `~/Library/Logs/whatsapp-mcp/` mode 0600 |
-| Path traversal in attachment download (lharries [#241](https://github.com/lharries/whatsapp-mcp/issues/241)) | Agent reads arbitrary files outside the WA container | Constrain attachment paths to known WA media directories; reject any path containing `..`; resolve symlinks and re-check prefix |
+| Binding an HTTP transport to `0.0.0.0` (the lharries bug, [#215](https://github.com/lharries/whatsapp-desktop-mcp/issues/215)) | Anyone on the LAN can read all chats and send messages | Stdio-only by default; if HTTP added later, bind to `127.0.0.1`, require token, document loudly |
+| Logging message bodies to a world-readable file | Plaintext WA history on disk in a non-WA-controlled location | Audit log records *send* events only (chat, time, body hash + first 40 chars), never read content; default location `~/Library/Logs/whatsapp-desktop-mcp/` mode 0600 |
+| Path traversal in attachment download (lharries [#241](https://github.com/lharries/whatsapp-desktop-mcp/issues/241)) | Agent reads arbitrary files outside the WA container | Constrain attachment paths to known WA media directories; reject any path containing `..`; resolve symlinks and re-check prefix |
 | Treating message bodies from `read_chat` as instructions | Prompt injection (Pitfall 6) | Wrap bodies in `<wa:message_body>`; document as untrusted in tool descriptions |
 | No rate limit on `send_message` | Agent fan-out → account ban (Pitfall 14) | Default 5/min, 30/day; conservative even if user opts up |
 | Allowing the MCP to write the WA SQLite DB | Corrupting user history | Read-only connection (`mode=ro`); CI test that no write code path exists |
@@ -420,7 +420,7 @@ User runs `uvx whatsapp-mcp`. uv installs to `~/.local/share/uv/tools/whatsapp-m
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
 | Confirmation prompt that just says "approve send_message" | User clicks Yes blindly; misuse bypassed | Show resolved chat name, recipient JID/LID, last message in that chat, and the body verbatim |
-| Generic "permission denied" on FDA fail | User has no idea what to fix | Structured error: "Cannot read WhatsApp database. Add this binary to Full Disk Access: `/usr/local/bin/whatsapp-mcp`. Open System Settings: `x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`" |
+| Generic "permission denied" on FDA fail | User has no idea what to fix | Structured error: "Cannot read WhatsApp database. Add this binary to Full Disk Access: `/usr/local/bin/whatsapp-desktop-mcp`. Open System Settings: `x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles`" |
 | Returning raw JID in chat lists | Agent + user see opaque strings | Always pair identifier with display name + last-message preview |
 | Slow tools with no progress | Agent appears hung | MCP progress notifications (every 1s for ops > 2s) |
 | Errors as Python tracebacks in tool result | Agent thinks tool is broken; client log noise | Catch all in tool wrapper; return structured `{"error": {"code": "...", "message": "...", "remediation": "..."}}` |
@@ -437,7 +437,7 @@ User runs `uvx whatsapp-mcp`. uv installs to `~/.local/share/uv/tools/whatsapp-m
 - [ ] **Stdout hygiene:** Often missing the CI test — verify CI fails if any non-JSON-RPC byte hits stdout during `initialize` + sample tool call.
 - [ ] **Tool result size:** Often missing the char-cap — verify a busy-group `extract_recent` returns a paginated response, not a 250k-character blob.
 - [ ] **Confirmation:** Often missing context in the prompt — verify the elicitation includes resolved chat name and body, not just "approve send_message".
-- [ ] **Audit log:** Often missing — verify every send writes a line to `~/Library/Logs/whatsapp-mcp/audit.log`.
+- [ ] **Audit log:** Often missing — verify every send writes a line to `~/Library/Logs/whatsapp-desktop-mcp/audit.log`.
 - [ ] **Schema check:** Often missing — verify startup probes `sqlite_master` and refuses with a clear message on unknown schema.
 - [ ] **JID/LID:** Often missing dedup — verify `search_contacts("Alice")` returns one logical row even if Alice has both a phone JID and a `@lid`.
 
@@ -494,10 +494,10 @@ User runs `uvx whatsapp-mcp`. uv installs to `~/.local/share/uv/tools/whatsapp-m
 - [EvolutionAPI issue #1872 — receives LID instead of JID](https://github.com/EvolutionAPI/evolution-api/issues/1872)
 
 **Existing similar projects (issues + design lessons)**
-- [lharries/whatsapp-mcp](https://github.com/lharries/whatsapp-mcp)
-- [lharries/whatsapp-mcp issue #97 — sync delay](https://github.com/lharries/whatsapp-mcp/issues/97)
-- [lharries/whatsapp-mcp issue #215 — REST API binding to 0.0.0.0](https://github.com/lharries/whatsapp-mcp/issues/215)
-- [lharries/whatsapp-mcp issue #241 — path traversal](https://github.com/lharries/whatsapp-mcp/issues/241)
+- [lharries/whatsapp-desktop-mcp](https://github.com/lharries/whatsapp-desktop-mcp)
+- [lharries/whatsapp-desktop-mcp issue #97 — sync delay](https://github.com/lharries/whatsapp-desktop-mcp/issues/97)
+- [lharries/whatsapp-desktop-mcp issue #215 — REST API binding to 0.0.0.0](https://github.com/lharries/whatsapp-desktop-mcp/issues/215)
+- [lharries/whatsapp-desktop-mcp issue #241 — path traversal](https://github.com/lharries/whatsapp-desktop-mcp/issues/241)
 - [victor-torres/whatsapp-applescript](https://github.com/victor-torres/whatsapp-applescript)
 
 **SQLite locking + WAL on iOS-style messaging apps**

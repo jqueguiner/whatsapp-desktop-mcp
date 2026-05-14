@@ -12,7 +12,7 @@
 
 **Fallback:** TypeScript + `@modelcontextprotocol/sdk` + `better-sqlite3` + the `applescript` npm package, distributed via `npx`. Pick this only if the implementer is much more comfortable in TS — Python wins on every other axis for this use case.
 
-**Explicitly do NOT pick:** Go + `whatsmeow` (different protocol, requires its own QR auth, defeats the "ride the existing Desktop session" requirement — this is what `lharries/whatsapp-mcp` does and it is *not* what this project is).
+**Explicitly do NOT pick:** Go + `whatsmeow` (different protocol, requires its own QR auth, defeats the "ride the existing Desktop session" requirement — this is what `lharries/whatsapp-desktop-mcp` does and it is *not* what this project is).
 
 ---
 
@@ -26,7 +26,7 @@
 | **mcp** (Python SDK) | `mcp[cli]==1.27.1` (May 2026) | MCP protocol over stdio | Official Anthropic SDK, ships FastMCP decorator API, supports stdio (default for Claude Desktop) and Streamable HTTP. TypeScript SDK works but Python wins because the macOS automation surface (pyobjc, osascript, sqlite3) is all stdlib-or-Apple-blessed. **Confidence: HIGH.** |
 | **stdlib `sqlite3`** | bundled with Python 3.12 | Read `ChatStorage.sqlite` | Zero deps. WhatsApp's DB is read-only from our perspective; no async needed because each MCP tool call is a short-lived synchronous query. Open with `sqlite3.connect("file:...?mode=ro&immutable=1", uri=True)` so we never risk a write or compete with the WhatsApp app's WAL writer. **Confidence: HIGH.** |
 | **`subprocess` + `osascript`** | stdlib | Send messages by driving WhatsApp via AppleScript / System Events | The WhatsApp Catalyst app does not expose an AppleScript scripting dictionary, so the only viable send path is `tell application "System Events" to keystroke ...` — which is what every public solution does. `subprocess.run(["osascript", "-e", script])` is the simplest, most debuggable, most portable option. PyObjC + NSAppleScript is nominally faster (no fork) but adds a heavy dep for a path that runs once per `send_message` call. **Confidence: HIGH for the technique; MEDIUM for long-term reliability — see Pitfalls.** |
-| **`uv` / `uvx`** | `uv >= 0.5` | Distribution + isolated execution | 2025 stats: 38% of MCP servers are Python and the canonical install line in `claude_desktop_config.json` is `"command": "uvx", "args": ["whatsapp-mcp"]`. `uvx` resolves and runs the package in an ephemeral venv on every Claude Desktop start — no global pollution, no `pip install` step for the user. Beats `pipx` on speed and is what the MCP docs now recommend. **Confidence: HIGH.** |
+| **`uv` / `uvx`** | `uv >= 0.5` | Distribution + isolated execution | 2025 stats: 38% of MCP servers are Python and the canonical install line in `claude_desktop_config.json` is `"command": "uvx", "args": ["whatsapp-desktop-mcp"]`. `uvx` resolves and runs the package in an ephemeral venv on every Claude Desktop start — no global pollution, no `pip install` step for the user. Beats `pipx` on speed and is what the MCP docs now recommend. **Confidence: HIGH.** |
 
 ### Supporting Libraries
 
@@ -64,14 +64,14 @@
 #   "mcpServers": {
 #     "whatsapp": {
 #       "command": "uvx",
-#       "args": ["whatsapp-mcp"]
+#       "args": ["whatsapp-desktop-mcp"]
 #     }
 #   }
 # }
 
 # For developers:
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv init whatsapp-mcp && cd whatsapp-mcp
+uv init whatsapp-desktop-mcp && cd whatsapp-desktop-mcp
 uv add "mcp[cli]==1.27.1" "pydantic>=2.7,<3" "structlog>=24.1"
 uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-subprocess>=1.5"
 # Optional, only when accessibility readback is needed:
@@ -89,7 +89,7 @@ uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-subprocess>=1.5"
 | MCP SDK maturity | `mcp` 1.27.1, FastMCP decorators, official | `@modelcontextprotocol/sdk` 1.29.0, official, also mature | Community (`mark3labs/mcp-go`), no first-party SDK |
 | macOS automation | stdlib `subprocess`+`osascript`; pyobjc native if needed | Workable via `applescript` / `node-osascript` npm wrappers; less first-class | Possible via `os/exec` + osascript; least Mac-native ecosystem |
 | SQLite (read-only) | stdlib `sqlite3`, zero deps | Needs `better-sqlite3` (native build) | `mattn/go-sqlite3` (cgo) |
-| Distribution to Claude Desktop | `uvx whatsapp-mcp` — single line, no Node runtime needed | `npx whatsapp-mcp` — works but requires Node and npm registry publish | Built binary per arch — heaviest user setup |
+| Distribution to Claude Desktop | `uvx whatsapp-desktop-mcp` — single line, no Node runtime needed | `npx whatsapp-desktop-mcp` — works but requires Node and npm registry publish | Built binary per arch — heaviest user setup |
 | Apple-signed binary path (matters for TCC/FDA) | `/usr/bin/python3` is Apple-signed; user-installed Pythons are not — TCC propagation from Claude.app **only** works for Apple-signed children. Mitigation: instruct users to grant Full Disk Access **directly to the Python binary `uv` selects** (or Terminal/Claude.app for the launching parent). | Same problem (Node is not Apple-signed). | Same problem. |
 | Type safety | mypy/pyright (gradual) | Native | Native |
 | Verdict | **Pick this.** Smallest dep tree, native osascript story, minimal distribution friction, matches `mcp[cli]` design. | Fallback if team is TS-only. | Avoid for this project — its strength (`whatsmeow`) is *not* what we're building. |
@@ -147,7 +147,7 @@ uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-subprocess>=1.5"
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| **`whatsmeow` (Go) / Baileys (TS) / `lharries/whatsapp-mcp` architecture** | These connect via the WhatsApp Web multidevice protocol with their own QR-pairing — that is a *different product*. The user explicitly rejected it in PROJECT.md ("ride the already-running Desktop session"). It also burns one of WhatsApp's 4 paired-device slots. | Read `ChatStorage.sqlite` directly; send via osascript. |
+| **`whatsmeow` (Go) / Baileys (TS) / `lharries/whatsapp-desktop-mcp` architecture** | These connect via the WhatsApp Web multidevice protocol with their own QR-pairing — that is a *different product*. The user explicitly rejected it in PROJECT.md ("ride the already-running Desktop session"). It also burns one of WhatsApp's 4 paired-device slots. | Read `ChatStorage.sqlite` directly; send via osascript. |
 | **WhatsApp Cloud / Business API** | Requires Meta business onboarding, phone number provisioning, and is for business accounts. Explicitly out of scope. | Same — local DB + osascript. |
 | **Selenium / `pywhatkit` / `pyautogui` driving WhatsApp Web in Chrome** | Requires keeping a browser tab open, fragile DOM, defeats "drive the Desktop app." | osascript against the native Catalyst app. |
 | **Electron-era assumptions about WhatsApp's storage** | WhatsApp deprecated the Electron Mac app in Sept 2024 and the current Catalyst app stores data at `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/` with iOS-style CoreData tables (`ZWAMESSAGE`, `ZWACHATSESSION`, `ZWAMEDIAITEM`). Old tutorials referencing `~/Library/Application Support/WhatsApp/Databases/Databases.db` are stale — that file has no chat content. | Always probe `ChatStorage.sqlite` in the Group Container. |
@@ -155,7 +155,7 @@ uv add --dev "ruff>=0.6" "mypy>=1.10" "pytest>=8.2" "pytest-subprocess>=1.5"
 | **PyObjC just to run AppleScript** | 30MB of wheels, TCC/Apple-signing complications, no win over `osascript` subprocess for single-shot sends. | `subprocess.run(["osascript", "-e", ...])`. |
 | **Writing to `ChatStorage.sqlite`** | The WhatsApp app holds the writer lock and a fake message would be discarded (or worse, corrupt the DB). The "creating a fake WhatsApp message via SQLite" article confirms the manipulation is detectable and gets overwritten on next sync. | All writes go through the GUI via osascript. |
 | **`stdout` for logs** | MCP stdio transport uses stdout for JSON-RPC frames. A single stray `print()` corrupts the protocol and Claude Desktop drops the connection. | All logging to `stderr`. |
-| **Bundling our own Python with PyInstaller for v1** | Adds notarization, code signing, ~80MB binaries. Not needed when `uvx` works. | `uvx whatsapp-mcp`. |
+| **Bundling our own Python with PyInstaller for v1** | Adds notarization, code signing, ~80MB binaries. Not needed when `uvx` works. | `uvx whatsapp-desktop-mcp`. |
 
 ---
 
@@ -252,7 +252,7 @@ Three layers, in order of preference:
 - [aiosqlite issue #97: slower than sqlite3](https://github.com/omnilib/aiosqlite/issues/97) — basis for the "stdlib sqlite3 is fine" call, HIGH
 - [bswen: Using uvx to Run MCP Servers in Claude Desktop](https://docs.bswen.com/blog/2026-03-05-using-uvx-with-mcp-servers/) — `uvx` install pattern, HIGH
 - [Build to Launch: How to Install Any MCP Servers](https://buildtolaunch.substack.com/p/mcp-server-types-installation-guide-claude-cursor) — 55% JS / 38% Python ecosystem split, MEDIUM
-- [GitHub: lharries/whatsapp-mcp](https://github.com/lharries/whatsapp-mcp) — confirms what we are *not* building (whatsmeow + Go bridge), HIGH
+- [GitHub: lharries/whatsapp-desktop-mcp](https://github.com/lharries/whatsapp-desktop-mcp) — confirms what we are *not* building (whatsmeow + Go bridge), HIGH
 - [GitHub: victor-torres/whatsapp-applescript](https://github.com/victor-torres/whatsapp-applescript) — proves the keystroke-injection technique, MEDIUM (targets WhatsApp Web in Chrome, not the Catalyst app — but the System Events approach generalises)
 - [Srool the Knife: Automating WhatsApp Using AppleScript (2024)](https://www.srooltheknife.com/2024/02/automating-whatsapp-using-applescript.html) — current WhatsApp + AppleScript techniques, MEDIUM
 - [PyObjC framework Cocoa 12.1 on PyPI](https://pypi.org/project/pyobjc-framework-Cocoa/) — version pin if/when needed, HIGH

@@ -22,9 +22,9 @@ import sqlite3
 
 import pytest
 
-from whatsapp_mcp.models import DoctorReport, PermissionStatus
-from whatsapp_mcp.server import mcp
-from whatsapp_mcp.tools.doctor import doctor
+from whatsapp_desktop_mcp.models import DoctorReport, PermissionStatus
+from whatsapp_desktop_mcp.server import mcp
+from whatsapp_desktop_mcp.tools.doctor import doctor
 
 
 @pytest.mark.asyncio
@@ -69,7 +69,7 @@ def _granted_status(bucket: str) -> PermissionStatus:
 @pytest.mark.asyncio
 async def test_doctor_diag02_fda_denied(monkeypatch: pytest.MonkeyPatch) -> None:
     """FDA-denied: doctor returns successfully with schema_fingerprint.state == 'unreachable'."""
-    from whatsapp_mcp.permissions import accessibility, automation, fda
+    from whatsapp_desktop_mcp.permissions import accessibility, automation, fda
 
     async def fake_fda_check() -> PermissionStatus:
         return _denied_fda_status()
@@ -94,8 +94,8 @@ async def test_doctor_diag02_fda_denied(monkeypatch: pytest.MonkeyPatch) -> None
 @pytest.mark.asyncio
 async def test_doctor_diag02_db_open_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     """DB open failure: doctor returns 'unreachable' fingerprint instead of crashing."""
-    from whatsapp_mcp.permissions import accessibility, automation, fda
-    from whatsapp_mcp.tools import doctor as doctor_module
+    from whatsapp_desktop_mcp.permissions import accessibility, automation, fda
+    from whatsapp_desktop_mcp.tools import doctor as doctor_module
 
     async def fake_fda_check() -> PermissionStatus:
         return _granted_status("fda")
@@ -123,8 +123,8 @@ async def test_doctor_diag02_db_open_fails(monkeypatch: pytest.MonkeyPatch) -> N
 @pytest.mark.asyncio
 async def test_doctor_no_whatsapp_app(monkeypatch: pytest.MonkeyPatch) -> None:
     """WhatsApp.app missing: ``whatsapp_app_version is None``; doctor still returns."""
-    from whatsapp_mcp.permissions import accessibility, automation, fda
-    from whatsapp_mcp.tools import doctor as doctor_module
+    from whatsapp_desktop_mcp.permissions import accessibility, automation, fda
+    from whatsapp_desktop_mcp.tools import doctor as doctor_module
 
     async def fake_fda_check() -> PermissionStatus:
         return _denied_fda_status()

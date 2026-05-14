@@ -12,7 +12,7 @@ Coverage matrix (mapped to plan ``<behavior>`` block):
   ``probe_z_version(ro)`` (CONTEXT.md D-14).
 - Test 6 — joinback applies the tombstone WHERE clause when
   ``include_deleted=False`` (Pitfall 7).
-- Test 7 — REL-05 grep gate: zero ``whatsapp_mcp.sender`` imports
+- Test 7 — REL-05 grep gate: zero ``whatsapp_desktop_mcp.sender`` imports
   (CLAUDE.md hard rule #1 / D-24).
 - Test 8 — full rebuild emits ``logger.warning`` containing
   "Building FTS5 shadow index" — captured via caplog. NO stdout bytes.
@@ -27,7 +27,7 @@ Fixture strategy mirrors the existing ``tests/unit/conftest.py``
 ``chatstorage_fixture`` — synthetic ChatStorage built directly via
 ``sqlite3`` so no real WhatsApp DB is touched. ``_DB_PATH`` is
 monkeypatched to ``tmp_path / "fts.sqlite"`` so the production sidecar
-at ``~/Library/Application Support/whatsapp-mcp/fts.sqlite`` is never
+at ``~/Library/Application Support/whatsapp-desktop-mcp/fts.sqlite`` is never
 written to during the test run (T-03-01-01 sandbox).
 """
 
@@ -237,7 +237,7 @@ def fts_chatstorage(tmp_path: Path) -> Path:
 @pytest.fixture
 def fts_db_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Redirect ``search_fts5._DB_PATH`` to ``tmp_path / "fts.sqlite"``."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     sidecar = tmp_path / "fts.sqlite"
     monkeypatch.setattr(search_fts5, "_DB_PATH", sidecar)
@@ -251,16 +251,16 @@ def patched_paths(
     tmp_path: Path,
 ) -> Path:
     """Repoint ``resolve_chatstorage_path`` and ``resolve_media_root``."""
-    import whatsapp_mcp.paths
-    from whatsapp_mcp.reader import search_fts5
+    import whatsapp_desktop_mcp.paths
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     media_root = tmp_path / "Message"
     media_root.mkdir()
 
     monkeypatch.setattr(
-        whatsapp_mcp.paths, "resolve_chatstorage_path", lambda: str(fts_chatstorage)
+        whatsapp_desktop_mcp.paths, "resolve_chatstorage_path", lambda: str(fts_chatstorage)
     )
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_media_root", lambda: str(media_root))
+    monkeypatch.setattr(whatsapp_desktop_mcp.paths, "resolve_media_root", lambda: str(media_root))
     # search_fts5 imports the resolvers by name at module-load time —
     # patch the local references too.
     if hasattr(search_fts5, "resolve_chatstorage_path"):
@@ -286,7 +286,7 @@ async def test_fts5_search_quote_wraps_operator_chars(
     Without quote-wrap, FTS5 would parse ``(`` ``)`` as parentheses
     operators and raise. Quote-wrap turns the input into a phrase query.
     """
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     # Build the sidecar first (lazy build path).
     await search_fts5.build_or_refresh()
@@ -305,7 +305,7 @@ async def test_fts5_search_quote_wraps_embedded_double_quote(
 
     Embedded ``"`` is escaped by doubling per the Pattern-3 wrap recipe.
     """
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     await search_fts5.build_or_refresh()
     results = await search_fts5.fts5_search(query='he said "hi"')
@@ -323,7 +323,7 @@ async def test_build_or_refresh_creates_sidecar_with_mode_0600(
     fts_db_path: Path,
     patched_paths: Path,
 ) -> None:
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     assert not fts_db_path.exists()
     await search_fts5.build_or_refresh()
@@ -350,7 +350,7 @@ async def test_incremental_refresh_inserts_only_newer_rows(
     fts_db_path: Path,
     patched_paths: Path,
 ) -> None:
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     # First build — indexes the 3 seeded rows.
     await search_fts5.build_or_refresh()
@@ -389,7 +389,7 @@ async def test_full_rebuild_on_z_version_mismatch(
     fts_db_path: Path,
     patched_paths: Path,
 ) -> None:
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     # First build at z_version=1.
     await search_fts5.build_or_refresh()
@@ -435,7 +435,7 @@ async def test_tombstone_joinback_drops_deleted_rows(
     The joinback's tombstone WHERE clause filters it out when
     ``include_deleted=False`` (Pitfall 7 — closes T-03-01-03).
     """
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     # Add a tombstone row with a unique body BEFORE the first build.
     bg = sqlite3.connect(str(fts_chatstorage))
@@ -469,15 +469,21 @@ async def test_tombstone_joinback_drops_deleted_rows(
 
 
 def test_rel05_no_sender_imports_in_search_fts5() -> None:
-    """``reader/search_fts5.py`` MUST NOT import from ``whatsapp_mcp.sender``.
+    """``reader/search_fts5.py`` MUST NOT import from ``whatsapp_desktop_mcp.sender``.
 
     Structural (file-level) grep gate. Mirrors the AST-walk in
     ``test_isolation.py`` but is fast / dependency-free.
     """
-    src = Path(__file__).resolve().parents[3] / "src" / "whatsapp_mcp" / "reader" / "search_fts5.py"
+    src = (
+        Path(__file__).resolve().parents[3]
+        / "src"
+        / "whatsapp_desktop_mcp"
+        / "reader"
+        / "search_fts5.py"
+    )
     content = src.read_text(encoding="utf-8")
-    assert "from whatsapp_mcp.sender" not in content
-    assert "import whatsapp_mcp.sender" not in content
+    assert "from whatsapp_desktop_mcp.sender" not in content
+    assert "import whatsapp_desktop_mcp.sender" not in content
 
 
 # ---------------------------------------------------------------------------
@@ -498,9 +504,9 @@ async def test_full_rebuild_emits_stderr_warning(
     logging API; the stdout-purity asserter below is a defense-in-depth
     subprocess check.
     """
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
-    caplog.set_level(logging.WARNING, logger="whatsapp_mcp.reader.search_fts5")
+    caplog.set_level(logging.WARNING, logger="whatsapp_desktop_mcp.reader.search_fts5")
     await search_fts5.build_or_refresh()
 
     warnings = [
@@ -538,8 +544,8 @@ def test_full_rebuild_writes_no_stdout_bytes(tmp_path: Path) -> None:
 
     script = (
         "import asyncio, pathlib, sys\n"
-        "from whatsapp_mcp.reader import search_fts5\n"
-        "import whatsapp_mcp.paths as paths\n"
+        "from whatsapp_desktop_mcp.reader import search_fts5\n"
+        "import whatsapp_desktop_mcp.paths as paths\n"
         f"search_fts5._DB_PATH = pathlib.Path({str(fts_db)!r})\n"
         f"paths.resolve_chatstorage_path = lambda: {str(chat_db)!r}\n"
         f"paths.resolve_media_root = lambda: {str(media_root)!r}\n"
@@ -572,7 +578,7 @@ async def test_fts5_search_empty_result_returns_list(
     fts_db_path: Path,
     patched_paths: Path,
 ) -> None:
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     await search_fts5.build_or_refresh()
     results = await search_fts5.fts5_search(query="this_term_does_not_exist_anywhere_xyz")

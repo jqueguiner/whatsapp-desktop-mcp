@@ -6,14 +6,14 @@ subsystem: mcp-tool-layer
 tags: [fastmcp, async-tools, cursor-pagination, char-cap, jid-lid-dedup, tombstone-filter, timeout-decorator, read-only]
 requires: [phase-1-plan-01-01, phase-1-plan-01-02, phase-1-plan-01-03]
 provides:
-  - whatsapp_mcp.tools._decorators.timeout
-  - whatsapp_mcp.tools.list_chats.list_chats (MCP tool)
-  - whatsapp_mcp.tools.read_chat.read_chat (MCP tool)
-  - whatsapp_mcp.tools.extract_recent.extract_recent (MCP tool)
-  - whatsapp_mcp.tools.search_messages.search_messages (MCP tool)
-  - whatsapp_mcp.tools.search_contacts.search_contacts (MCP tool)
-  - whatsapp_mcp.tools.get_chat_metadata.get_chat_metadata (MCP tool)
-  - whatsapp_mcp.tools.get_message_context.get_message_context (MCP tool)
+  - whatsapp_desktop_mcp.tools._decorators.timeout
+  - whatsapp_desktop_mcp.tools.list_chats.list_chats (MCP tool)
+  - whatsapp_desktop_mcp.tools.read_chat.read_chat (MCP tool)
+  - whatsapp_desktop_mcp.tools.extract_recent.extract_recent (MCP tool)
+  - whatsapp_desktop_mcp.tools.search_messages.search_messages (MCP tool)
+  - whatsapp_desktop_mcp.tools.search_contacts.search_contacts (MCP tool)
+  - whatsapp_desktop_mcp.tools.get_chat_metadata.get_chat_metadata (MCP tool)
+  - whatsapp_desktop_mcp.tools.get_message_context.get_message_context (MCP tool)
 affects:
   - Plan 01-05 doctor expansion (consumes the same FastMCP registration pattern; expands DoctorReport in place)
   - Plan 01-06 tests (will exercise tool inputs / outputs / cursor round-trips / FDA / schema-drift error mapping)
@@ -31,17 +31,17 @@ tech-stack:
     - "T-04-05 PII-in-logs mitigation: tools log only chat_id + count + tool name at INFO; never full JIDs or message bodies"
 key-files:
   created:
-    - src/whatsapp_mcp/tools/_decorators.py
-    - src/whatsapp_mcp/tools/list_chats.py
-    - src/whatsapp_mcp/tools/read_chat.py
-    - src/whatsapp_mcp/tools/extract_recent.py
-    - src/whatsapp_mcp/tools/search_messages.py
-    - src/whatsapp_mcp/tools/search_contacts.py
-    - src/whatsapp_mcp/tools/get_chat_metadata.py
-    - src/whatsapp_mcp/tools/get_message_context.py
+    - src/whatsapp_desktop_mcp/tools/_decorators.py
+    - src/whatsapp_desktop_mcp/tools/list_chats.py
+    - src/whatsapp_desktop_mcp/tools/read_chat.py
+    - src/whatsapp_desktop_mcp/tools/extract_recent.py
+    - src/whatsapp_desktop_mcp/tools/search_messages.py
+    - src/whatsapp_desktop_mcp/tools/search_contacts.py
+    - src/whatsapp_desktop_mcp/tools/get_chat_metadata.py
+    - src/whatsapp_desktop_mcp/tools/get_message_context.py
   modified:
-    - src/whatsapp_mcp/server.py
-    - src/whatsapp_mcp/tools/doctor.py
+    - src/whatsapp_desktop_mcp/server.py
+    - src/whatsapp_desktop_mcp/tools/doctor.py
     - tests/unit/test_doctor_tool.py
 decisions:
   - "W1 honored: every registered tool — including doctor — carries ``meta={'anthropic/maxResultSizeChars': 60000}``. Plan 01-04 Task 3 added the annotation to doctor as part of this work (no carve-out)."
@@ -79,7 +79,7 @@ uniformity.
 
 ### Task 1 — @timeout decorator + 4 simpler tools
 
-- **`src/whatsapp_mcp/tools/_decorators.py`** — `@timeout(seconds=N)`
+- **`src/whatsapp_desktop_mcp/tools/_decorators.py`** — `@timeout(seconds=N)`
   decorator wrapping an async tool body in `asyncio.wait_for`. On
   Python 3.11+ `TimeoutError` it re-raises as `ValueError(...)` so the
   MCP framework surfaces a structured tool-error to the LLM
@@ -88,12 +88,12 @@ uniformity.
   keeps FastMCP's introspection seeing the original signature, not the
   wrapper's `*args, **kwargs`.
 
-- **`src/whatsapp_mcp/tools/list_chats.py`** (READ-01) — Returns groups +
+- **`src/whatsapp_desktop_mcp/tools/list_chats.py`** (READ-01) — Returns groups +
   1:1 chats from `reader.list_chats` (Plan 02). Per-chat `Coverage`
   field is already populated by the reader. Limit clamped to [1, 200].
   Char-cap trims from the tail with `truncated=True`. 5s budget.
 
-- **`src/whatsapp_mcp/tools/extract_recent.py`** (READ-03) — Sugar on
+- **`src/whatsapp_desktop_mcp/tools/extract_recent.py`** (READ-03) — Sugar on
   `reader.since(chat_id, cutoff_unix_ts)`. Hours clamped to [1, 168]
   (one week — T-04-08 OOM guardrail). Coverage assembled with
   `from_ts=min`, `to_ts=max`, `is_full=have>=asked`. Human-readable
@@ -102,7 +102,7 @@ uniformity.
   recency); `truncated=True` flag, NOT a paginate-back cursor (READ-03
   semantics are "the last N hours", not paginated). 5s budget.
 
-- **`src/whatsapp_mcp/tools/get_chat_metadata.py`** (READ-06) — Routes
+- **`src/whatsapp_desktop_mcp/tools/get_chat_metadata.py`** (READ-06) — Routes
   on `chat.kind`: for groups, calls `reader.get_group_info` and surfaces
   the full GroupInfo (subject, description, member roster, creation_ts,
   creator/owner JIDs, is_muted). For 1:1 chats, returns a degenerate
@@ -111,7 +111,7 @@ uniformity.
   literals for v0.1; this tool surfaces them as-is. Char-cap trims the
   members list. Missing chat_id raises structured ValueError. 5s budget.
 
-- **`src/whatsapp_mcp/tools/get_message_context.py`** (READ-07) — Calls
+- **`src/whatsapp_desktop_mcp/tools/get_message_context.py`** (READ-07) — Calls
   `reader.context_around_stanza` for the window and
   `reader.parent_of_stanza` for quote-reply parents. `before` and `after`
   clamped to [0, 50]. Empty window + no parent → structured ValueError
@@ -119,7 +119,7 @@ uniformity.
 
 ### Task 2 — read_chat (cursor pagination) + search_messages + search_contacts
 
-- **`src/whatsapp_mcp/tools/read_chat.py`** (READ-02 + READ-09) —
+- **`src/whatsapp_desktop_mcp/tools/read_chat.py`** (READ-02 + READ-09) —
   **B2 consumed verbatim:** `messages, last_z_sort = await
   reader.window(chat_id, before_z_sort, limit, include_deleted)`. On a
   full page (`len(messages) == limit and last_z_sort is not None`),
@@ -133,7 +133,7 @@ uniformity.
   valid as the cursor anchor — the next page resumes immediately after
   the surviving oldest message without gaps. 5s budget.
 
-- **`src/whatsapp_mcp/tools/search_messages.py`** (READ-04 v0.1 +
+- **`src/whatsapp_desktop_mcp/tools/search_messages.py`** (READ-04 v0.1 +
   READ-09) — Wraps `reader.like_search`. **W2 cursor uses
   `anchor_kind="cocoa_ts"`** (anchor is the Cocoa-epoch ZMESSAGEDATE of
   the last returned row, NOT a ZSORT — search ordering is by date, not
@@ -144,7 +144,7 @@ uniformity.
   iteration since the surviving last message moves. 10s budget per
   REL-03.
 
-- **`src/whatsapp_mcp/tools/search_contacts.py`** (READ-05) — Wraps
+- **`src/whatsapp_desktop_mcp/tools/search_contacts.py`** (READ-05) — Wraps
   `reader.search_contacts` (which Plan 02 already de-dedups across
   `@s.whatsapp.net` / `@lid` via `LID.sqlite`). Returned `Contact` rows
   already have `known_identifiers` populated with every JID kind for the
@@ -153,14 +153,14 @@ uniformity.
 
 ### Task 3 — server.py wiring + doctor meta annotation
 
-- **`src/whatsapp_mcp/server.py`** — Appended an alphabetized block of 7
+- **`src/whatsapp_desktop_mcp/server.py`** — Appended an alphabetized block of 7
   read-tool side-effect imports below the existing `doctor` import
   (RESEARCH §Pattern 9). The pre-existing Plan 01-04 insertion-point
   marker comment was replaced with the actual import block. Module
   docstring updated to describe the registration block + the W1
   60k-meta-annotation invariant.
 
-- **`src/whatsapp_mcp/tools/doctor.py`** — Added
+- **`src/whatsapp_desktop_mcp/tools/doctor.py`** — Added
   `meta={"anthropic/maxResultSizeChars": 60000}` to the `@mcp.tool`
   registration per the W1 lock (every tool, including `doctor`,
   advertises the 60k-char response budget for a uniform client
@@ -189,16 +189,16 @@ uniformity.
 | `@timeout\(seconds=10\)` | `tools/search_messages.py` | 1 | =1 |
 | `decode_cursor\|encode_cursor` | `tools/read_chat.py` | 5 | ≥2 |
 | `FullDiskAccessRequired` | 3 task-2 tool modules | 6 | ≥3 |
-| `^from whatsapp_mcp\.tools import (\|extract_recent\|get_chat_metadata\|...\|search_messages) as _` | `server.py` | 7 | =7 |
-| `^from whatsapp_mcp\.tools import doctor as _doctor` | `server.py` | 1 | =1 |
+| `^from whatsapp_desktop_mcp\.tools import (\|extract_recent\|get_chat_metadata\|...\|search_messages) as _` | `server.py` | 7 | =7 |
+| `^from whatsapp_desktop_mcp\.tools import doctor as _doctor` | `server.py` | 1 | =1 |
 | `^read_only_mode\s*:\s*bool\s*=\s*True` | `server.py` | 1 | =1 |
 | `^mcp\s*:\s*FastMCP\s*=` | `server.py` | 1 | =1 |
-| `whatsapp_mcp\.sender` import in `tools/` | recursive | 0 | =0 (REL-05) |
+| `whatsapp_desktop_mcp\.sender` import in `tools/` | recursive | 0 | =0 (REL-05) |
 | `print\(` in `tools/` | recursive | 0 | =0 (T201) |
 
 ## Behavior Verification — all pass
 
-- `from whatsapp_mcp.server import mcp; await mcp.list_tools()` returns
+- `from whatsapp_desktop_mcp.server import mcp; await mcp.list_tools()` returns
   exactly **8 tools**: `doctor`, `extract_recent`, `get_chat_metadata`,
   `get_message_context`, `list_chats`, `read_chat`, `search_contacts`,
   `search_messages`.
@@ -278,7 +278,7 @@ Verified 2026-05-13 against WhatsApp Desktop 26.16.74 on macOS 26.4.1:
 **2. [Rule 1 — Lint near-miss] Reworded ruff-noqa-like comment text in server.py docstring**
 
 - **Found during:** Task 3 ruff check (`Invalid # noqa directive on
-  src/whatsapp_mcp/server.py:75`).
+  src/whatsapp_desktop_mcp/server.py:75`).
 - **Issue:** The new module docstring block in `server.py` contained the
   literal phrase ``the ``# noqa: E402, F401```` inside a comment line.
   Ruff parsed that as a noqa directive on the surrounding comment line
@@ -289,10 +289,10 @@ Verified 2026-05-13 against WhatsApp Desktop 26.16.74 on macOS 26.4.1:
   token. The actual `# noqa: E402, F401` pragmas on the 7 import lines
   are untouched and function as intended. Same near-miss class as the
   Phase 0 / Phase 1-prior literal-token rewordings (Plan 02's
-  `immutable=1` reword, Plan 03's `from whatsapp_mcp.server import
+  `immutable=1` reword, Plan 03's `from whatsapp_desktop_mcp.server import
   run` reword, etc.) — strict ruff parsing of comment text is the
   cause, docstring/comment reword is the fix.
-- **Files modified:** `src/whatsapp_mcp/server.py`.
+- **Files modified:** `src/whatsapp_desktop_mcp/server.py`.
 - **Commit:** `9cfc21c` (Task 3).
 - **Outcome:** ruff clean; documentary intent preserved.
 
@@ -320,7 +320,7 @@ Verified 2026-05-13 against WhatsApp Desktop 26.16.74 on macOS 26.4.1:
 ### Notes / Plan-acceptance-criteria typos (no fix required)
 
 - **Task 3 acceptance criterion 5** specified
-  `grep -cE '^logging\.basicConfig\(stream=sys\.stderr' src/whatsapp_mcp/server.py`
+  `grep -cE '^logging\.basicConfig\(stream=sys\.stderr' src/whatsapp_desktop_mcp/server.py`
   returns 1. The actual Phase 0 server.py code splits the
   `logging.basicConfig(...)` call across multiple lines (the keyword
   arguments are on lines 54–57), so the single-line anchored regex
@@ -363,7 +363,7 @@ succeeded without any permission prompt.
 - [x] No tool logs full JIDs / message bodies at INFO+ level
   (T-04-05 — verified by inline source inspection: tools log only
   `chat_id`, `count`, `query_len`, and tool names).
-- [x] REL-05 isolation invariant preserved (zero `whatsapp_mcp.sender`
+- [x] REL-05 isolation invariant preserved (zero `whatsapp_desktop_mcp.sender`
   imports anywhere in `tools/`).
 - [x] T201 invariant preserved (zero `print(` in `tools/`).
 - [x] Live smoke against the user's 84438-row ZWAMESSAGE returned
@@ -445,7 +445,7 @@ None. Plan 01-04 ships fully functional tool implementations.
   AFTER the 7 read-tool imports in `server.py`:
   ```
   if not read_only_mode:
-      from whatsapp_mcp.tools import send_message as _send_message  # noqa: ...
+      from whatsapp_desktop_mcp.tools import send_message as _send_message  # noqa: ...
   ```
   The `ReadOnlyMode` exception class (Plan 01-03) is ready to be raised
   from the send_message body when the flag flips post-startup.

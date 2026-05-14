@@ -21,7 +21,7 @@
 **Depends on:** Nothing (first phase)
 **Requirements:** SETUP-01, SETUP-02, SETUP-03, SETUP-04, SETUP-05, DIST-01
 **Success Criteria** (what must be TRUE):
-  1. A developer can add a single-line `uvx whatsapp-mcp` entry to `claude_desktop_config.json`, restart Claude Desktop, and the server registers as an MCP stdio server with no JSON-RPC protocol errors visible in `~/Library/Logs/Claude/mcp-server-whatsapp.log`.
+  1. A developer can add a single-line `uvx whatsapp-desktop-mcp` entry to `claude_desktop_config.json`, restart Claude Desktop, and the server registers as an MCP stdio server with no JSON-RPC protocol errors visible in `~/Library/Logs/Claude/mcp-server-whatsapp.log`.
   2. From Claude Desktop, the user can invoke a `doctor`-style preflight tool (or equivalent ping) and receive a structured response — never a Python traceback — that names which macOS permissions are missing (`FullDiskAccessRequired` / `AutomationPermissionRequired` / `AccessibilityPermissionRequired`) along with the exact binary path to grant and a `x-apple.systempreferences:` deep-link.
   3. CI runs a stdout-purity test that spawns the server, sends `initialize` plus a sample tool call, and fails if any non-JSON-RPC byte hits stdout; ruff's `T201` rule blocks `print` statements at lint time.
   4. The published README opens with a WhatsApp ToS / account-ban disclaimer and a 60-second `uvx`-based quickstart, framed as "this is your personal account, not a bot."
@@ -64,7 +64,7 @@ Plans:
   1. `send_message` accepts only an opaque `chat_id` previously returned by `search_contacts` or `list_chats` — passing a free-form name string returns a structured `InvalidChatId` error and never sends anything.
   2. Before any send fires, the user sees an MCP elicitation prompt that displays the resolved chat name, recipient JID/LID, and the message body verbatim; declining cancels cleanly with a structured cancellation result, and the cross-chat-quote heuristic surfaces an extra warning when the body matches content recently read from a different chat.
   3. A successful 1:1 send via the `whatsapp://send?phone=…&text=…` deep-link + `osascript` keystroke-return path completes within the 15s per-tool timeout, is verified post-hoc by polling `ZWAMESSAGE` for a new outgoing row matching the body within 10s, and returns the resulting `ZSTANZAID` as `message_id`; group-chat sends use the documented search-and-click fallback and either succeed or return a structured error.
-  4. The default rate limiter (5 sends/min, 30 sends/day) trips with a structured error response — never silently dropping — and every send attempt (success or failure) appends a single line to `~/Library/Logs/whatsapp-mcp/audit.log` (mode 0600) recording timestamp, resolved chat_id + name, body hash, and outcome.
+  4. The default rate limiter (5 sends/min, 30 sends/day) trips with a structured error response — never silently dropping — and every send attempt (success or failure) appends a single line to `~/Library/Logs/whatsapp-desktop-mcp/audit.log` (mode 0600) recording timestamp, resolved chat_id + name, body hash, and outcome.
   5. The pre-send AX-API state assertion verifies the focused window's chat header matches the resolved chat name and aborts on mismatch (defending against the invisible-LRM trap and wrong-chat fuzzy-search class of bugs).
 **Plans:** 5 plans
 Plans:
@@ -81,7 +81,7 @@ Plans:
 **Depends on:** Phase 2
 **Requirements:** DIST-02, DIST-03
 **Success Criteria** (what must be TRUE):
-  1. A clean macOS machine can install the project via a Developer-ID-signed, notarized `.pkg` (and/or `brew install whatsapp-mcp`) that drops the launcher binary at a stable absolute path (e.g. `/usr/local/bin/whatsapp-mcp`), and re-installing or upgrading does not require re-granting any TCC permission.
+  1. A clean macOS machine can install the project via a Developer-ID-signed, notarized `.pkg` (and/or `brew install whatsapp-desktop-mcp`) that drops the launcher binary at a stable absolute path (e.g. `/usr/local/bin/whatsapp-desktop-mcp`), and re-installing or upgrading does not require re-granting any TCC permission.
   2. The README's quickstart documents platform requirements (macOS only, WhatsApp Desktop Catalyst build, Python 3.12+ when user-installed), enumerates the three TCC buckets (FDA / Accessibility / Automation) with screenshots, and points users at both the `.pkg`/brew install path (recommended) and the `uvx` path (developer-only, with the TCC-churn caveat).
   3. A `tested_versions.md` document lists known-good WhatsApp Desktop versions and a `RUN_LIVE_WHATSAPP=1`-gated integration smoke suite exercises `doctor`, one read tool, and one send tool against a real WhatsApp install before each release.
   4. `search_messages` is upgraded from the v0.1 `LIKE` implementation to an FTS5 shadow index (built lazily on first run, refreshed incrementally) — verifiable by ranked, sub-second results on a 100k-message corpus where v0.1 LIKE was visibly slow.

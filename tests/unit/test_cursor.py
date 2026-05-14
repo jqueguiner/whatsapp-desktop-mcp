@@ -1,6 +1,6 @@
 """Cursor codec round-trip + tampering tests (W2 widened anchor_kind discriminator).
 
-Plan 01-01 ships :func:`whatsapp_mcp.models.encode_cursor` /
+Plan 01-01 ships :func:`whatsapp_desktop_mcp.models.encode_cursor` /
 :func:`decode_cursor` with the W2-widened ``anchor_kind`` discriminator
 (``z_sort`` for ``read_chat`` / ``cocoa_ts`` for ``search_messages``).
 This file exercises:
@@ -22,7 +22,7 @@ import json
 
 import pytest
 
-from whatsapp_mcp.models import CursorError, decode_cursor, encode_cursor
+from whatsapp_desktop_mcp.models import CursorError, decode_cursor, encode_cursor
 
 
 def _b64(payload: object) -> str:

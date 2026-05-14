@@ -4,7 +4,7 @@ CLAUDE.md §1 hard architectural rule: ``reader/`` and ``sender/`` isolate the
 two highest-volatility surfaces (DB schema vs UI) and the tool layer is the
 only integration point. A test that asserts this by structure (not by
 convention) catches any drift the moment a future executor types
-``from whatsapp_mcp.sender import ...`` inside the reader package.
+``from whatsapp_desktop_mcp.sender import ...`` inside the reader package.
 
 Phase 0 originally shipped both packages as empty placeholder ``__init__.py``
 files, so the file-scan assertions were vacuously true. Phase 1 Plan 02
@@ -13,8 +13,8 @@ filled ``reader/`` with 10 modules — the AST walk in
 (the walk has real source to inspect). The Phase 0 ``str-in-content``
 assertions are preserved AND extended with a real :func:`ast.walk` over
 every reader module's ``Import`` / ``ImportFrom`` nodes — the AST form
-catches a ``from whatsapp_mcp.sender.foo import bar`` even if the literal
-``"from whatsapp_mcp.sender"`` substring would not appear contiguously
+catches a ``from whatsapp_desktop_mcp.sender.foo import bar`` even if the literal
+``"from whatsapp_desktop_mcp.sender"`` substring would not appear contiguously
 (e.g. across line continuations).
 
 A new positive-whitelist test enforces that ``reader/`` only imports from
@@ -28,13 +28,13 @@ import ast
 import importlib.util
 from pathlib import Path
 
-import whatsapp_mcp.reader
-import whatsapp_mcp.sender
+import whatsapp_desktop_mcp.reader
+import whatsapp_desktop_mcp.sender
 
-# Allow-list for ``reader/*.py`` whatsapp_mcp.* imports. Drift outside this
+# Allow-list for ``reader/*.py`` whatsapp_desktop_mcp.* imports. Drift outside this
 # set is caught by :func:`test_reader_imports_models_paths_time_only`.
 # ``reader`` itself is allowed for intra-package imports
-# (e.g. ``from whatsapp_mcp.reader.connection import open_ro`` inside a
+# (e.g. ``from whatsapp_desktop_mcp.reader.connection import open_ro`` inside a
 # sibling reader module).
 _ALLOWED_READER_INTERNAL_IMPORTS: frozenset[str] = frozenset(
     {"models", "paths", "time", "exceptions", "reader"}
@@ -48,11 +48,11 @@ _ALLOWED_SENDER_TO_READER_IMPORTS: frozenset[str] = frozenset({"connection"})
 
 # Tools layer is the documented MCP integration point and MAY import from
 # both reader and sender. This allow-list exists to prevent accidental
-# REVERSE drift (e.g. tools/ importing from a yet-unminted ``whatsapp_mcp.foo``
+# REVERSE drift (e.g. tools/ importing from a yet-unminted ``whatsapp_desktop_mcp.foo``
 # sub-package) without restricting the legitimate read+send composition pattern.
-# ``server`` is here because tools/*.py import ``from whatsapp_mcp.server
+# ``server`` is here because tools/*.py import ``from whatsapp_desktop_mcp.server
 # import mcp`` for @mcp.tool registration; ``tools`` is here for intra-package
-# imports like ``from whatsapp_mcp.tools._decorators import timeout``;
+# imports like ``from whatsapp_desktop_mcp.tools._decorators import timeout``;
 # ``permissions`` is here because doctor.py composes the TCC probes.
 _TOOLS_ALLOWED_INTERNAL_IMPORTS: frozenset[str] = frozenset(
     {
@@ -106,13 +106,13 @@ def _imported_dotted_names(py_file: Path) -> list[str]:
 
 
 def test_isolation_reader_imports_independently() -> None:
-    """``import whatsapp_mcp.reader`` succeeds in isolation."""
-    assert whatsapp_mcp.reader is not None
+    """``import whatsapp_desktop_mcp.reader`` succeeds in isolation."""
+    assert whatsapp_desktop_mcp.reader is not None
 
 
 def test_isolation_sender_imports_independently() -> None:
-    """``import whatsapp_mcp.sender`` succeeds in isolation."""
-    assert whatsapp_mcp.sender is not None
+    """``import whatsapp_desktop_mcp.sender`` succeeds in isolation."""
+    assert whatsapp_desktop_mcp.sender is not None
 
 
 def test_isolation_reader_does_not_import_sender() -> None:
@@ -120,14 +120,14 @@ def test_isolation_reader_does_not_import_sender() -> None:
 
     Two-layer check:
     1. String scan (Phase 0 — preserved verbatim) catches the obvious
-       ``from whatsapp_mcp.sender`` and ``import whatsapp_mcp.sender``
+       ``from whatsapp_desktop_mcp.sender`` and ``import whatsapp_desktop_mcp.sender``
        substrings.
     2. AST walk (Phase 1 — load-bearing now that ``reader/`` has 10
        modules) catches any module whose ``ast.Import`` / ``ast.ImportFrom``
        node references the sender package — including line-wrapped or
        aliased forms the substring scan would miss.
     """
-    reader_dir = _package_dir("whatsapp_mcp.reader")
+    reader_dir = _package_dir("whatsapp_desktop_mcp.reader")
     py_files = list(reader_dir.rglob("*.py"))
     # Phase 1 Plan 02 ships 10 reader modules; the test would be vacuously
     # true if the walk found zero files (that would mean the package was
@@ -140,16 +140,16 @@ def test_isolation_reader_does_not_import_sender() -> None:
     for py_file in py_files:
         # Layer 1: Phase 0 string scan (preserved).
         content = py_file.read_text(encoding="utf-8")
-        assert "from whatsapp_mcp.sender" not in content, (
-            f"REL-05 violation: {py_file} imports from whatsapp_mcp.sender"
+        assert "from whatsapp_desktop_mcp.sender" not in content, (
+            f"REL-05 violation: {py_file} imports from whatsapp_desktop_mcp.sender"
         )
-        assert "import whatsapp_mcp.sender" not in content, (
-            f"REL-05 violation: {py_file} imports whatsapp_mcp.sender"
+        assert "import whatsapp_desktop_mcp.sender" not in content, (
+            f"REL-05 violation: {py_file} imports whatsapp_desktop_mcp.sender"
         )
 
         # Layer 2: Phase 1 load-bearing AST walk.
         for dotted in _imported_dotted_names(py_file):
-            assert not dotted.startswith("whatsapp_mcp.sender"), (
+            assert not dotted.startswith("whatsapp_desktop_mcp.sender"), (
                 f"REL-05 violation (AST): {py_file} imports {dotted!r}"
             )
 
@@ -159,7 +159,7 @@ def test_isolation_sender_does_not_import_reader() -> None:
 
     Phase 1 ran this assertion vacuously (``sender/`` was empty). Phase 2
     Plan 02-03 introduces ONE allowed edge — ``sender/verify.py`` imports
-    ``from whatsapp_mcp.reader.connection import open_ro`` for the
+    ``from whatsapp_desktop_mcp.reader.connection import open_ro`` for the
     post-hoc DB verify poll. No other reader submodule is allowed; this
     test asserts that surgical narrowness via the
     :data:`_ALLOWED_SENDER_TO_READER_IMPORTS` allow-list (frozenset of
@@ -173,27 +173,27 @@ def test_isolation_sender_does_not_import_reader() -> None:
     Two-layer check (mirror of the reader-side test):
 
     1. Substring scan — forbids the package-level
-       ``from whatsapp_mcp.reader import ...`` form (which would pull
+       ``from whatsapp_desktop_mcp.reader import ...`` form (which would pull
        the data-tier re-export surface).
-    2. AST walk — every ``whatsapp_mcp.reader.*`` dotted name found
+    2. AST walk — every ``whatsapp_desktop_mcp.reader.*`` dotted name found
        across ``sender/*.py`` must have its second-after-``reader``
        component in :data:`_ALLOWED_SENDER_TO_READER_IMPORTS`.
     """
-    sender_dir = _package_dir("whatsapp_mcp.sender")
+    sender_dir = _package_dir("whatsapp_desktop_mcp.sender")
     violations: list[str] = []
     for py_file in sender_dir.rglob("*.py"):
         # Layer 1: substring scan — forbid the package-level form
-        # ``from whatsapp_mcp.reader import ...`` (which would pull
+        # ``from whatsapp_desktop_mcp.reader import ...`` (which would pull
         # the data-tier re-export surface). The narrow
-        # ``from whatsapp_mcp.reader.connection import ...`` form is
+        # ``from whatsapp_desktop_mcp.reader.connection import ...`` form is
         # the only sanctioned shape and is checked at Layer 2.
         content = py_file.read_text(encoding="utf-8")
-        assert "from whatsapp_mcp.reader import" not in content, (
+        assert "from whatsapp_desktop_mcp.reader import" not in content, (
             f"REL-05 D-24 violation: {py_file} imports from the "
             "read-side package-level surface; only "
             f"submodules in {sorted(_ALLOWED_SENDER_TO_READER_IMPORTS)} are permitted"
         )
-        assert "import whatsapp_mcp.reader\n" not in content + "\n", (
+        assert "import whatsapp_desktop_mcp.reader\n" not in content + "\n", (
             f"REL-05 D-24 violation: {py_file} imports the read-side package as a whole"
         )
 
@@ -201,13 +201,13 @@ def test_isolation_sender_does_not_import_reader() -> None:
         # are those whose second-after-``reader`` component is in the
         # ``_ALLOWED_SENDER_TO_READER_IMPORTS`` allow-list.
         for dotted in _imported_dotted_names(py_file):
-            if not dotted.startswith("whatsapp_mcp.reader"):
+            if not dotted.startswith("whatsapp_desktop_mcp.reader"):
                 continue
             parts = dotted.split(".")
-            # parts = ["whatsapp_mcp", "reader", "<submodule>", ...]
+            # parts = ["whatsapp_desktop_mcp", "reader", "<submodule>", ...]
             # parts[2] is the submodule name (e.g. "connection").
             if len(parts) < 3:
-                # Bare ``whatsapp_mcp.reader`` — rejected (pulls package surface).
+                # Bare ``whatsapp_desktop_mcp.reader`` — rejected (pulls package surface).
                 violations.append(
                     f"{py_file}: imports {dotted!r} (package-level reader import forbidden)"
                 )
@@ -232,19 +232,19 @@ def test_reader_imports_models_paths_time_only() -> None:
     ``sender/`` — any non-allow-listed sub-package import surfaces here as
     a structured failure message naming the offending file + dotted name.
     External imports (``sqlite3``, ``asyncio``, ``pydantic``, etc.) are
-    untouched — only ``whatsapp_mcp.*`` imports are scrutinised.
+    untouched — only ``whatsapp_desktop_mcp.*`` imports are scrutinised.
     """
-    reader_dir = _package_dir("whatsapp_mcp.reader")
+    reader_dir = _package_dir("whatsapp_desktop_mcp.reader")
     violations: list[str] = []
     for py_file in reader_dir.rglob("*.py"):
         for dotted in _imported_dotted_names(py_file):
-            if not dotted.startswith("whatsapp_mcp"):
+            if not dotted.startswith("whatsapp_desktop_mcp"):
                 continue
-            # ``whatsapp_mcp`` itself is allowed (the package re-export
-            # surface — e.g. ``from whatsapp_mcp.models import Chat``).
+            # ``whatsapp_desktop_mcp`` itself is allowed (the package re-export
+            # surface — e.g. ``from whatsapp_desktop_mcp.models import Chat``).
             parts = dotted.split(".")
             if len(parts) < 2:
-                # Plain ``import whatsapp_mcp`` — fine, harmless.
+                # Plain ``import whatsapp_desktop_mcp`` — fine, harmless.
                 continue
             sub_pkg = parts[1]  # the second component, e.g. "models"
             if sub_pkg not in _ALLOWED_READER_INTERNAL_IMPORTS:
@@ -264,7 +264,7 @@ def test_isolation_tools_may_import_both() -> None:
     Positive allow-list test (mirror of
     :func:`test_reader_imports_models_paths_time_only`) so future drift
     into forbidden sub-packages — e.g. a stray
-    ``from whatsapp_mcp.foo import bar`` snuck into a tool file —
+    ``from whatsapp_desktop_mcp.foo import bar`` snuck into a tool file —
     surfaces with a structured failure naming the offending file +
     dotted name. The allow-list deliberately includes BOTH ``reader``
     and ``sender`` (the documented integration pattern); the
@@ -272,15 +272,15 @@ def test_isolation_tools_may_import_both() -> None:
     full sender composition in ``send_message.py`` are the load-bearing
     use cases this test sanctions.
     """
-    tools_dir = _package_dir("whatsapp_mcp.tools")
+    tools_dir = _package_dir("whatsapp_desktop_mcp.tools")
     violations: list[str] = []
     for py_file in tools_dir.rglob("*.py"):
         for dotted in _imported_dotted_names(py_file):
-            if not dotted.startswith("whatsapp_mcp"):
+            if not dotted.startswith("whatsapp_desktop_mcp"):
                 continue
             parts = dotted.split(".")
             if len(parts) < 2:
-                # Plain ``import whatsapp_mcp`` — fine.
+                # Plain ``import whatsapp_desktop_mcp`` — fine.
                 continue
             sub_pkg = parts[1]
             if sub_pkg not in _TOOLS_ALLOWED_INTERNAL_IMPORTS:
@@ -310,11 +310,11 @@ def test_sender_to_reader_edge_is_exactly_one_file() -> None:
     The plan-level intent is W-5 (Plan 02-04 must_have): "the
     sender→reader.connection edge MUST be exactly one file".
     """
-    sender_dir = _package_dir("whatsapp_mcp.sender")
+    sender_dir = _package_dir("whatsapp_desktop_mcp.sender")
     files_with_edge: list[str] = []
     for py_file in sender_dir.rglob("*.py"):
         for dotted in _imported_dotted_names(py_file):
-            if dotted.startswith("whatsapp_mcp.reader"):
+            if dotted.startswith("whatsapp_desktop_mcp.reader"):
                 files_with_edge.append(py_file.name)
                 break  # one edge per file is enough to surface this file
     # Dedup since a single file may import reader.connection multiple times.

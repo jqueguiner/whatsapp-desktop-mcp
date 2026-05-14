@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 from pytest_subprocess.fake_process import FakeProcess
 
-from whatsapp_mcp.permissions.osascript import run_osascript
+from whatsapp_desktop_mcp.permissions.osascript import run_osascript
 
 
 @pytest.mark.asyncio

@@ -26,8 +26,8 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from whatsapp_mcp.sender import audit
-from whatsapp_mcp.sender.audit import AuditEntry, Outcome, body_sha256
+from whatsapp_desktop_mcp.sender import audit
+from whatsapp_desktop_mcp.sender.audit import AuditEntry, Outcome, body_sha256
 
 # ---------------------------------------------------------------------------
 # D-13 SCHEMA-LEVEL STRUCTURAL invariant — no body field, ever

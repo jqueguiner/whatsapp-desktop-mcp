@@ -37,11 +37,11 @@ from unittest import mock
 
 import pytest
 
-from whatsapp_mcp import server
-from whatsapp_mcp.exceptions import FullDiskAccessRequired
-from whatsapp_mcp.models.contact import Jid
-from whatsapp_mcp.models.message import Message
-from whatsapp_mcp.tools import search_messages as search_messages_module
+from whatsapp_desktop_mcp import server
+from whatsapp_desktop_mcp.exceptions import FullDiskAccessRequired
+from whatsapp_desktop_mcp.models.contact import Jid
+from whatsapp_desktop_mcp.models.message import Message
+from whatsapp_desktop_mcp.tools import search_messages as search_messages_module
 
 
 def _make_message(message_id: str, body: str, chat_id: int = 1) -> Message:
@@ -93,9 +93,9 @@ def reset_fts5_mode() -> Any:
 
 def test_server_fts5_mode_defaults_to_auto() -> None:
     """``server.fts5_mode`` is ``"auto"`` at module import time (D-29)."""
-    import whatsapp_mcp.server
+    import whatsapp_desktop_mcp.server
 
-    assert whatsapp_mcp.server.fts5_mode == "auto"
+    assert whatsapp_desktop_mcp.server.fts5_mode == "auto"
 
 
 # ---------------------------------------------------------------------------
@@ -110,17 +110,17 @@ def test_cli_fts5_mode_force_sets_module_attr_before_run(reset_fts5_mode: Any) -
     We mock ``mcp.run`` so the JSON-RPC loop never starts; the assertion
     checks the module attr observed AT the moment ``run`` would have fired.
     """
-    from whatsapp_mcp import cli
+    from whatsapp_desktop_mcp import cli
 
     observed: dict[str, str] = {}
 
     def fake_run() -> None:
         # Observe the attr at the moment server.run() would fire.
-        import whatsapp_mcp.server as srv
+        import whatsapp_desktop_mcp.server as srv
 
         observed["fts5_mode"] = srv.fts5_mode
 
-    with mock.patch("whatsapp_mcp.server.mcp.run", side_effect=fake_run):
+    with mock.patch("whatsapp_desktop_mcp.server.mcp.run", side_effect=fake_run):
         rc = cli.main(["--fts5-mode", "force", "--read-only"])
     assert rc == 0
     assert observed["fts5_mode"] == "force"
@@ -128,16 +128,16 @@ def test_cli_fts5_mode_force_sets_module_attr_before_run(reset_fts5_mode: Any) -
 
 def test_cli_fts5_mode_disable_sets_module_attr(reset_fts5_mode: Any) -> None:
     """``main(["--fts5-mode", "disable"])`` mutates ``server.fts5_mode`` to "disable"."""
-    from whatsapp_mcp import cli
+    from whatsapp_desktop_mcp import cli
 
     observed: dict[str, str] = {}
 
     def fake_run() -> None:
-        import whatsapp_mcp.server as srv
+        import whatsapp_desktop_mcp.server as srv
 
         observed["fts5_mode"] = srv.fts5_mode
 
-    with mock.patch("whatsapp_mcp.server.mcp.run", side_effect=fake_run):
+    with mock.patch("whatsapp_desktop_mcp.server.mcp.run", side_effect=fake_run):
         rc = cli.main(["--fts5-mode", "disable", "--read-only"])
     assert rc == 0
     assert observed["fts5_mode"] == "disable"
@@ -150,7 +150,7 @@ def test_cli_fts5_mode_disable_sets_module_attr(reset_fts5_mode: Any) -> None:
 
 def test_cli_rejects_unknown_fts5_mode_value() -> None:
     """``--fts5-mode bogus`` exits 2 (argparse choices error)."""
-    from whatsapp_mcp import cli
+    from whatsapp_desktop_mcp import cli
 
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["--fts5-mode", "bogus"])
@@ -160,7 +160,7 @@ def test_cli_rejects_unknown_fts5_mode_value() -> None:
 def test_cli_help_includes_fts5_mode_flag() -> None:
     """``--help`` exit-0 output includes the ``--fts5-mode`` flag (defense-in-depth)."""
     proc = subprocess.run(
-        [sys.executable, "-m", "whatsapp_mcp", "--help"],
+        [sys.executable, "-m", "whatsapp_desktop_mcp", "--help"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -185,14 +185,14 @@ async def test_dispatch_auto_sidecar_absent_calls_like_search(
     reset_fts5_mode: Any,
 ) -> None:
     """auto + missing sidecar → ``reader.like_search`` is called, FTS5 is NOT."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "auto"
     monkeypatch.setattr(search_fts5, "_DB_PATH", tmp_path / "missing-fts.sqlite")
 
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     fts_mock = mock.AsyncMock(return_value=[_make_message("S2", "hi from fts")])
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
 
     result = await _call_search_messages(query="hi from")
@@ -214,7 +214,7 @@ async def test_dispatch_auto_sidecar_present_calls_fts5_search(
     reset_fts5_mode: Any,
 ) -> None:
     """auto + existing sidecar → ``search_fts5.fts5_search`` is called, LIKE is NOT."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "auto"
     fts_path = tmp_path / "fts.sqlite"
@@ -223,7 +223,7 @@ async def test_dispatch_auto_sidecar_present_calls_fts5_search(
 
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     fts_mock = mock.AsyncMock(return_value=[_make_message("S2", "hi from fts")])
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
 
     result = await _call_search_messages(query="hi from")
@@ -245,7 +245,7 @@ async def test_dispatch_force_sidecar_absent_lazy_builds_then_fts5(
     reset_fts5_mode: Any,
 ) -> None:
     """force + missing sidecar → ``build_or_refresh`` runs, then FTS5 search."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "force"
     monkeypatch.setattr(search_fts5, "_DB_PATH", tmp_path / "missing-fts.sqlite")
@@ -255,7 +255,7 @@ async def test_dispatch_force_sidecar_absent_lazy_builds_then_fts5(
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     monkeypatch.setattr(search_fts5, "build_or_refresh", build_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
 
     result = await _call_search_messages(query="hi from")
     assert result["count"] == 1
@@ -277,7 +277,7 @@ async def test_dispatch_disable_always_uses_like(
     reset_fts5_mode: Any,
 ) -> None:
     """disable + sidecar present → LIKE still runs, FTS5 untouched."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "disable"
     fts_path = tmp_path / "fts.sqlite"
@@ -286,7 +286,7 @@ async def test_dispatch_disable_always_uses_like(
 
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "hi from like")])
     fts_mock = mock.AsyncMock(return_value=[_make_message("S2", "hi from fts")])
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
 
     result = await _call_search_messages(query="hi from")
@@ -308,7 +308,7 @@ async def test_dispatch_fts5_operational_error_falls_back_to_like(
     reset_fts5_mode: Any,
 ) -> None:
     """FTS5 dispatch + sqlite3.OperationalError → log warning, retry via LIKE."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "auto"
     fts_path = tmp_path / "fts.sqlite"
@@ -319,7 +319,7 @@ async def test_dispatch_fts5_operational_error_falls_back_to_like(
     fts_mock = mock.AsyncMock(side_effect=boom)
     like_mock = mock.AsyncMock(return_value=[_make_message("S1", "fallback hit")])
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
 
     result = await _call_search_messages(query="fallback hit")
     assert result["count"] == 1
@@ -340,19 +340,19 @@ async def test_full_disk_access_required_mapping_unchanged_under_like(
     reset_fts5_mode: Any,
 ) -> None:
     """LIKE branch surfaces FullDiskAccessRequired as a structured ValueError."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "disable"  # ensure LIKE path
     monkeypatch.setattr(search_fts5, "_DB_PATH", tmp_path / "missing-fts.sqlite")
 
     fda = FullDiskAccessRequired(
         "FDA needed",
-        binary_path="/usr/local/bin/whatsapp-mcp",
+        binary_path="/usr/local/bin/whatsapp-desktop-mcp",
         db_path="/Users/x/Library/.../ChatStorage.sqlite",
         remediation="grant in System Settings",
     )
     like_mock = mock.AsyncMock(side_effect=fda)
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
 
     with pytest.raises(ValueError) as excinfo:
         await _call_search_messages(query="anything")
@@ -366,7 +366,7 @@ async def test_full_disk_access_required_mapping_unchanged_under_fts5(
     reset_fts5_mode: Any,
 ) -> None:
     """FTS5 branch also surfaces FullDiskAccessRequired as a structured ValueError."""
-    from whatsapp_mcp.reader import search_fts5
+    from whatsapp_desktop_mcp.reader import search_fts5
 
     server.fts5_mode = "auto"
     fts_path = tmp_path / "fts.sqlite"
@@ -375,7 +375,7 @@ async def test_full_disk_access_required_mapping_unchanged_under_fts5(
 
     fda = FullDiskAccessRequired(
         "FDA needed",
-        binary_path="/usr/local/bin/whatsapp-mcp",
+        binary_path="/usr/local/bin/whatsapp-desktop-mcp",
         db_path="/Users/x/Library/.../ChatStorage.sqlite",
         remediation="grant in System Settings",
     )
@@ -383,7 +383,7 @@ async def test_full_disk_access_required_mapping_unchanged_under_fts5(
     monkeypatch.setattr(search_fts5, "fts5_search", fts_mock)
     # Belt-and-braces: ensure the LIKE fallback is NOT consulted on FDA.
     like_mock = mock.AsyncMock(return_value=[])
-    monkeypatch.setattr("whatsapp_mcp.reader.like_search", like_mock)
+    monkeypatch.setattr("whatsapp_desktop_mcp.reader.like_search", like_mock)
 
     with pytest.raises(ValueError) as excinfo:
         await _call_search_messages(query="anything")

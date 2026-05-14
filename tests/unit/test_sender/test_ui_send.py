@@ -22,8 +22,8 @@ import time
 
 import pytest
 
-from whatsapp_mcp.exceptions import ChatHeaderMismatch
-from whatsapp_mcp.sender import ui_send
+from whatsapp_desktop_mcp.exceptions import ChatHeaderMismatch
+from whatsapp_desktop_mcp.sender import ui_send
 
 # ---------------------------------------------------------------------------
 # Call-order recorder
@@ -59,7 +59,7 @@ def _install_call_log(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         call_log.append("run_osascript")
         # Mimic the OsascriptResult shape minimally for the group fallback's
         # activate / Cmd-F calls (caller doesn't inspect the result).
-        from whatsapp_mcp.permissions.osascript import OsascriptResult
+        from whatsapp_desktop_mcp.permissions.osascript import OsascriptResult
 
         return OsascriptResult(exit_code=0, stdout="", stderr="", error_code=None)
 
@@ -257,7 +257,7 @@ async def test_send_group_via_search_AX_preflight_on_search_results(
 
     async def fake_run_osascript(*_args: object, **_kwargs: object) -> object:
         call_log.append("run_osascript")
-        from whatsapp_mcp.permissions.osascript import OsascriptResult
+        from whatsapp_desktop_mcp.permissions.osascript import OsascriptResult
 
         return OsascriptResult(exit_code=0, stdout="", stderr="", error_code=None)
 

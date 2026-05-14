@@ -5,25 +5,25 @@ subsystem: distribution-and-onboarding
 tags: [github-actions, ci, release, pypi, oidc, trusted-publisher, uv-publish, readme, claude-desktop, tos-disclaimer]
 dependency_graph:
   requires:
-    - "Plan 01: `pyproject.toml` with `[project.scripts] whatsapp-mcp = 'whatsapp_mcp.cli:main'` (the console script `uvx whatsapp-mcp` and `examples/claude_desktop_config.json` resolve through); `[project.optional-dependencies].dev` carries `pyyaml>=6` (the structural assertions on `release.yml` import yaml); `[tool.hatch.build.targets.wheel] packages = ['src/whatsapp_mcp']` (the `uv build` step in `release.yml` produces a wheel installable via `uvx`)"
-    - "Plan 02: FastMCP stdio server + `python -m whatsapp_mcp` shim + argparse CLI — the runtime the README's quickstart targets (step 3 'call the WhatsApp doctor tool' depends on this server registering with Claude Desktop without protocol errors)"
+    - "Plan 01: `pyproject.toml` with `[project.scripts] whatsapp-desktop-mcp = 'whatsapp_desktop_mcp.cli:main'` (the console script `uvx whatsapp-desktop-mcp` and `examples/claude_desktop_config.json` resolve through); `[project.optional-dependencies].dev` carries `pyyaml>=6` (the structural assertions on `release.yml` import yaml); `[tool.hatch.build.targets.wheel] packages = ['src/whatsapp_desktop_mcp']` (the `uv build` step in `release.yml` produces a wheel installable via `uvx`)"
+    - "Plan 02: FastMCP stdio server + `python -m whatsapp_desktop_mcp` shim + argparse CLI — the runtime the README's quickstart targets (step 3 'call the WhatsApp doctor tool' depends on this server registering with Claude Desktop without protocol errors)"
     - "Plan 03: `doctor` MCP tool with `readOnlyHint=True`; structured `DoctorReport` payload with `binary_path`/`db_path`/`system_settings_url`/`remediation` per bucket — the surface the README's quickstart step 4 ('follow the System Settings deep-links') depends on. The structured remediation is what Claude Desktop will show the user."
     - "Plan 04: 28-test pytest suite (`uv run pytest -m 'not live'` in 0.86 s on macos-14) — the CI step `uv run pytest -m \"not live\"` invokes this suite. The stdout-purity test (SETUP-03 CI gate) is now wired into every push and PR."
   provides:
-    - "SETUP-01 CLOSED: `examples/claude_desktop_config.json` is the canonical single-line install snippet (4-line JSON object inside `{mcpServers: {whatsapp: {command: 'uvx', args: ['whatsapp-mcp']}}}`); the README's Quickstart step 1 is the user's path to install in under 60 seconds"
+    - "SETUP-01 CLOSED: `examples/claude_desktop_config.json` is the canonical single-line install snippet (4-line JSON object inside `{mcpServers: {whatsapp: {command: 'uvx', args: ['whatsapp-desktop-mcp']}}}`); the README's Quickstart step 1 is the user's path to install in under 60 seconds"
     - "SETUP-05 CLOSED: README opens with the locked-D-20 WhatsApp ToS automation-risk blockquote (account-ban warning + conservative rate-limits 5 sends/min, 30 sends/day; user accepts the risk); D-22 'personal account, not a bot' framing inline; D-21 four-step quickstart ending in the live `doctor` tool call"
     - "DIST-01 wired at the workflow level (closes once the trusted-publisher PyPI config is done + first `git tag v0.1.0 && git push --tags` runs end-to-end): `.github/workflows/release.yml` triggers on `tags: ['v*']`, calls `ci.yml` as a reusable workflow, then a `publish` job with `permissions: id-token: write` (job-level only, P-PHASE0-04) runs `uv build` + `uv publish` over an OIDC handshake — no long-lived PyPI credential in the repo"
     - "Continuous integration: `.github/workflows/ci.yml` runs on every push to main + every PR; macos-14 / setup-uv@v8 / Python 3.12; ordered `uv sync --extra dev` → `uv run ruff check` → `uv run ruff format --check` → `uv run mypy` → `uv run pytest -m 'not live'`. The SETUP-03 stdout-purity test is exercised inside the pytest step — no separate gate needed."
     - "Threat-model coverage T-00-15 through T-00-20 (release.yml + README + examples) verified by the same `<verify>` greps + YAML-parse gates from the plan, plus a job-level `permissions:` assertion (P-PHASE0-04 explicit)"
   affects:
     - "Phase 0 verification (`/gsd-verify-work` step): Plan 05 closes the 'developer can paste a 4-line snippet into claude_desktop_config.json, restart, call `doctor`' user-visible vertical slice. The four ROADMAP §'Phase 0' success criteria are now all met (1→Plan 02; 2→Plan 03; 3→Plan 04 stdout-purity CI test + ruff T201 since Plan 01; 4→Plan 05 README ToS + 60s quickstart)."
-    - "First release: After this plan merges, the maintainer can ship v0.1.0 with the documented procedure — (a) configure the trusted-publisher pending publisher on PyPI (Owner=`gladia`, Repo=`whatsapp-mcp`, Workflow=`release.yml`, Environment=`pypi`), (b) `git tag v0.1.0 && git push --tags`. release.yml's `ci` job runs first; on green, `publish` builds + uploads via OIDC."
+    - "First release: After this plan merges, the maintainer can ship v0.1.0 with the documented procedure — (a) configure the trusted-publisher pending publisher on PyPI (Owner=`gladia`, Repo=`whatsapp-desktop-mcp`, Workflow=`release.yml`, Environment=`pypi`), (b) `git tag v0.1.0 && git push --tags`. release.yml's `ci` job runs first; on green, `publish` builds + uploads via OIDC."
     - "Phase 1+: every PR will run `ci.yml` from this plan. The reader/sender package work will land against a known-green baseline (28 tests pass on macos-14 in <1 s, plus all lint + format + mypy gates)."
 tech_stack:
   added:
     - "GitHub Actions: `actions/checkout@v4`, `astral-sh/setup-uv@v8` — pinned major-version actions only, no `@master` or `@main` refs (T-00-17 mitigation)"
     - "GitHub Actions reusable workflows (`uses: ./.github/workflows/ci.yml` from `release.yml`) — the publish job depends on CI passing; failure on CI blocks publish without a separate gate"
-    - "GitHub Actions environments — `environment: { name: pypi, url: https://pypi.org/p/whatsapp-mcp }` on the publish job; PyPI's trusted-publisher binding matches `Environment: pypi` (the manual one-time setup documented in README)"
+    - "GitHub Actions environments — `environment: { name: pypi, url: https://pypi.org/p/whatsapp-desktop-mcp }` on the publish job; PyPI's trusted-publisher binding matches `Environment: pypi` (the manual one-time setup documented in README)"
     - "`uv publish` — uv 0.5+ native trusted-publisher support; no `--token` argument, no `pypa/gh-action-pypi-publish` step; OIDC handshake is transparent"
     - "GitHub Actions concurrency groups (`group: ${{ github.workflow }}-${{ github.ref }}, cancel-in-progress: true`) — saves CI minutes when a PR force-pushes; in-flight runs against the same ref cancel each other"
   patterns:
@@ -70,7 +70,7 @@ Shipped the distribution-and-onboarding surface that closes Phase 0: `.github/wo
 
 ## Accomplishments
 
-- **CI pipeline live** — every push to `main` and every PR runs `ruff check src tests` + `ruff format --check src tests` + `mypy` + `pytest -m "not live"` on macos-14 / Python 3.12 via `astral-sh/setup-uv@v8`. The SETUP-03 stdout-purity test (which spawns `python -m whatsapp_mcp` and asserts every byte on stdout is a JSON-RPC 2.0 frame after a full `initialize → tools/list → tools/call doctor` handshake) is exercised inside the pytest step — no separate gate, the SETUP-03 invariant is now a hard release-blocker.
+- **CI pipeline live** — every push to `main` and every PR runs `ruff check src tests` + `ruff format --check src tests` + `mypy` + `pytest -m "not live"` on macos-14 / Python 3.12 via `astral-sh/setup-uv@v8`. The SETUP-03 stdout-purity test (which spawns `python -m whatsapp_desktop_mcp` and asserts every byte on stdout is a JSON-RPC 2.0 frame after a full `initialize → tools/list → tools/call doctor` handshake) is exercised inside the pytest step — no separate gate, the SETUP-03 invariant is now a hard release-blocker.
 - **Release pipeline armed** — first `git tag v0.1.0 && git push --tags` will (a) run CI as a reusable workflow, (b) on green, run the `publish` job which builds the wheel + sdist with `uv build` and uploads them with `uv publish` over GitHub OIDC. The PyPI trusted-publisher binding is the only one-time manual step (documented in README's Development section).
 - **README ships the SETUP-05 surface** — opens with the locked-D-20 ToS blockquote (every required clause present: 'automated or bulk messaging' prohibition, 'irrecoverable account ban' risk, conservative rate limits 5 sends/minute + 30 sends/day, 'you accept the risk by using it', 'personal account, not a bot'); D-22 framing inline (no mention of WhatsApp Business, even by negation); D-21 four-step quickstart that ends in the live `doctor` tool call (the Phase 0 user-visible vertical slice); Development section documents the one-time PyPI trusted-publisher setup.
 - **examples/claude_desktop_config.json** is the authoritative snippet — 4-line JSON, two-space indentation, trailing newline, no comments. Byte-decodable to the same dict as the JSON code fence in README's Quickstart step 1 (verified by a `json.loads(...) == json.load(...)` round-trip).
@@ -94,12 +94,12 @@ On macos-14 with Python 3.12 (uv-managed), the full sequence runs in ~3-4 second
 
 **One-time PyPI trusted-publisher setup** (manual, before first `git tag v0.1.0`):
 
-1. On PyPI, create (or claim) the project `whatsapp-mcp`.
+1. On PyPI, create (or claim) the project `whatsapp-desktop-mcp`.
 2. Project settings → Publishing → Add a new pending publisher.
 3. Fill in:
-   - **PyPI Project Name:** `whatsapp-mcp`
+   - **PyPI Project Name:** `whatsapp-desktop-mcp`
    - **Owner:** `gladia` (the GitHub org / user that owns the repo)
-   - **Repository name:** `whatsapp-mcp`
+   - **Repository name:** `whatsapp-desktop-mcp`
    - **Workflow name:** `release.yml`
    - **Environment name:** `pypi`
 4. Save.
@@ -119,7 +119,7 @@ git push --tags
 After the first successful upload, the package becomes installable everywhere:
 
 ```sh
-uvx whatsapp-mcp --version    # on any Mac with `uv` installed
+uvx whatsapp-desktop-mcp --version    # on any Mac with `uv` installed
 ```
 
 ## Cross-file consistency
@@ -142,11 +142,11 @@ All plan-level `<verification>` steps pass on the maintainer's Mac (2026-05-13):
 | 1 | `uv run python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); yaml.safe_load(open('.github/workflows/release.yml'))"` | exit 0; both YAML well-formed |
 | 2 | `uv run python -c "import yaml; doc = yaml.safe_load(open('.github/workflows/release.yml')); assert doc['jobs']['publish']['permissions']['id-token'] == 'write'; assert 'permissions' not in doc"` | exit 0 (P-PHASE0-04 enforcement: id-token write at JOB level only, no workflow root permissions block) |
 | 3 | `uv run python -c "import sys; src = open('.github/workflows/release.yml').read(); sys.exit(0 if 'PYPI_TOKEN' not in src and 'password:' not in src else 1)"` | exit 0 (D-17: no API token references) |
-| 4 | `uv run python -c "import json; d = json.load(open('examples/claude_desktop_config.json')); assert d == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-mcp']}}}"` | exit 0 (JSON parses to the canonical dict exactly) |
+| 4 | `uv run python -c "import json; d = json.load(open('examples/claude_desktop_config.json')); assert d == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-desktop-mcp']}}}"` | exit 0 (JSON parses to the canonical dict exactly) |
 | 5 | README content greps (D-20 / D-21 / D-22) | All pass — 'WhatsApp Terms of Service', '5 sends / minute', '30 sends / day', 'personal account, not a bot', 'Quickstart', 'claude_desktop_config.json', 'doctor', 'Full Disk Access', 'Automation', 'Accessibility', 'macOS', 'Python 3.12'; does NOT contain 'WhatsApp Business' / 'whatsmeow' / 'Baileys' / 'HTTP REST' (per `'HTTP REST' not in src.replace('No HTTP/REST', '')`) |
 | 6 | README/examples cross-check (`json.loads(README code fence) == json.load(examples/claude_desktop_config.json)`) | exit 0 (byte-decoded equality) |
 | 7 | `uv run ruff check src tests` + `uv run ruff format --check src tests` + `uv run mypy` + `uv run pytest -m "not live"` | All pass — Plan 05 only touches config + docs, source code untouched; 28 tests in 0.86 s |
-| 8 | Post-publish (deferred until first `git tag v0.1.0`) `uvx whatsapp-mcp --version` on a fresh Mac | Pending the manual one-time PyPI trusted-publisher binding |
+| 8 | Post-publish (deferred until first `git tag v0.1.0`) `uvx whatsapp-desktop-mcp --version` on a fresh Mac | Pending the manual one-time PyPI trusted-publisher binding |
 
 Sampled task-level acceptance criteria (all passed):
 
@@ -163,9 +163,9 @@ Sampled task-level acceptance criteria (all passed):
   - Non-empty line count: 123 (within the 50-200 band) ✓
   - Quickstart section has exactly 4 numbered steps (manually inspected: paste JSON, restart, ask Claude for doctor, follow System Settings deep-links) ✓
 - **Task 3 (examples/claude_desktop_config.json):**
-  - `json.load(open('examples/claude_desktop_config.json')) == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-mcp']}}}` ✓
+  - `json.load(open('examples/claude_desktop_config.json')) == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-desktop-mcp']}}}` ✓
   - Cross-check against README JSON code fence passes ✓
-  - No real user data — generic `uvx whatsapp-mcp` invocation only ✓
+  - No real user data — generic `uvx whatsapp-desktop-mcp` invocation only ✓
 
 ## Commits
 
@@ -194,7 +194,7 @@ All three commits use the `(00-05)` Conventional Commits scope per the executor 
 **1. [Rule 1 - Bug, minor] `release.yml` top-of-file comment re-worded to omit literal tokens `PYPI_TOKEN` and `password:`**
 
 - **Found during:** Task 1 verification (`uv run python -c "import sys; src=open('.github/workflows/release.yml').read(); sys.exit(0 if 'PYPI_TOKEN' not in src and 'PYPI_API_TOKEN' not in src and 'password:' not in src else 1)"` exited 1).
-- **Issue:** First draft of `release.yml` had a top-of-file comment "Reuses ci.yml as a gate (publish job needs: [ci]); no PYPI_TOKEN / password anywhere — auth is by GitHub OIDC...". The verification step uses a strict file-wide grep that does NOT distinguish comment from executable YAML. The acceptance criterion's spirit is "no PyPI credentials anywhere in the executable workflow", but the gate is a literal grep — the gate is the authoritative source of truth (same precedent as Plan 02's `transport=` rewording, Plan 03's `subprocess.run` / `count windows` / `id of application` "exactly-one-match" rewordings, and Plan 03's `from whatsapp_mcp.tools import doctor` gate).
+- **Issue:** First draft of `release.yml` had a top-of-file comment "Reuses ci.yml as a gate (publish job needs: [ci]); no PYPI_TOKEN / password anywhere — auth is by GitHub OIDC...". The verification step uses a strict file-wide grep that does NOT distinguish comment from executable YAML. The acceptance criterion's spirit is "no PyPI credentials anywhere in the executable workflow", but the gate is a literal grep — the gate is the authoritative source of truth (same precedent as Plan 02's `transport=` rewording, Plan 03's `subprocess.run` / `count windows` / `id of application` "exactly-one-match" rewordings, and Plan 03's `from whatsapp_desktop_mcp.tools import doctor` gate).
 - **Fix:** Re-wrote the comment to "Reuses ci.yml as a gate (publish job needs: [ci]); no long-lived secrets anywhere — auth is by GitHub OIDC..." — preserves the explanatory intent (no credentials in repo) without the forbidden literal tokens. Behavior unchanged; the workflow YAML is byte-identical except for the comment.
 - **Files modified:** `.github/workflows/release.yml` (one comment line).
 - **Commit:** Folded into Task 1's commit `7b811dd` (the fix landed before the first commit — the iteration was caught by the verification step pre-commit).
@@ -203,9 +203,9 @@ All three commits use the `(00-05)` Conventional Commits scope per the executor 
 ### Skipped or postponed work
 
 - **PyPI trusted-publisher pending-publisher binding (the manual one-time step):** Documented in README's Development section but not executed in this plan — it requires a logged-in PyPI account and the actual GitHub org/repo name finalized. The maintainer does this once before the first `git tag v0.1.0 && git push --tags`. Without it, the first release will fail with a 403 from PyPI (the OIDC handshake is valid but PyPI has no matching trusted-publisher record); after it, every release is hands-off.
-- **First-release smoke (`uvx whatsapp-mcp --version` on a fresh Mac):** Deferred until v0.1.0 is actually published. This is the DIST-01 acceptance smoke. It will close once (a) the trusted-publisher binding is configured, (b) v0.1.0 tag pushes successfully, (c) PyPI shows the package live.
+- **First-release smoke (`uvx whatsapp-desktop-mcp --version` on a fresh Mac):** Deferred until v0.1.0 is actually published. This is the DIST-01 acceptance smoke. It will close once (a) the trusted-publisher binding is configured, (b) v0.1.0 tag pushes successfully, (c) PyPI shows the package live.
 - **Screenshots for the README's Quickstart / Development sections:** Phase 3 polish per ROADMAP §"Phase 3" success criterion 2 (DIST-02 — "enumerates the three TCC buckets ... with screenshots"). Phase 0's README is text-only by deliberate design — screenshots churn across macOS versions and would create maintenance debt this early in the project.
-- **Real GitHub org name baked into README:** README uses `gladia/whatsapp-mcp` per PROJECT.md's `[project.urls].Homepage = "https://github.com/gladia/whatsapp-mcp"` in pyproject.toml. If the eventual repo lives under a different org, both pyproject.toml and README will need a one-line update — but the value flows from pyproject.toml today, so this is documentation drift, not source-code drift.
+- **Real GitHub org name baked into README:** README uses `gladia/whatsapp-desktop-mcp` per PROJECT.md's `[project.urls].Homepage = "https://github.com/gladia/whatsapp-desktop-mcp"` in pyproject.toml. If the eventual repo lives under a different org, both pyproject.toml and README will need a one-line update — but the value flows from pyproject.toml today, so this is documentation drift, not source-code drift.
 - **`pre-commit` hook config:** Out of scope for Phase 0 per CONTEXT.md (lint/format/type are CI-side; pre-commit is a developer-convenience layer). Phase 3 may add it if a contributor asks.
 
 ## Authentication / human action gates
@@ -221,8 +221,8 @@ Plan 05 ships only CI workflow files, README content, and a static JSON snippet 
 | **T-00-15** (Information disclosure — long-lived PyPI API token leaks via repo history, CI logs, or contributor's local env) | Mitigated — OIDC trusted-publisher means there IS no API token in the repo, the workflow, or any GitHub secret. The plan's automated verify (`'PYPI_TOKEN' not in src and 'PYPI_API_TOKEN' not in src and 'password:' not in src`) is the runtime gate that would catch any future regression that introduces a credential reference. |
 | **T-00-16** (Elevation of privilege — workflow-level `permissions: id-token: write` grants OIDC token write to all jobs) | Mitigated — the plan's YAML-parse verify (`assert doc['jobs']['publish']['permissions']['id-token'] == 'write'; assert 'permissions' not in doc`) is the explicit P-PHASE0-04 gate. A future regression adding a workflow-level permissions block fails this assertion at the next plan execution. |
 | **T-00-17** (Tampering — pinned action becomes vulnerable or `@master` ref silently picks up malicious change) | Mitigated — all actions pinned to a major version tag (`actions/checkout@v4`, `astral-sh/setup-uv@v8`); zero `@master` / `@main` refs anywhere. The "pinned major" cadence is RESEARCH.md's recommendation; minor regressions in v8 land via dependabot review, not silent pickup. |
-| **T-00-18** (Spoofing — typo-squatted package on PyPI like `whatsapp_mcp` underscore variant) | Accept — PyPI's typo-squat detection is what it is; out of Phase 0 scope. README's quickstart cites the exact hyphenated name `whatsapp-mcp` (matching `[project.scripts] whatsapp-mcp` console script), so any divergence would be visible immediately to users. |
-| **T-00-19** (Information disclosure — example claude_desktop_config.json contains a real path or user-identifying value) | Mitigated — snippet uses only `uvx` (literal) and `whatsapp-mcp` (literal); no path, no `/Users/<name>`, no email, no phone number. The plan's runtime verify (`assert d == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-mcp']}}}`) is the deep-equality gate. |
+| **T-00-18** (Spoofing — typo-squatted package on PyPI like `whatsapp_desktop_mcp` underscore variant) | Accept — PyPI's typo-squat detection is what it is; out of Phase 0 scope. README's quickstart cites the exact hyphenated name `whatsapp-desktop-mcp` (matching `[project.scripts] whatsapp-desktop-mcp` console script), so any divergence would be visible immediately to users. |
+| **T-00-19** (Information disclosure — example claude_desktop_config.json contains a real path or user-identifying value) | Mitigated — snippet uses only `uvx` (literal) and `whatsapp-desktop-mcp` (literal); no path, no `/Users/<name>`, no email, no phone number. The plan's runtime verify (`assert d == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-desktop-mcp']}}}`) is the deep-equality gate. |
 | **T-00-20** (Information disclosure — future contributor adds `print()` to trace a CI failure, the stdout-purity test is broken) | Mitigated — the stdout-purity test from Plan 04 IS exercised by ci.yml's `pytest -m "not live"` step on every push and PR; ruff `T201` (Plan 01) blocks `print` at lint time (also in ci.yml). Defense in depth — three independent failure modes (lint, test, code review) would all have to fail for a `print` to land. |
 
 No new security-relevant surface introduced beyond what the threat model already lists. No threat flags to add.
@@ -240,7 +240,7 @@ None. Every file in this plan is fully wired:
 - README has the complete D-20 / D-21 / D-22 surface; the Development section has the complete trusted-publisher setup procedure; no `[FILL IN]` markers.
 - `examples/claude_desktop_config.json` is the complete authoritative snippet; no generic `<your-name-here>` placeholders.
 
-One deferred-but-not-stubbed item: the README cites `gladia/whatsapp-mcp` as the GitHub org/repo, which flows from `pyproject.toml [project.urls].Homepage`. If the project ships under a different org, both pyproject.toml and README will need a coordinated update (documented above under "Skipped or postponed work"). This is metadata drift, not a stub.
+One deferred-but-not-stubbed item: the README cites `gladia/whatsapp-desktop-mcp` as the GitHub org/repo, which flows from `pyproject.toml [project.urls].Homepage`. If the project ships under a different org, both pyproject.toml and README will need a coordinated update (documented above under "Skipped or postponed work"). This is metadata drift, not a stub.
 
 ## Self-Check
 
@@ -265,7 +265,7 @@ Behavioral spot-checks (all on maintainer's Mac, 2026-05-13):
 
 - `uv run python -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); yaml.safe_load(open('.github/workflows/release.yml')); print('YAML OK')"` → `YAML OK` ✓
 - `uv run python -c "import yaml; doc = yaml.safe_load(open('.github/workflows/release.yml')); assert doc['jobs']['publish']['permissions']['id-token'] == 'write'; assert 'permissions' not in doc; print('P-PHASE0-04 OK')"` → `P-PHASE0-04 OK` ✓
-- `uv run python -c "import json; d = json.load(open('examples/claude_desktop_config.json')); assert d == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-mcp']}}}; print('DICT MATCH')"` → `DICT MATCH` ✓
+- `uv run python -c "import json; d = json.load(open('examples/claude_desktop_config.json')); assert d == {'mcpServers': {'whatsapp': {'command': 'uvx', 'args': ['whatsapp-desktop-mcp']}}}; print('DICT MATCH')"` → `DICT MATCH` ✓
 - README cross-check (JSON code fence parses to same dict as examples/claude_desktop_config.json) → `README CROSS-CHECK OK` ✓
 - `uv run ruff check src tests` → "All checks passed!" ✓
 - `uv run mypy` → "Success: no issues found in 31 source files" ✓
@@ -279,9 +279,9 @@ After Plan 05, Phase 0 transitions from "in progress (4/5)" to "complete (5/5)".
 
 | ROADMAP success criterion | Satisfied by | How |
 | ------------------------- | ------------ | --- |
-| 1. Developer adds `uvx whatsapp-mcp` to claude_desktop_config.json, restarts, server registers without protocol errors | **Plan 02** (FastMCP stdio server + CLI + `python -m whatsapp_mcp` shim + zero-stdout-byte server import) + **Plan 05** (examples/claude_desktop_config.json provides the literal 4-line snippet) | Server import emits zero stdout bytes; `mcp.run()` uses stdio default; the snippet's `command: uvx, args: ["whatsapp-mcp"]` resolves through `[project.scripts] whatsapp-mcp = "whatsapp_mcp.cli:main"` |
+| 1. Developer adds `uvx whatsapp-desktop-mcp` to claude_desktop_config.json, restarts, server registers without protocol errors | **Plan 02** (FastMCP stdio server + CLI + `python -m whatsapp_desktop_mcp` shim + zero-stdout-byte server import) + **Plan 05** (examples/claude_desktop_config.json provides the literal 4-line snippet) | Server import emits zero stdout bytes; `mcp.run()` uses stdio default; the snippet's `command: uvx, args: ["whatsapp-desktop-mcp"]` resolves through `[project.scripts] whatsapp-desktop-mcp = "whatsapp_desktop_mcp.cli:main"` |
 | 2. From Claude Desktop, user invokes `doctor`-style preflight and receives structured response naming missing permissions + binary path + `x-apple.systempreferences:` deep-link | **Plan 03** (`doctor` MCP tool with `readOnlyHint=True`; structured `DoctorReport` payload with `binary_path`/`db_path`/`system_settings_url`/`remediation` per bucket; D-09 PATCHED Automation probe) | `mcp.list_tools()` returns exactly one Tool named `doctor`; `doctor()` returns a `DoctorReport` with three populated `PermissionStatus` payloads, each carrying the full remediation surface |
-| 3. CI runs a stdout-purity test that fails if any non-JSON-RPC byte hits stdout; ruff T201 blocks `print` at lint time | **Plan 01** (ruff T201 in pyproject.toml from day one) + **Plan 04** (`tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_mcp` and asserts every stdout line is JSON-RPC 2.0 after a full handshake) + **Plan 05** (ci.yml runs `uv run pytest -m "not live"` on every push/PR — this IS where the stdout-purity test runs) | Three independent layers: lint blocks the source (Plan 01), the test catches every other path to stdout pollution (Plan 04), CI exercises the test on every change (Plan 05). Defense in depth |
+| 3. CI runs a stdout-purity test that fails if any non-JSON-RPC byte hits stdout; ruff T201 blocks `print` at lint time | **Plan 01** (ruff T201 in pyproject.toml from day one) + **Plan 04** (`tests/unit/test_stdout_purity.py` spawns `python -m whatsapp_desktop_mcp` and asserts every stdout line is JSON-RPC 2.0 after a full handshake) + **Plan 05** (ci.yml runs `uv run pytest -m "not live"` on every push/PR — this IS where the stdout-purity test runs) | Three independent layers: lint blocks the source (Plan 01), the test catches every other path to stdout pollution (Plan 04), CI exercises the test on every change (Plan 05). Defense in depth |
 | 4. Published README opens with WhatsApp ToS / account-ban disclaimer and a 60-second `uvx`-based quickstart, framed as "this is your personal account, not a bot" | **Plan 05** (README's first blockquote = D-20 ToS warning verbatim; Quickstart section = D-21 four-step 60s flow; D-22 framing inline; full Development section documents the one-time PyPI trusted-publisher setup) | All locked clauses present; line count and content greps verified |
 
 **End state:** A user can paste the snippet from `examples/claude_desktop_config.json` into `~/Library/Application Support/Claude/claude_desktop_config.json`, restart Claude Desktop, ask Claude "call the WhatsApp doctor tool," and receive a structured three-bucket `DoctorReport` JSON telling them exactly which permissions to grant and to which binary. The CI pipeline is green; the release pipeline is armed; the one missing piece (manual PyPI trusted-publisher binding before the first `git tag v0.1.0`) is documented in the README.

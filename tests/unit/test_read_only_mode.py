@@ -4,7 +4,7 @@ Three layers:
 
 1. **In-process flag** — ``server.read_only_mode`` defaults to ``True``;
    assigning observably persists.
-2. **Subprocess JSON-RPC handshake** — spawn ``python -m whatsapp_mcp
+2. **Subprocess JSON-RPC handshake** — spawn ``python -m whatsapp_desktop_mcp
    --read-only``, drive the full ``initialize → notifications/initialized
    → tools/list`` sequence, parse the ``tools/list`` response, assert the
    8-tool contract (doctor + 7 read tools) AND that every tool advertises
@@ -44,21 +44,21 @@ _EXPECTED_TOOL_NAMES: frozenset[str] = frozenset(
 
 def test_default_flag_is_true() -> None:
     """``server.read_only_mode`` defaults to ``True`` at import time (Plan 01-03)."""
-    import whatsapp_mcp.server
+    import whatsapp_desktop_mcp.server
 
-    assert whatsapp_mcp.server.read_only_mode is True
+    assert whatsapp_desktop_mcp.server.read_only_mode is True
 
 
 def test_setting_flag_observable() -> None:
     """Assigning ``server.read_only_mode = False`` persists; teardown restores."""
-    import whatsapp_mcp.server
+    import whatsapp_desktop_mcp.server
 
-    original = whatsapp_mcp.server.read_only_mode
+    original = whatsapp_desktop_mcp.server.read_only_mode
     try:
-        whatsapp_mcp.server.read_only_mode = False
-        assert whatsapp_mcp.server.read_only_mode is False
+        whatsapp_desktop_mcp.server.read_only_mode = False
+        assert whatsapp_desktop_mcp.server.read_only_mode is False
     finally:
-        whatsapp_mcp.server.read_only_mode = original
+        whatsapp_desktop_mcp.server.read_only_mode = original
 
 
 # Frames per MCP spec 2025-06-18 (newline-delimited JSON-RPC) — same shape
@@ -92,7 +92,7 @@ async def test_read_only_lists_only_read_tools() -> None:
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
-        "whatsapp_mcp",
+        "whatsapp_desktop_mcp",
         "--read-only",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
@@ -170,7 +170,7 @@ def test_no_read_only_flag_parses_without_error() -> None:
     (``--help`` exits before the lazy ``server.run`` import resolves).
     """
     proc = subprocess.run(
-        [sys.executable, "-m", "whatsapp_mcp", "--no-read-only", "--help"],
+        [sys.executable, "-m", "whatsapp_desktop_mcp", "--no-read-only", "--help"],
         capture_output=True,
         text=True,
         timeout=10,

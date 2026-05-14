@@ -4,7 +4,7 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "whatsapp-mcp"
+name = "whatsapp-desktop-mcp"
 version = "0.1.0"
 description = "MCP stdio server for the macOS WhatsApp Desktop app — read history and send messages from Claude Desktop / Claude Code."
 readme = "README.md"
@@ -45,14 +45,14 @@ dev = [
 ]
 
 [project.scripts]
-whatsapp-mcp = "whatsapp_mcp.cli:main"
+whatsapp-desktop-mcp = "whatsapp_desktop_mcp.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/gladia/whatsapp-mcp"
-Issues = "https://github.com/gladia/whatsapp-mcp/issues"
+Homepage = "https://github.com/gladia/whatsapp-desktop-mcp"
+Issues = "https://github.com/gladia/whatsapp-desktop-mcp/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/whatsapp_mcp"]
+packages = ["src/whatsapp_desktop_mcp"]
 
 # ---------- Lint ----------
 [tool.ruff]

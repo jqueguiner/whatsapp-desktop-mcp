@@ -1,7 +1,7 @@
 """Cocoa-epoch <-> Unix-epoch helper tests (RESEARCH §"Cocoa Epoch ↔ Unix Conversion").
 
 Boundary + round-trip + live-anchor regression tests for
-:mod:`whatsapp_mcp.time`. The verified-live anchor on the user's Mac
+:mod:`whatsapp_desktop_mcp.time`. The verified-live anchor on the user's Mac
 on 2026-05-13 was ``ZMESSAGEDATE = 800352916`` -> ``2026-05-13``;
 :func:`test_live_anchor_resolves_to_2026_may_13` re-derives that
 deterministically with stdlib ``datetime`` so any change to
@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from whatsapp_mcp.time import COCOA_EPOCH_OFFSET, cocoa_to_unix, unix_to_cocoa
+from whatsapp_desktop_mcp.time import COCOA_EPOCH_OFFSET, cocoa_to_unix, unix_to_cocoa
 
 
 def test_cocoa_epoch_offset() -> None:

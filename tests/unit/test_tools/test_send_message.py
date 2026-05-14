@@ -37,14 +37,14 @@ from mcp.server.elicitation import (
     DeclinedElicitation,
 )
 
-from whatsapp_mcp import server
-from whatsapp_mcp.exceptions import ChatHeaderMismatch, RateLimitExceeded
-from whatsapp_mcp.models import ConfirmationSchema
-from whatsapp_mcp.models.chat import Chat
-from whatsapp_mcp.models.contact import Jid
-from whatsapp_mcp.models.coverage import Coverage
-from whatsapp_mcp.sender import audit, cross_chat_quote, rate_limit, verify
-from whatsapp_mcp.tools import send_message as send_message_module
+from whatsapp_desktop_mcp import server
+from whatsapp_desktop_mcp.exceptions import ChatHeaderMismatch, RateLimitExceeded
+from whatsapp_desktop_mcp.models import ConfirmationSchema
+from whatsapp_desktop_mcp.models.chat import Chat
+from whatsapp_desktop_mcp.models.contact import Jid
+from whatsapp_desktop_mcp.models.coverage import Coverage
+from whatsapp_desktop_mcp.sender import audit, cross_chat_quote, rate_limit, verify
+from whatsapp_desktop_mcp.tools import send_message as send_message_module
 
 # The decorated send_message wraps the body in @timeout(15) and @mcp.tool;
 # the call-target we exercise is the wrapped callable — same shape FastMCP
@@ -142,8 +142,8 @@ def _install_happy_path_mocks(
     )
 
     # automation.check_whatsapp
-    from whatsapp_mcp.models.doctor import PermissionStatus
-    from whatsapp_mcp.permissions import automation
+    from whatsapp_desktop_mcp.models.doctor import PermissionStatus
+    from whatsapp_desktop_mcp.permissions import automation
 
     async def fake_check_whatsapp() -> PermissionStatus:
         return PermissionStatus(
@@ -153,7 +153,7 @@ def _install_happy_path_mocks(
             system_settings_url="x-apple.systempreferences:fake",
         )
 
-    # Each ``from whatsapp_mcp.permissions import automation`` form binds
+    # Each ``from whatsapp_desktop_mcp.permissions import automation`` form binds
     # the same module object on both the source-module and the target;
     # patching ``automation.check_whatsapp`` mutates the shared module,
     # so we only need to set the attribute once. Same applies to the
@@ -161,7 +161,7 @@ def _install_happy_path_mocks(
     monkeypatch.setattr(automation, "check_whatsapp", fake_check_whatsapp)
 
     # reader.find_chat_by_id
-    from whatsapp_mcp import reader as reader_pkg
+    from whatsapp_desktop_mcp import reader as reader_pkg
 
     async def fake_find_chat_by_id(_chat_id: int) -> Chat | None:
         return chat
@@ -186,7 +186,7 @@ def _install_happy_path_mocks(
     monkeypatch.setattr(rate_limit, "record_outcome", fake_record_outcome)
 
     # ui_send.send_text — the send_message module did
-    # ``from whatsapp_mcp.sender.ui_send import send_text``, so the name
+    # ``from whatsapp_desktop_mcp.sender.ui_send import send_text``, so the name
     # ``send_text`` lives directly on send_message_module's globals.
     ui_send_calls: list[tuple[Any, ...]] = []
 
@@ -350,9 +350,9 @@ async def test_send_message_appends_audit_log_with_body_sha256_not_body(
     expected_sha = hashlib.sha256(body.encode("utf-8")).hexdigest()
 
     # Install minimal mocks (everything except audit.append).
-    from whatsapp_mcp import reader as reader_pkg
-    from whatsapp_mcp.models.doctor import PermissionStatus
-    from whatsapp_mcp.permissions import automation
+    from whatsapp_desktop_mcp import reader as reader_pkg
+    from whatsapp_desktop_mcp.models.doctor import PermissionStatus
+    from whatsapp_desktop_mcp.permissions import automation
 
     async def fake_check_whatsapp() -> PermissionStatus:
         return PermissionStatus(
@@ -388,7 +388,7 @@ async def test_send_message_appends_audit_log_with_body_sha256_not_body(
     monkeypatch.setattr(verify, "poll_for_outgoing", fake_poll)
 
     # Skip elicit via env var (D-08) so we don't need a fake ctx.elicit.
-    monkeypatch.setenv("WHATSAPP_MCP_SKIP_CONFIRM", "1")
+    monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM", "1")
 
     # Drive a successful send.
     ctx = _FakeContext(
@@ -465,7 +465,7 @@ async def test_send_message_raises_invalid_chat_id_when_reader_returns_none(
     mocks = _install_happy_path_mocks(monkeypatch)
 
     # Override the reader to return None.
-    from whatsapp_mcp import reader as reader_pkg
+    from whatsapp_desktop_mcp import reader as reader_pkg
 
     async def returns_none(_cid: int) -> Chat | None:
         return None
@@ -568,7 +568,7 @@ async def test_send_message_returns_cancelled_on_confirm_false(
 
 
 # ---------------------------------------------------------------------------
-# D-08 — WHATSAPP_MCP_SKIP_CONFIRM env var
+# D-08 — WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM env var
 # ---------------------------------------------------------------------------
 
 
@@ -576,9 +576,9 @@ async def test_send_message_returns_cancelled_on_confirm_false(
 async def test_send_message_skips_elicit_when_env_var_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``WHATSAPP_MCP_SKIP_CONFIRM=1`` → no elicit; SendResult.confirm_skipped=True."""
+    """``WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1`` → no elicit; SendResult.confirm_skipped=True."""
     mocks = _install_happy_path_mocks(monkeypatch)
-    monkeypatch.setenv("WHATSAPP_MCP_SKIP_CONFIRM", "1")
+    monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM", "1")
 
     result = await send_message(chat_id=42, body="hi", ctx=mocks["context"])
     assert result.status == "sent"
@@ -708,7 +708,7 @@ async def test_send_message_tool_annotations_match_D20() -> None:
     server.read_only_mode = False
     # Force registration by importing the module (idempotent — Python
     # caches modules, so this is a no-op if already loaded).
-    from whatsapp_mcp.tools import send_message as _sm  # noqa: F401
+    from whatsapp_desktop_mcp.tools import send_message as _sm  # noqa: F401
 
     tools = await server.mcp.list_tools()
     send_tool = next((t for t in tools if t.name == "send_message"), None)
@@ -739,7 +739,7 @@ async def test_mcp_list_tools_includes_send_message_when_module_imported() -> No
     ``if not read_only_mode:`` in ``server.py``; an already-imported
     server module's registry state reflects the value at import time.
 
-    THIS test process has imported ``whatsapp_mcp.tools.send_message``
+    THIS test process has imported ``whatsapp_desktop_mcp.tools.send_message``
     directly (Task 3 needs the module symbol for behavioral assertions),
     which triggers the ``@mcp.tool`` decorator side-effect regardless of
     ``server.py``'s gating. The tool IS therefore registered globally

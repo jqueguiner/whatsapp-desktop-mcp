@@ -20,7 +20,7 @@ Fixtures provided:
 - ``lid_fixture`` — tempfile sqlite with ZWAPHONENUMBERLIDPAIR seeded
   with 3 phone↔lid mappings.
 - ``contactsv2_fixture`` — tempfile sqlite with ZWAADDRESSBOOKCONTACT.
-- ``monkeypatch_paths`` — repoints every ``whatsapp_mcp.paths.resolve_*``
+- ``monkeypatch_paths`` — repoints every ``whatsapp_desktop_mcp.paths.resolve_*``
   to a fixture path. Tests that need it accept it explicitly; the
   fixture is NOT autouse so unit tests of pure helpers don't pay the
   monkeypatch cost.
@@ -43,7 +43,7 @@ from pathlib import Path
 import pytest
 
 # Cocoa epoch offset — duplicated locally so this fixture file does not
-# depend on whatsapp_mcp.time at import time (some isolation tests may
+# depend on whatsapp_desktop_mcp.time at import time (some isolation tests may
 # otherwise see a circular import path during conftest collection).
 _COCOA_EPOCH_OFFSET = 978_307_200
 
@@ -598,33 +598,39 @@ def monkeypatch_paths(
     contactsv2_fixture: str,
     media_root_fixture: str,
 ) -> None:
-    """Repoint every ``whatsapp_mcp.paths.resolve_*`` to a fixture path.
+    """Repoint every ``whatsapp_desktop_mcp.paths.resolve_*`` to a fixture path.
 
     Tests that exercise reader/* via the public async surface accept this
     fixture explicitly. Pure helper tests (``test_tombstones``,
     ``test_media``) do NOT need it.
     """
-    import whatsapp_mcp.paths
-    import whatsapp_mcp.reader.chats
-    import whatsapp_mcp.reader.contacts
-    import whatsapp_mcp.reader.groups
-    import whatsapp_mcp.reader.messages
-    import whatsapp_mcp.reader.search
+    import whatsapp_desktop_mcp.paths
+    import whatsapp_desktop_mcp.reader.chats
+    import whatsapp_desktop_mcp.reader.contacts
+    import whatsapp_desktop_mcp.reader.groups
+    import whatsapp_desktop_mcp.reader.messages
+    import whatsapp_desktop_mcp.reader.search
 
     # Patch the canonical resolvers — affects callers that look up paths
     # at call time. Some Plan 02 modules import the resolver function by
     # name at module import time; patch those attributes too.
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_chatstorage_path", lambda: chatstorage_fixture)
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_lid_path", lambda: lid_fixture)
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_contactsv2_path", lambda: contactsv2_fixture)
-    monkeypatch.setattr(whatsapp_mcp.paths, "resolve_media_root", lambda: media_root_fixture)
+    monkeypatch.setattr(
+        whatsapp_desktop_mcp.paths, "resolve_chatstorage_path", lambda: chatstorage_fixture
+    )
+    monkeypatch.setattr(whatsapp_desktop_mcp.paths, "resolve_lid_path", lambda: lid_fixture)
+    monkeypatch.setattr(
+        whatsapp_desktop_mcp.paths, "resolve_contactsv2_path", lambda: contactsv2_fixture
+    )
+    monkeypatch.setattr(
+        whatsapp_desktop_mcp.paths, "resolve_media_root", lambda: media_root_fixture
+    )
 
     for module in (
-        whatsapp_mcp.reader.chats,
-        whatsapp_mcp.reader.contacts,
-        whatsapp_mcp.reader.groups,
-        whatsapp_mcp.reader.messages,
-        whatsapp_mcp.reader.search,
+        whatsapp_desktop_mcp.reader.chats,
+        whatsapp_desktop_mcp.reader.contacts,
+        whatsapp_desktop_mcp.reader.groups,
+        whatsapp_desktop_mcp.reader.messages,
+        whatsapp_desktop_mcp.reader.search,
     ):
         if hasattr(module, "resolve_chatstorage_path"):
             monkeypatch.setattr(module, "resolve_chatstorage_path", lambda: chatstorage_fixture)
@@ -687,10 +693,10 @@ def tmp_rate_limit_db(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Redirect ``sender.rate_limit._DB_PATH`` to ``tmp_path / rate-limit.db``."""
     # Direct submodule import — ``rate_limit`` is not re-exported via
     # ``sender/__init__.py``'s ``__all__`` (curated narrow surface per
-    # the Plan 02-03 package docstring), so a ``from whatsapp_mcp.sender
+    # the Plan 02-03 package docstring), so a ``from whatsapp_desktop_mcp.sender
     # import rate_limit`` would trip mypy's ``[attr-defined]``. Importing
     # the submodule directly resolves cleanly.
-    from whatsapp_mcp.sender import rate_limit as rate_limit_mod
+    from whatsapp_desktop_mcp.sender import rate_limit as rate_limit_mod
 
     db_path = tmp_path / "rate-limit.db"
     monkeypatch.setattr(rate_limit_mod, "_DB_PATH", db_path)
@@ -705,7 +711,7 @@ def tmp_audit_log(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     inspect). The directory itself is the ``tmp_path`` root; the audit
     module's ``_blocking_append`` creates the file on first call.
     """
-    from whatsapp_mcp.sender import audit
+    from whatsapp_desktop_mcp.sender import audit
 
     log_path = tmp_path / "audit.log"
     monkeypatch.setattr(audit, "_LOG_DIR", tmp_path)
@@ -722,7 +728,7 @@ def reset_xcq_lru() -> Iterator[None]:
     bodies and produce confusing failures. The double-reset is symmetric
     — fresh state going in, fresh state going out.
     """
-    from whatsapp_mcp.sender import cross_chat_quote
+    from whatsapp_desktop_mcp.sender import cross_chat_quote
 
     cross_chat_quote._reset_for_test()
     try:
@@ -781,7 +787,7 @@ def mock_pyobjc(monkeypatch: pytest.MonkeyPatch) -> _AXFake:
         * ``kAXDescriptionAttribute`` / ``kAXTitleAttribute`` → next
           value from ``walk_returns``
     """
-    from whatsapp_mcp.sender import ax_assert
+    from whatsapp_desktop_mcp.sender import ax_assert
 
     fake = _AXFake()
 

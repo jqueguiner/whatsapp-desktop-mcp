@@ -15,7 +15,7 @@ filter shape surfaces here, not silently in production.
 
 from __future__ import annotations
 
-from whatsapp_mcp.reader.tombstones import TOMBSTONE_SQL_WHERE, is_tombstone
+from whatsapp_desktop_mcp.reader.tombstones import TOMBSTONE_SQL_WHERE, is_tombstone
 
 
 def test_tombstone_message_type_14() -> None:

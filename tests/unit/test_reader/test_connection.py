@@ -15,7 +15,7 @@ import sqlite3
 
 import pytest
 
-from whatsapp_mcp.reader.connection import open_ro
+from whatsapp_desktop_mcp.reader.connection import open_ro
 
 
 def test_open_ro_succeeds_against_fixture(chatstorage_fixture: str) -> None:

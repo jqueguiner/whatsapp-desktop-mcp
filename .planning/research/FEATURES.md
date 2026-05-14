@@ -28,10 +28,10 @@
 
 | Project | Tool count | Mechanism | Notes |
 |---------|-----------|-----------|-------|
-| `lharries/whatsapp-mcp` | 12 | Go bridge using `whatsmeow` over WhatsApp Web protocol + Python MCP | The reference impl. Does NOT touch Desktop app — uses multi-device protocol. |
-| `FelixIsaac/whatsapp-mcp-extended` | 41 | Same as above + reactions, group mgmt, polls, presence, newsletters, webhooks | The "kitchen sink" fork. Useful as a feature menu, painful to maintain. |
-| `verygoodplugins/whatsapp-mcp` | similar to lharries | fork of lharries | Same architecture |
-| `jlucaso1/whatsapp-mcp-ts` | TS port | Baileys (WhatsApp Web protocol, TS) | Different stack, same model |
+| `lharries/whatsapp-desktop-mcp` | 12 | Go bridge using `whatsmeow` over WhatsApp Web protocol + Python MCP | The reference impl. Does NOT touch Desktop app — uses multi-device protocol. |
+| `FelixIsaac/whatsapp-desktop-mcp-extended` | 41 | Same as above + reactions, group mgmt, polls, presence, newsletters, webhooks | The "kitchen sink" fork. Useful as a feature menu, painful to maintain. |
+| `verygoodplugins/whatsapp-desktop-mcp` | similar to lharries | fork of lharries | Same architecture |
+| `jlucaso1/whatsapp-desktop-mcp-ts` | TS port | Baileys (WhatsApp Web protocol, TS) | Different stack, same model |
 | `mac_messages_mcp` (iMessage) | ~10 | Reads `~/Library/Messages/chat.db` + send via AppleScript | **Closest architectural sibling to our project.** Same OS, same approach. |
 | `anipotts/imessage-mcp` | 26 (all `readOnlyHint:true`) | better-sqlite3 read-only + FSEvents watcher | Auto-approve UX win — every tool annotated read-only. |
 | `multimodal-imessage-mcp` | ~6 | chat.db + reverse-engineered NSAttributedString | Demonstrates the "binary message body parse" pain we'll meet too. |
@@ -213,7 +213,7 @@ send_message ──> chat_id from list_chats / search_contacts
 
 ## Competitor Feature Analysis
 
-| Feature | lharries/whatsapp-mcp | FelixIsaac extended | mac_messages_mcp (iMessage) | Slack MCP (official) | Our v1 |
+| Feature | lharries/whatsapp-desktop-mcp | FelixIsaac extended | mac_messages_mcp (iMessage) | Slack MCP (official) | Our v1 |
 |---------|----------------------|---------------------|-----------------------------|----------------------|--------|
 | List chats | ✅ `list_chats` | ✅ | ✅ `list_recent_chats` | ✅ | ✅ |
 | Read messages bounded | ✅ `list_messages` | ✅ | ✅ `read_recent_messages` | ✅ read channel | ✅ |
@@ -254,11 +254,11 @@ send_message ──> chat_id from list_chats / search_contacts
 
 ## Sources
 
-- [lharries/whatsapp-mcp README & tool list](https://github.com/lharries/whatsapp-mcp) — reference implementation, 12 tools
-- [lharries/whatsapp-mcp Issues](https://github.com/lharries/whatsapp-mcp/issues) — user complaints: outdated client (405), PDF download 403, stale `list_messages`, security findings
-- [FelixIsaac/whatsapp-mcp-extended](https://github.com/FelixIsaac/whatsapp-mcp-extended) — 41-tool fork; menu of every WhatsApp feature an MCP could expose
-- [verygoodplugins/whatsapp-mcp](https://github.com/verygoodplugins/whatsapp-mcp) — alt fork
-- [jlucaso1/whatsapp-mcp-ts](https://github.com/jlucaso1/whatsapp-mcp-ts) — TypeScript / Baileys port
+- [lharries/whatsapp-desktop-mcp README & tool list](https://github.com/lharries/whatsapp-desktop-mcp) — reference implementation, 12 tools
+- [lharries/whatsapp-desktop-mcp Issues](https://github.com/lharries/whatsapp-desktop-mcp/issues) — user complaints: outdated client (405), PDF download 403, stale `list_messages`, security findings
+- [FelixIsaac/whatsapp-desktop-mcp-extended](https://github.com/FelixIsaac/whatsapp-desktop-mcp-extended) — 41-tool fork; menu of every WhatsApp feature an MCP could expose
+- [verygoodplugins/whatsapp-desktop-mcp](https://github.com/verygoodplugins/whatsapp-desktop-mcp) — alt fork
+- [jlucaso1/whatsapp-desktop-mcp-ts](https://github.com/jlucaso1/whatsapp-desktop-mcp-ts) — TypeScript / Baileys port
 - [tulir/whatsmeow](https://github.com/tulir/whatsmeow) — feature surface of the Go WhatsApp Web library (what lharries wraps)
 - [WhiskeySockets/Baileys](https://github.com/WhiskeySockets/Baileys) — feature surface of the TS WhatsApp Web library
 - [carterlasalle/mac_messages_mcp](https://github.com/carterlasalle/mac_messages_mcp) — closest architectural sibling: macOS + chat.db + AppleScript send

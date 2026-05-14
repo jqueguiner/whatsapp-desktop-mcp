@@ -1,7 +1,7 @@
 """Pydantic round-trip + Literal-enforcement tests for the Plan 01 model surface.
 
 Codifies the locked DATA-01/02/03/04 + Cursor + Coverage public surface from
-Plan 01-01: every model in :mod:`whatsapp_mcp.models` round-trips losslessly
+Plan 01-01: every model in :mod:`whatsapp_desktop_mcp.models` round-trips losslessly
 through ``model_dump_json -> model_validate_json``, every ``Literal``
 discriminator rejects unknown values, and :class:`MediaRef` carries no
 bytes/base64 inlining field (DATA-03 schema-level enforcement; CLAUDE.md
@@ -18,7 +18,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from whatsapp_mcp.models import (
+from whatsapp_desktop_mcp.models import (
     Chat,
     Contact,
     Coverage,

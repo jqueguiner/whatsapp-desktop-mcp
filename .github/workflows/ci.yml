@@ -1,7 +1,7 @@
 # CI: runs on push to main + every PR.
 # Lints, format-checks, type-checks, and runs the non-live test suite.
 # The stdout-purity test (tests/unit/test_stdout_purity.py) is the SETUP-03
-# CI gate: it spawns `python -m whatsapp_mcp` and asserts every byte on
+# CI gate: it spawns `python -m whatsapp_desktop_mcp` and asserts every byte on
 # stdout is a JSON-RPC 2.0 frame across a full initialize/tools-list/call
 # handshake. That test is exercised by `pytest -m "not live"` below — no
 # separate gate is needed.

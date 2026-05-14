@@ -1,4 +1,4 @@
-"""Shared pytest configuration for the whatsapp-mcp test suite.
+"""Shared pytest configuration for the whatsapp-desktop-mcp test suite.
 
 Phase 0 keeps this near-empty intentionally:
 

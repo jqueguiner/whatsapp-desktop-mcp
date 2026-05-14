@@ -15,7 +15,7 @@ What the live test verifies that the mocked unit tests cannot:
 - Real ``osascript`` invocation latency on the actual macOS Apple Events
   bus (the unit tests mock the boundary via ``pytest-subprocess``).
 - Real ``os.stat`` against the real Group Container path resolved by
-  ``whatsapp_mcp.paths.resolve_chatstorage_path()`` (the unit tests
+  ``whatsapp_desktop_mcp.paths.resolve_chatstorage_path()`` (the unit tests
   monkeypatch the resolver to a tmp file).
 - Real Pydantic validation against the actual TCC states the user's
   machine reports (the unit tests construct ``PermissionStatus`` from
@@ -34,7 +34,7 @@ import os
 
 import pytest
 
-from whatsapp_mcp.tools.doctor import doctor
+from whatsapp_desktop_mcp.tools.doctor import doctor
 
 
 @pytest.mark.live

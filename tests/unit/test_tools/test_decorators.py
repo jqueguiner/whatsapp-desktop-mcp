@@ -12,7 +12,7 @@ import asyncio
 
 import pytest
 
-from whatsapp_mcp.tools._decorators import timeout
+from whatsapp_desktop_mcp.tools._decorators import timeout
 
 
 @pytest.mark.asyncio

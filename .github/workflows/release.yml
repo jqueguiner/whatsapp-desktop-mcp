@@ -13,7 +13,7 @@
 #                  the GitHub release. Gated by APPLE_INSTALLER_CERT_P12
 #                  (D-07 skip-block; community forks without the cert ship
 #                  PyPI-only without breaking the release).
-#   - tap-update : Auto-PR against gladia/homebrew-whatsapp-mcp regenerating
+#   - tap-update : Auto-PR against gladia/homebrew-whatsapp-desktop-mcp regenerating
 #                  the Formula via `brew update-python-resources` (D-10 with
 #                  the 2026 successor to the original poet generator,
 #                  which is deprecated). Gated by BREW_TAP_DEPLOY_KEY.
@@ -32,7 +32,7 @@ jobs:
     runs-on: macos-14
     environment:
       name: pypi
-      url: https://pypi.org/p/whatsapp-mcp
+      url: https://pypi.org/p/whatsapp-desktop-mcp
     permissions:
       id-token: write   # MANDATORY for OIDC trusted-publisher; without it, PyPI returns 403
     steps:
@@ -131,8 +131,8 @@ jobs:
           VERSION="${GITHUB_REF#refs/tags/v}"
           productsign \
               --sign "Developer ID Installer: ${APPLE_TEAM_NAME} (${APPLE_TEAM_ID})" \
-              "dist/whatsapp-mcp-${VERSION}-unsigned.pkg" \
-              "dist/whatsapp-mcp-${VERSION}.pkg"
+              "dist/whatsapp-desktop-mcp-${VERSION}-unsigned.pkg" \
+              "dist/whatsapp-desktop-mcp-${VERSION}.pkg"
 
       - name: Notarize via xcrun notarytool (one-shot --wait form)
         # If notarization returns "Invalid" status, the step fails non-zero
@@ -143,7 +143,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           xcrun notarytool submit \
-              "dist/whatsapp-mcp-${VERSION}.pkg" \
+              "dist/whatsapp-desktop-mcp-${VERSION}.pkg" \
               --apple-id "${{ secrets.APPLE_ID }}" \
               --team-id "${{ secrets.APPLE_TEAM_ID }}" \
               --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
@@ -152,22 +152,22 @@ jobs:
       - name: Staple notarization ticket (offline-installable .pkg)
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          xcrun stapler staple "dist/whatsapp-mcp-${VERSION}.pkg"
+          xcrun stapler staple "dist/whatsapp-desktop-mcp-${VERSION}.pkg"
 
       - name: Verify Gatekeeper acceptance (Pitfall 2)
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          spctl --assess --type install -vvv "dist/whatsapp-mcp-${VERSION}.pkg"
+          spctl --assess --type install -vvv "dist/whatsapp-desktop-mcp-${VERSION}.pkg"
 
       - name: Attach signed .pkg to GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/whatsapp-mcp-*.pkg
+          files: dist/whatsapp-desktop-mcp-*.pkg
 
   # ---------------------------------------------------------------------
   # tap-update (Phase 3 Plan 03-02)
   # ---------------------------------------------------------------------
-  # Auto-PR against gladia/homebrew-whatsapp-mcp regenerating Formula on
+  # Auto-PR against gladia/homebrew-whatsapp-desktop-mcp regenerating Formula on
   # each release. Independent of pkg-build (brew doesn't need Apple
   # Installer cert; D-04). Gated by BREW_TAP_DEPLOY_KEY so community forks
   # without a tap repo skip cleanly.
@@ -189,7 +189,7 @@ jobs:
       - name: Checkout tap repo
         uses: actions/checkout@v4
         with:
-          repository: gladia/homebrew-whatsapp-mcp
+          repository: gladia/homebrew-whatsapp-desktop-mcp
           token: ${{ secrets.BREW_TAP_DEPLOY_KEY }}
           path: tap
 
@@ -203,7 +203,7 @@ jobs:
         id: sha
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
-          SHA=$(curl -sL "https://pypi.org/pypi/whatsapp-mcp/${VERSION}/json" | \
+          SHA=$(curl -sL "https://pypi.org/pypi/whatsapp-desktop-mcp/${VERSION}/json" | \
                 jq -r '.urls[] | select(.packagetype=="sdist") | .digests.sha256')
           echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -212,15 +212,15 @@ jobs:
         working-directory: tap
         run: |
           # Rewrite the url line so it points at the new sdist tarball.
-          sed -i '' "s|/whatsapp_mcp-.*\.tar\.gz|/whatsapp_mcp-${{ steps.sha.outputs.version }}.tar.gz|" Formula/whatsapp-mcp.rb
+          sed -i '' "s|/whatsapp_desktop_mcp-.*\.tar\.gz|/whatsapp_desktop_mcp-${{ steps.sha.outputs.version }}.tar.gz|" Formula/whatsapp-desktop-mcp.rb
           # Rewrite the FIRST sha256 line (the project's own — the resource
           # blocks have their own sha256 lines that brew update-python-resources
           # rewrites in the next step).
           awk -v sha="${{ steps.sha.outputs.sha }}" '
             !done && /^[[:space:]]*sha256 / { sub(/"[0-9a-f]*"/, "\"" sha "\""); done=1 }
             { print }
-          ' Formula/whatsapp-mcp.rb > Formula/whatsapp-mcp.rb.new
-          mv Formula/whatsapp-mcp.rb.new Formula/whatsapp-mcp.rb
+          ' Formula/whatsapp-desktop-mcp.rb > Formula/whatsapp-desktop-mcp.rb.new
+          mv Formula/whatsapp-desktop-mcp.rb.new Formula/whatsapp-desktop-mcp.rb
 
       - name: Regenerate transitive resource blocks
         # `brew update-python-resources` is the maintained 2026 replacement
@@ -232,16 +232,16 @@ jobs:
         # useful for manual edit.
         working-directory: tap
         run: |
-          brew update-python-resources whatsapp-mcp || true
+          brew update-python-resources whatsapp-desktop-mcp || true
 
       - name: Open PR against the tap repo
         uses: peter-evans/create-pull-request@v6
         with:
           path: tap
-          commit-message: "whatsapp-mcp ${{ steps.sha.outputs.version }}"
-          title: "whatsapp-mcp ${{ steps.sha.outputs.version }}"
+          commit-message: "whatsapp-desktop-mcp ${{ steps.sha.outputs.version }}"
+          title: "whatsapp-desktop-mcp ${{ steps.sha.outputs.version }}"
           body: |
             Auto-generated by release.yml on tag push.
 
-            See https://github.com/gladia/whatsapp-mcp/releases/tag/v${{ steps.sha.outputs.version }}
-          branch: "whatsapp-mcp-${{ steps.sha.outputs.version }}"
+            See https://github.com/gladia/whatsapp-desktop-mcp/releases/tag/v${{ steps.sha.outputs.version }}
+          branch: "whatsapp-desktop-mcp-${{ steps.sha.outputs.version }}"

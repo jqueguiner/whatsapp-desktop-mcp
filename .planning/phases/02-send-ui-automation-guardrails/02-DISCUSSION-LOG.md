@@ -39,7 +39,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| MCP elicitation always-on; opt-out via env var with audit warning | Every send asks; `WHATSAPP_MCP_SKIP_CONFIRM=1` skips with audit-log entry `confirm_skipped: true`. | ✓ |
+| MCP elicitation always-on; opt-out via env var with audit warning | Every send asks; `WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM=1` skips with audit-log entry `confirm_skipped: true`. | ✓ |
 | Always-on; no opt-out | Maximally safe but blocks scripted/non-interactive use cases. | |
 | Sticky-session confirmation | "Confirmed once for this chat in last 5 min, skip subsequent" — defeats per-send safety. | |
 
@@ -52,7 +52,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Persistent SQLite at `~/Library/Application Support/whatsapp-mcp/rate-limit.db` | Survives restart; daily limit can't be bypassed by killing the server. | ✓ |
+| Persistent SQLite at `~/Library/Application Support/whatsapp-desktop-mcp/rate-limit.db` | Survives restart; daily limit can't be bypassed by killing the server. | ✓ |
 | Memory-only | Cheaper but a restart resets the day-counter — defeats the daily cap. | |
 | Both (memory primary + persistent backstop) | Over-engineered for v0.1; persistent IS the source of truth. | |
 
@@ -65,7 +65,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| JSONL at `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600 | One JSON object per line; machine-grep-able; line-buffered. Body stored as SHA-256 only. | ✓ |
+| JSONL at `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600 | One JSON object per line; machine-grep-able; line-buffered. Body stored as SHA-256 only. | ✓ |
 | Custom text format | Easier human read but breaks structured analysis. | |
 | Body verbatim in log | UX investigation easier; massive privacy / exfil risk if file leaks. | |
 
@@ -128,8 +128,8 @@
 
 - AX-API exact selectors for the focused chat header (depth of `AXTitle` walk, fallback paths if Catalyst minor version moves the element)
 - Exact wording of the elicitation prompt body display
-- Whether to ship `WHATSAPP_MCP_DRY_RUN=1` env var (recommended yes; trivial)
-- Whether to ship `whatsapp-mcp send-test` CLI subcommand (recommended yes; trivial smoke-test ergonomics)
+- Whether to ship `WHATSAPP_DESKTOP_MCP_DRY_RUN=1` env var (recommended yes; trivial)
+- Whether to ship `whatsapp-desktop-mcp send-test` CLI subcommand (recommended yes; trivial smoke-test ergonomics)
 
 ## Deferred Ideas
 

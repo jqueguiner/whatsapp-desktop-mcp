@@ -12,7 +12,7 @@
 - **Stack is settled:** Python 3.12 + `mcp[cli]==1.27.1` (FastMCP, stdio) + stdlib `sqlite3` (read-only) + `subprocess`+`osascript` for sends. Dev distribution `uvx`; user-friendly distribution should be a signed `.pkg` (TCC requires a stable binary path).
 - **Read = local SQLite, write = UI automation.** DB at `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite` (verified live, WhatsApp 26.16.74 / macOS 26.4). WhatsApp.app exposes **no AppleScript dictionary** (`sdef` returns -192) — sends MUST use `whatsapp://send?phone=…&text=…` deep-link + System Events return-key, with search-and-click as a group-chat fallback.
 - **9 table-stakes tools + 3 differentiators in v1.** Table stakes: `list_chats`, `read_chat`, `extract_recent`, `search_messages` (FTS5), `send_message`, `search_contacts`, structured JSON, attachment metadata, `doctor` preflight. Differentiators chosen: `get_chat_metadata`, `get_message_context`, `--read-only` safe-mode flag.
-- **Hard "no" list (anti-features) is non-negotiable:** no bulk/broadcast send, no scheduled send, no auto-reply loop, no inline media bytes, no SQLite writes, no HTTP REST surface (`lharries/whatsapp-mcp` was bitten by exactly this — 0.0.0.0 bind, path-traversal CVE class), no "mark as read" side effects.
+- **Hard "no" list (anti-features) is non-negotiable:** no bulk/broadcast send, no scheduled send, no auto-reply loop, no inline media bytes, no SQLite writes, no HTTP REST surface (`lharries/whatsapp-desktop-mcp` was bitten by exactly this — 0.0.0.0 bind, path-traversal CVE class), no "mark as read" side effects.
 - **The two highest-volatility surfaces are isolated:** `reader/` absorbs schema drift, `sender/` absorbs UI drift. They never import each other. Tool-layer JSON contracts stay stable across either kind of breakage.
 - **DB is a sync cache, not a source of truth.** WhatsApp Desktop is a *linked secondary device*; older history may not be present. Every read tool MUST return a `coverage` field naming the time range actually present.
 - **TCC (Full Disk Access + Accessibility + Apple Events) is the #1 source of "looks broken" bugs.** FDA does NOT inherit through `Claude.app → uvx → python`. Solution: ship a signed launcher at a stable path; document exact binary to add to FDA; preflight `doctor` returns structured `FullDiskAccessRequired` / `AutomationPermissionRequired` with System Settings deep-link.
@@ -31,13 +31,13 @@
 | Schemas / models | `pydantic` | `>=2.7,<3` | Already transitive; gives free JSON schema for tool contracts |
 | Logging | stdlib `logging` to stderr (or `structlog>=24.1` for JSON) | — | **Never to stdout** |
 | Optional macOS | `pyobjc-core` + `pyobjc-framework-Cocoa` | `==12.1` | Only when we add Accessibility-API send (recommended in v1.x for state assertions before keystroke) |
-| Distribution (dev) | `uvx whatsapp-mcp` | `uv>=0.5` | Single-line `claude_desktop_config.json` install |
-| Distribution (end-user, v1.0 recommended) | Signed `.pkg` dropping `/usr/local/bin/whatsapp-mcp` | — | Stable path = TCC permissions persist across upgrades (Pitfall 15) |
+| Distribution (dev) | `uvx whatsapp-desktop-mcp` | `uv>=0.5` | Single-line `claude_desktop_config.json` install |
+| Distribution (end-user, v1.0 recommended) | Signed `.pkg` dropping `/usr/local/bin/whatsapp-desktop-mcp` | — | Stable path = TCC permissions persist across upgrades (Pitfall 15) |
 | Lint/format | `ruff>=0.6` | — | One binary; enforce `T201` (no `print`) |
 | Type check | `mypy>=1.10` (or pyright) | — | Strict on the MCP tool surface |
 | Test | `pytest>=8.2` + `pytest-subprocess>=1.5` | — | Subprocess mock is the right test seam for the osascript boundary |
 
-**Explicitly NOT picked:** Go + `whatsmeow`, TS + Baileys (different protocol — that's `lharries/whatsapp-mcp`'s architecture, which PROJECT.md rejects); `aiosqlite` (slower than stdlib for our pattern); SQLAlchemy (overkill for 5 tables we don't own); PyObjC NSAppleScript just to run AppleScript (30MB of wheels for no win); WhatsApp Cloud API (out of scope); Selenium/pywhatkit/pyautogui (browser-based, wrong target); writing to `ChatStorage.sqlite` (corrupts the writer).
+**Explicitly NOT picked:** Go + `whatsmeow`, TS + Baileys (different protocol — that's `lharries/whatsapp-desktop-mcp`'s architecture, which PROJECT.md rejects); `aiosqlite` (slower than stdlib for our pattern); SQLAlchemy (overkill for 5 tables we don't own); PyObjC NSAppleScript just to run AppleScript (30MB of wheels for no win); WhatsApp Cloud API (out of scope); Selenium/pywhatkit/pyautogui (browser-based, wrong target); writing to `ChatStorage.sqlite` (corrupts the writer).
 
 ---
 
@@ -129,7 +129,7 @@
 | Sending media (images/files) in v1 | AppleScript drag-drop fragile across versions; defer to v2 |
 | Reactions / polls / status / edit / delete | Each requires a different UI path; triples maintenance burden; PROJECT.md defers |
 | "Mark as read" side effect of `read_chat` | Side effects from a read tool are surprising; user may want to read silently |
-| HTTP REST surface (bind 0.0.0.0) | `lharries/whatsapp-mcp` was hit by exactly this — path traversal + unauth LAN exposure |
+| HTTP REST surface (bind 0.0.0.0) | `lharries/whatsapp-desktop-mcp` was hit by exactly this — path traversal + unauth LAN exposure |
 
 ---
 
@@ -139,9 +139,9 @@ One line each: pitfall → mandated mitigation → owning phase.
 
 1. **Cache ≠ source of truth (P1)** → every read response includes a `coverage` field naming the time range actually present in the DB; `extract_recent` returns "asked 6h, have 47m" → **Phase 1**.
 2. **Stdout pollution kills JSON-RPC (P7)** → entry point sets `logging.basicConfig(stream=sys.stderr)`; ruff `T201` lint-blocks `print`; CI test asserts stdout is pure JSON-RPC after `initialize` → **Phase 0**.
-3. **Wrong-binary FDA (P4)** → ship signed launcher at `/usr/local/bin/whatsapp-mcp`; preflight `os.stat()` the DB and return structured `FullDiskAccessRequired` with the exact path to add and a `x-apple.systempreferences:` deep-link → **Phase 0** (install) + **Phase 1** (preflight).
+3. **Wrong-binary FDA (P4)** → ship signed launcher at `/usr/local/bin/whatsapp-desktop-mcp`; preflight `os.stat()` the DB and return structured `FullDiskAccessRequired` with the exact path to add and a `x-apple.systempreferences:` deep-link → **Phase 0** (install) + **Phase 1** (preflight).
 4. **Wrong-chat send via fuzzy search (P5)** → two-tool flow: `search_contacts/resolve_chat` returns ALL matches above threshold (never auto-pick); `send_message` accepts only the opaque `chat_id`; pre-send AX-API verifies focused window's chat header matches the resolved name → **Phase 2**.
-5. **LLM misuse — fan-out blast / prompt-injected send / cross-chat leak (P6)** → MCP elicitation confirmation (showing resolved chat name + body) ON by default; rate limit 5/min, 30/day default; cross-chat-quote heuristic; audit log to `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600; **no multi-recipient tool exists** → **Phase 2**.
+5. **LLM misuse — fan-out blast / prompt-injected send / cross-chat leak (P6)** → MCP elicitation confirmation (showing resolved chat name + body) ON by default; rate limit 5/min, 30/day default; cross-chat-quote heuristic; audit log to `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600; **no multi-recipient tool exists** → **Phase 2**.
 6. **Sync DB call blocks the stdio event loop (P8)** → all DB calls via `asyncio.to_thread`; `osascript` via `asyncio.create_subprocess_exec` + `asyncio.wait_for(timeout=10)`; per-tool timeout (`read_chat`:5s, `search_messages`:10s, `send_message`:15s) → **Phase 1**.
 7. **Tool result exceeds Claude's 25k-token MCP cap (P9)** → hard char-cap (~60k chars ≈ 15k tokens) per result; mandatory `cursor`/`next_cursor` pagination; set `_meta["anthropic/maxResultSizeChars"]` annotation; never inline media bytes → **Phase 1**.
 8. **AppleScript fragility — focus, race, modal-state (P12)** → primary send path is `whatsapp://send?phone=…&text=…` deep-link + `keystroke return` (not search-and-click); v1.x adds Accessibility-API path (`AXTextArea` find → `setValue:` → `AXButton` "Send" `AXPress`) with state assertions before each step; latency log; abort if window title doesn't match (the invisible LRM char trap) → **Phase 2**.
@@ -185,7 +185,7 @@ The architecture's 9 steps collapse cleanly into 4 user-visible phases.
 ### Phase 3 — Hardening & Distribution
 **Rationale:** Convert "works on the maintainer's Mac" into "works on a fresh Mac after every WhatsApp update."
 **Delivers:**
-- Signed `.pkg` installer dropping `/usr/local/bin/whatsapp-mcp` at a stable path, Developer ID signed, with `Info.plist` + `NSAppleEventsUsageDescription` + `com.apple.security.automation.apple-events` entitlement; also a brew formula
+- Signed `.pkg` installer dropping `/usr/local/bin/whatsapp-desktop-mcp` at a stable path, Developer ID signed, with `Info.plist` + `NSAppleEventsUsageDescription` + `com.apple.security.automation.apple-events` entitlement; also a brew formula
 - FTS5 shadow index for `search_messages` if not already shipped; incremental sync on `ZMESSAGEDATE > last_seen`
 - `tested_versions.md` for known-good WhatsApp Desktop versions
 - Full integration smoke suite gated by `RUN_LIVE_WHATSAPP=1`

@@ -45,7 +45,7 @@ An LLM agent can read and write the user's WhatsApp Desktop the same way the use
 
 - WhatsApp Desktop on macOS stores message history in a local SQLite database under `~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/` (path subject to verification during research).
 - macOS app sandboxing + Full Disk Access permission likely required to read that path from a non-WhatsApp process.
-- Existing community projects (`lharries/whatsapp-mcp`, `whatsmeow` Go library) use the multi-device protocol over the network instead of touching Desktop — that's a different design. This project specifically wants to ride the already-running Desktop session.
+- Existing community projects (`lharries/whatsapp-desktop-mcp`, `whatsmeow` Go library) use the multi-device protocol over the network instead of touching Desktop — that's a different design. This project specifically wants to ride the already-running Desktop session.
 - MCP spec (Anthropic, 2024) standardizes tool/resource exposure to LLM clients via stdio or HTTP+SSE. Python SDK (`mcp`) and TypeScript SDK (`@modelcontextprotocol/sdk`) both available.
 - User has zero appetite for Meta business onboarding flow — that ruled out Cloud API path.
 

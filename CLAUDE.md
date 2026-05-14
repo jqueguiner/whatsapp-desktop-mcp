@@ -13,7 +13,7 @@ A local MCP (Model Context Protocol) server that controls the macOS **WhatsApp D
 - `subprocess` + `osascript` for the send path (WhatsApp.app has **no AppleScript dictionary** — `sdef` returns -192)
 - `pydantic >=2.7` for typed tool contracts
 - `ruff`, `mypy`, `pytest`, `pytest-subprocess`
-- Distribution: `uvx whatsapp-mcp` (dev), signed `.pkg` at `/usr/local/bin/whatsapp-mcp` for end users
+- Distribution: `uvx whatsapp-desktop-mcp` (dev), signed `.pkg` at `/usr/local/bin/whatsapp-desktop-mcp` for end users
 
 Anti-stack (do NOT introduce): `whatsmeow` / Baileys / WhatsApp Cloud API / `aiosqlite` / SQLAlchemy / `pywhatkit` / Selenium / any HTTP REST surface.
 
@@ -23,9 +23,9 @@ Anti-stack (do NOT introduce): `whatsmeow` / Baileys / WhatsApp Cloud API / `aio
 2. **`stdout` is the JSON-RPC channel.** Every byte on stdout MUST be a JSON-RPC frame. Logging goes to stderr. `print` is lint-blocked (`ruff T201`). CI test asserts stdout purity after `initialize`.
 3. **Never write to `ChatStorage.sqlite`.** WhatsApp owns the writer. Reads only, short-lived connections, `?mode=ro`.
 4. **Never inline media bytes in tool responses.** Surface attachments as `MediaRef { filename, mime, local_path, size_bytes }`.
-5. **No HTTP / TCP / UDP listener.** Stdio only. `lharries/whatsapp-mcp` was hit by exactly this — path-traversal CVE class.
+5. **No HTTP / TCP / UDP listener.** Stdio only. `lharries/whatsapp-desktop-mcp` was hit by exactly this — path-traversal CVE class.
 6. **Never compare JID strings directly.** A person may appear as `<phone>@s.whatsapp.net` and `<lid>@lid` in different chats. Use the `Jid` type and resolve via `LID.sqlite`.
-7. **Send is `destructiveHint:true` and gated by MCP elicitation confirmation by default.** Rate limit 5/min, 30/day default. Audit log to `~/Library/Logs/whatsapp-mcp/audit.log` mode 0600. No multi-recipient tool.
+7. **Send is `destructiveHint:true` and gated by MCP elicitation confirmation by default.** Rate limit 5/min, 30/day default. Audit log to `~/Library/Logs/whatsapp-desktop-mcp/audit.log` mode 0600. No multi-recipient tool.
 8. **Every read tool returns a `coverage` field.** The DB is a sync cache, not a source of truth.
 
 ## Verified facts (live, 2026-05-13)

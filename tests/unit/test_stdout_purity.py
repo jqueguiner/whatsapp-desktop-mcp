@@ -1,6 +1,6 @@
 """SETUP-03 gate — every byte on stdout must be a valid JSON-RPC frame.
 
-Spawns ``python -m whatsapp_mcp`` as a subprocess. Writes a minimal MCP
+Spawns ``python -m whatsapp_desktop_mcp`` as a subprocess. Writes a minimal MCP
 handshake to stdin (``initialize`` -> ``notifications/initialized`` ->
 ``tools/list`` -> ``tools/call doctor``). Reads stdout line-by-line and asserts
 every line parses as JSON-RPC 2.0.
@@ -13,9 +13,9 @@ defence; this test is the runtime defence and the only one that catches
 non-print stdout pollution.
 
 The test is intentionally implemented as a black-box subprocess invocation —
-we do NOT import ``whatsapp_mcp.server`` here, because that would only test
+we do NOT import ``whatsapp_desktop_mcp.server`` here, because that would only test
 the in-process import path (which passes trivially), not the actual ``python
--m whatsapp_mcp`` startup that Claude Desktop uses.
+-m whatsapp_desktop_mcp`` startup that Claude Desktop uses.
 
 Per the Plan 03 corrected probe, the ``tools/call doctor`` invocation runs
 real ``osascript`` on the test runner — on ``macos-14`` CI that works
@@ -71,7 +71,7 @@ async def test_stdout_is_pure_jsonrpc() -> None:
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
-        "whatsapp_mcp",
+        "whatsapp_desktop_mcp",
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,

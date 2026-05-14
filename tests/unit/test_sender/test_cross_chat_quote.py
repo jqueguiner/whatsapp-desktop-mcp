@@ -23,8 +23,8 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from whatsapp_mcp.sender import cross_chat_quote
-from whatsapp_mcp.sender.cross_chat_quote import OffendingSource, _Entry
+from whatsapp_desktop_mcp.sender import cross_chat_quote
+from whatsapp_desktop_mcp.sender.cross_chat_quote import OffendingSource, _Entry
 
 
 def test_constants() -> None:
