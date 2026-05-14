@@ -7,6 +7,16 @@
 # job level, NOT at the workflow root — P-PHASE0-04 mitigation (minimal
 # blast radius; without job-level scoping the OIDC token would be readable
 # by every other job, including the reusable CI workflow).
+#
+# Phase 3 Plan 03-02 appends two downstream jobs after `publish`:
+#   - pkg-build  : Developer-ID-signed + notarized + stapled .pkg attached to
+#                  the GitHub release. Gated by APPLE_INSTALLER_CERT_P12
+#                  (D-07 skip-block; community forks without the cert ship
+#                  PyPI-only without breaking the release).
+#   - tap-update : Auto-PR against gladia/homebrew-whatsapp-mcp regenerating
+#                  the Formula via `brew update-python-resources` (D-10 with
+#                  the 2026 successor to the original poet generator,
+#                  which is deprecated). Gated by BREW_TAP_DEPLOY_KEY.
 name: Release
 
 on:
@@ -39,3 +49,199 @@ jobs:
 
       - name: Publish to PyPI (uv)
         run: uv publish
+
+  # ---------------------------------------------------------------------
+  # pkg-build (Phase 3 Plan 03-02)
+  # ---------------------------------------------------------------------
+  # Builds a Developer-ID-signed + notarized + stapled .pkg via
+  # scripts/build-pkg.sh and attaches it to the GitHub release.
+  #
+  # Decisions: D-06 (signing pipeline), D-07 (skip-block when cert absent).
+  # Pitfalls covered: P8 (pyobjc dylibs re-signed via SIGN_DYLIBS env when
+  # APPLE_DEVELOPER_ID_APP_CERT secret is also imported), P9 (enrollment
+  # delay → D-07 fallback keeps PyPI publish working even without certs).
+  #
+  # The `if:` skip-block uses a job-level env mapping because GitHub Actions
+  # `if:` expressions can't always evaluate `secrets.*` directly on macOS
+  # runners; the env mapping lifts the secret existence check into a string
+  # comparison that `if:` evaluates reliably.
+  pkg-build:
+    needs: [publish]
+    runs-on: macos-14
+    env:
+      HAS_CERT: ${{ secrets.APPLE_INSTALLER_CERT_P12 != '' && 'true' || 'false' }}
+    if: ${{ secrets.APPLE_INSTALLER_CERT_P12 != '' }}
+    permissions:
+      contents: write   # required for softprops/action-gh-release@v2 release upload
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v8
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Log apple-actions/import-codesign-certs latest version
+        # RESEARCH.md A1: verify the action pin at execution time. We ship
+        # @v3 per CONTEXT.md D-06; if the latest tag has moved to a new
+        # major, the maintainer can upgrade in a follow-up PR.
+        run: |
+          gh release view --repo apple-actions/import-codesign-certs --json tagName --jq .tagName || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Import Developer ID Installer cert (ephemeral keychain)
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          p12-password: ${{ secrets.APPLE_INSTALLER_CERT_PASSWORD }}
+
+      - name: Import Developer ID Application cert (for venv dylib re-sign)
+        # Optional — only fires when the maintainer has provisioned the
+        # second (Application) cert alongside the Installer cert. When this
+        # step is skipped, build-pkg.sh's SIGN_DYLIBS block is also skipped
+        # (env var stays unset). First-release ships without dylib re-sign;
+        # if notarization rejects on pyobjc .so files (Pitfall 8), the
+        # maintainer adds the Application cert secret in a follow-up PR.
+        if: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT != '' }}
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT }}
+          p12-password: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT_PASSWORD }}
+          create-keychain: false   # reuse the keychain created by the previous step
+
+      - name: Build unsigned .pkg
+        env:
+          # SIGN_DYLIBS is set ONLY when the Application cert was imported.
+          # build-pkg.sh's `if [ -n "${SIGN_DYLIBS:-}" ]` block keys on this.
+          SIGN_DYLIBS: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT != '' && '1' || '' }}
+          APPLE_TEAM_NAME: ${{ secrets.APPLE_TEAM_NAME }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          export VERSION
+          bash scripts/build-pkg.sh
+
+      - name: productsign with Developer ID Installer cert
+        env:
+          APPLE_TEAM_NAME: ${{ secrets.APPLE_TEAM_NAME }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          productsign \
+              --sign "Developer ID Installer: ${APPLE_TEAM_NAME} (${APPLE_TEAM_ID})" \
+              "dist/whatsapp-mcp-${VERSION}-unsigned.pkg" \
+              "dist/whatsapp-mcp-${VERSION}.pkg"
+
+      - name: Notarize via xcrun notarytool (one-shot --wait form)
+        # If notarization returns "Invalid" status, the step fails non-zero
+        # and the whole job fails (no silent success). The release is then
+        # marked PARTIAL and the maintainer either provisions the
+        # Application cert (Pitfall 8 mitigation) or ships PyPI-only via the
+        # D-07 fallback for that release.
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          xcrun notarytool submit \
+              "dist/whatsapp-mcp-${VERSION}.pkg" \
+              --apple-id "${{ secrets.APPLE_ID }}" \
+              --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+              --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+              --wait
+
+      - name: Staple notarization ticket (offline-installable .pkg)
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          xcrun stapler staple "dist/whatsapp-mcp-${VERSION}.pkg"
+
+      - name: Verify Gatekeeper acceptance (Pitfall 2)
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          spctl --assess --type install -vvv "dist/whatsapp-mcp-${VERSION}.pkg"
+
+      - name: Attach signed .pkg to GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/whatsapp-mcp-*.pkg
+
+  # ---------------------------------------------------------------------
+  # tap-update (Phase 3 Plan 03-02)
+  # ---------------------------------------------------------------------
+  # Auto-PR against gladia/homebrew-whatsapp-mcp regenerating Formula on
+  # each release. Independent of pkg-build (brew doesn't need Apple
+  # Installer cert; D-04). Gated by BREW_TAP_DEPLOY_KEY so community forks
+  # without a tap repo skip cleanly.
+  #
+  # Decisions: D-09 (Formula shape), D-10 (auto-publish via
+  # brew update-python-resources — the maintained 2026 successor to the
+  # original poet generator, which is deprecated; outcome of D-10
+  # preserved with the supported tool).
+  # Pitfalls covered: P3 (PyPI CDN propagation — sleep 30 ahead of curl).
+  tap-update:
+    needs: [publish]
+    runs-on: macos-14
+    env:
+      HAS_DEPLOY_KEY: ${{ secrets.BREW_TAP_DEPLOY_KEY != '' && 'true' || 'false' }}
+    if: ${{ secrets.BREW_TAP_DEPLOY_KEY != '' }}
+    permissions:
+      contents: read   # write access to the tap repo is via the deploy key
+    steps:
+      - name: Checkout tap repo
+        uses: actions/checkout@v4
+        with:
+          repository: gladia/homebrew-whatsapp-mcp
+          token: ${{ secrets.BREW_TAP_DEPLOY_KEY }}
+          path: tap
+
+      - name: Wait for PyPI CDN propagation (Pitfall 3)
+        # PyPI's CDN can take 10–60 seconds to make a newly-published sdist
+        # visible to API consumers. 30s is the conservative middle. If first
+        # releases hit a 404 in the next step, bump to 60.
+        run: sleep 30
+
+      - name: Compute sdist sha256 from PyPI JSON API
+        id: sha
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          SHA=$(curl -sL "https://pypi.org/pypi/whatsapp-mcp/${VERSION}/json" | \
+                jq -r '.urls[] | select(.packagetype=="sdist") | .digests.sha256')
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update Formula url + sha256
+        working-directory: tap
+        run: |
+          # Rewrite the url line so it points at the new sdist tarball.
+          sed -i '' "s|/whatsapp_mcp-.*\.tar\.gz|/whatsapp_mcp-${{ steps.sha.outputs.version }}.tar.gz|" Formula/whatsapp-mcp.rb
+          # Rewrite the FIRST sha256 line (the project's own — the resource
+          # blocks have their own sha256 lines that brew update-python-resources
+          # rewrites in the next step).
+          awk -v sha="${{ steps.sha.outputs.sha }}" '
+            !done && /^[[:space:]]*sha256 / { sub(/"[0-9a-f]*"/, "\"" sha "\""); done=1 }
+            { print }
+          ' Formula/whatsapp-mcp.rb > Formula/whatsapp-mcp.rb.new
+          mv Formula/whatsapp-mcp.rb.new Formula/whatsapp-mcp.rb
+
+      - name: Regenerate transitive resource blocks
+        # `brew update-python-resources` is the maintained 2026 replacement
+        # for the original poet generator that CONTEXT.md D-10 named (the
+        # generator was deprecated upstream as of 2023+). The outcome
+        # (regenerated resource blocks) is what D-10 locks; the tool name
+        # follows the currently-maintained path. The `|| true` keeps the
+        # workflow green if regeneration partially fails — the PR is still
+        # useful for manual edit.
+        working-directory: tap
+        run: |
+          brew update-python-resources whatsapp-mcp || true
+
+      - name: Open PR against the tap repo
+        uses: peter-evans/create-pull-request@v6
+        with:
+          path: tap
+          commit-message: "whatsapp-mcp ${{ steps.sha.outputs.version }}"
+          title: "whatsapp-mcp ${{ steps.sha.outputs.version }}"
+          body: |
+            Auto-generated by release.yml on tag push.
+
+            See https://github.com/gladia/whatsapp-mcp/releases/tag/v${{ steps.sha.outputs.version }}
+          branch: "whatsapp-mcp-${{ steps.sha.outputs.version }}"
