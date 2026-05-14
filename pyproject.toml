@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "whatsapp-desktop-mcp"
-version = "0.1.0"
+version = "0.0.1rc1"
 description = "MCP stdio server for the macOS WhatsApp Desktop app — read history and send messages from Claude Desktop / Claude Code."
 readme = "README.md"
 requires-python = ">=3.12"
