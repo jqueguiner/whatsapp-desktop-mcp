@@ -106,8 +106,12 @@ Plans:
   3. Cross-binary parity test (`tests/integration/test_rust_python_parity.py`, RUN_LIVE_RUST=1) calls the same MCP tool against both binaries against the same WhatsApp Desktop install and asserts response shapes match (not byte-equal — semantic equivalence on chat_id, message_id, coverage, doctor probe state).
   4. README adds a "Rust port (experimental)" subsection under Install with a `cargo install --git` invocation; existing Python install paths (brew, .pkg, uvx) byte-stable.
   5. The Rust port does NOT add to release.yml's PyPI publish job (Rust artifact distribution is a Phase 4.x decision; v1.0 ships Python only). A separate GitHub release asset attached via a Phase-4 `cargo-build` job is acceptable.
-**Plans:** TBD
-**Avoids pitfalls:** New surface — to be enumerated by the Phase 4 researcher. Likely candidates: Rust pyobjc-equivalent for AX-API (pure-objc2 vs cocoa crate), MCP Rust SDK availability (anthropics/modelcontextprotocol-rust may not exist; community crate `mcp-server` exists), SQLite read concurrency in rust+rusqlite vs Python+sqlite3, AppleScript invocation from Rust (Command::new("osascript") works the same), TCC permission inheritance under cargo-built binary (same P15 problem — solved similarly via signed binary at stable path).
+**Plans:** 3 plans
+Plans:
+- [ ] 04-01-PLAN.md — Rust workspace skeleton (rs/Cargo.toml + 6 lib crate stubs + binary crate + rustfmt/clippy/.gitignore/.cargo/config + REL-05 D-24 dep-graph isolation test)
+- [ ] 04-02-PLAN.md — Doctor tool + 3 permission probes (osascript runner with bidi-strip + locale-blind regex; D-09 patched Automation probe; FDA via std::fs::metadata; Accessibility) + WhatsApp.app version probe via plist crate + rmcp #[tool] registration + main.rs full server entry
+- [ ] 04-03-PLAN.md — CI rust-lint-test job (parallel to lint-type-test) + release.yml rust-build job (downstream of publish, GitHub release asset only — no PyPI change) + tests/integration/test_rust_python_parity.py (RUN_LIVE_RUST=1 gated) + README 4th install row + rs/README.md parity instructions
+**Avoids pitfalls:** rmcp version drift (Pitfall 1 — README pinned stale 0.16.0; we pin 1.7), MSRV trap (Pitfall 2 — clap 4.5 + plist 1.7 to honor 1.75 floor), stdout pollution (Pitfall 3 — clippy::print_stdout=deny + tracing-to-stderr + custom panic hook + CI smoke), tokio process feature (Pitfall 4), TCC race in parity test (Pitfall 5 — tight sequence + documented), objc2 family version skew (Pitfall 6 — pinned 0.6/0.3/0.3), workspace lints propagation (Pitfall 9 — every member has [lints] workspace=true). Carries P15 (TCC churn) by stable cargo-install path /usr/local.
 
 ## Progress
 
@@ -117,7 +121,7 @@ Plans:
 | 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
 | 2. Send (UI-automation, guardrails) | 5/5 | ✓ Complete | 2026-05-13 |
 | 3. Hardening & Distribution | 5/5 | ✓ Complete (pending rc1) | 2026-05-14 |
-| 4. Rust port (parallel binary, additive) | 0/0 | Not started | - |
+| 4. Rust port (parallel binary, additive) | 0/3 | Planned | - |
 
 ## Coverage Summary
 
