@@ -61,7 +61,7 @@
 
 - [x] **DIST-01**: Project is published to PyPI as `whatsapp-desktop-mcp`, installable via `uvx whatsapp-desktop-mcp` for developers *(satisfied at the workflow level by Plan 05 — `.github/workflows/release.yml` triggers on `tags: ['v*']`, reuses `ci.yml` as a gate, then a `publish` job with `permissions: id-token: write` AT THE JOB LEVEL (P-PHASE0-04 mitigation) runs `uv build` + `uv publish` over GitHub OIDC trusted-publisher; no long-lived credential in repo (verified by file-wide grep `'PYPI_TOKEN' not in src and 'password:' not in src`). Closes end-to-end once the manual one-time PyPI trusted-publisher pending-publisher binding (Owner=`gladia`, Repo=`whatsapp-desktop-mcp`, Workflow=`release.yml`, Environment=`pypi`) is configured and the first `git tag v0.1.0 && git push --tags` runs to completion — documented in README's Development section.)*
 - [ ] **DIST-02**: Project ships an end-user install path that puts the launcher binary at a stable absolute path (so TCC permissions persist across upgrades) — Developer-ID-signed `.pkg` and/or Homebrew formula
-- [ ] **DIST-03**: README includes platform requirements (macOS only, WhatsApp Desktop Catalyst build, Python 3.12+ if user-installed) and a 60-second quickstart
+- [x] **DIST-03**: README includes platform requirements (macOS only, WhatsApp Desktop Catalyst build, Python 3.12+ if user-installed) and a 60-second quickstart *(satisfied by Plan 03-04 — README.md now carries an explicit Platform Requirements section [macOS only, WhatsApp Desktop Catalyst build, Python 3.12+ ONLY on the developer install path], a 3-row install matrix [Brew / .pkg / uvx with stable absolute binary paths and uvx TCC-churn caveat], 3 TCC permission cards [Full Disk Access / Accessibility / Automation each with its `x-apple.systempreferences:` deep-link], a Sending Messages section [rate-limit defaults + dev reset-rate-limit + WHATSAPP_DESKTOP_MCP_SKIP_CONFIRM stark warning + ToS reinforcement], and an FTS5 Search section. Phase 0 D-20 ToS blockquote and D-22 framing preserved. Guarded by 24-case `tests/unit/test_readme_install_matrix.py` parametrized invariants. Verified by 17 plan grep gates all returning ≥ expected counts.)*
 
 ## v2 Requirements
 
@@ -148,7 +148,7 @@
 | SEND-07 | Phase 2 | Send (UI-automation, guardrails) | Pending |
 | SEND-08 | Phase 2 | Send (UI-automation, guardrails) | Pending |
 | DIST-02 | Phase 3 | Hardening & Distribution | Pending |
-| DIST-03 | Phase 3 | Hardening & Distribution | Pending |
+| DIST-03 | Phase 3 | Hardening & Distribution | ✓ Satisfied (Plan 03-04, 2026-05-14) |
 
 **Coverage:**
 - v1 requirements: 37 total
