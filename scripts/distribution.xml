@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!--
+    scripts/distribution.xml — productbuild distribution archive spec.
+
+    The build-pkg.sh script copies this file into dist/ and substitutes
+    VERSION_PLACEHOLDER with the actual VERSION before invoking productbuild,
+    so the source-tree file stays idempotent across local re-runs.
+
+    macOS 15+ floor (allowed-os-versions min 15.0) matches the Formula's
+    `depends_on macos: :sequoia` (D-09) and the pyobjc 12.1 wheel target.
+    rootVolumeOnly + customize="never" gives a single-shot installer with
+    no choice UI — the .pkg is one indivisible payload.
+-->
+<installer-gui-script minSpecVersion="2">
+    <title>WhatsApp MCP</title>
+    <organization>net.gladia</organization>
+    <domains enable_localSystem="true"/>
+    <options customize="never" require-scripts="false" rootVolumeOnly="true"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="15.0"/>
+        </allowed-os-versions>
+    </volume-check>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="net.gladia.whatsapp-mcp"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="net.gladia.whatsapp-mcp" visible="false">
+        <pkg-ref id="net.gladia.whatsapp-mcp"/>
+    </choice>
+    <pkg-ref id="net.gladia.whatsapp-mcp" version="VERSION_PLACEHOLDER" onConclusion="none">whatsapp-mcp-VERSION_PLACEHOLDER-component.pkg</pkg-ref>
+</installer-gui-script>
