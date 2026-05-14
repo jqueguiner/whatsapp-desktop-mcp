@@ -82,6 +82,7 @@ Phase 3: ◐ Hardening & Distribution      (5/5 plans — 03-01 FTS5 sidecar + d
 
 ### Roadmap Evolution
 - 2026-05-14: Phase 4 added — "Rust port (parallel binary, additive)". Spike of Rust MCP server as second binary `whatsapp-desktop-mcp-rs` shipped alongside Python. Python stays load-bearing for v1.0; promotion → primary deferred until parity verified. Code in `rs/` (Cargo workspace). Don't override existing Python source.
+- 2026-05-14: Phase 4 CONTEXT gathered via /gsd-discuss-phase 4 --auto. 30 locked decisions (D-01..D-30) covering Cargo workspace shape (rs/ monorepo with binary + 6 lib crates mirroring Python pkg layout), MCP Rust SDK = `rmcp` (official), AX-API = `objc2` family (NOT cocoa), AppleScript via `std::process::Command` mirroring Python D-09, SQLite via `rusqlite` bundled (deferred read use to Phase 4.x), v0 scope = doctor tool ONLY (smallest validation slice; "we don't know if it's gonna work" framing), parity test = doctor only via RUN_LIVE_RUST=1, distribution = GitHub release artifact only for v0 (no PyPI for Rust, no brew bottle), version 0.0.0 for first ship.
 
 ### Key Decisions (carried from PROJECT.md)
 
