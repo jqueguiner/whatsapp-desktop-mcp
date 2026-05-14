@@ -38,17 +38,24 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has_apple_cert: ${{ steps.gate.outputs.has_apple_cert }}
+      has_app_cert: ${{ steps.gate.outputs.has_app_cert }}
       has_brew_key: ${{ steps.gate.outputs.has_brew_key }}
     steps:
       - id: gate
         env:
           APPLE_CERT: ${{ secrets.APPLE_INSTALLER_CERT_P12 }}
+          APP_CERT: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT }}
           BREW_KEY: ${{ secrets.BREW_TAP_DEPLOY_KEY }}
         run: |
           if [ -n "${APPLE_CERT}" ]; then
             echo "has_apple_cert=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_apple_cert=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "${APP_CERT}" ]; then
+            echo "has_app_cert=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_app_cert=false" >> "$GITHUB_OUTPUT"
           fi
           if [ -n "${BREW_KEY}" ]; then
             echo "has_brew_key=true" >> "$GITHUB_OUTPUT"
@@ -135,7 +142,7 @@ jobs:
         # (env var stays unset). First-release ships without dylib re-sign;
         # if notarization rejects on pyobjc .so files (Pitfall 8), the
         # maintainer adds the Application cert secret in a follow-up PR.
-        if: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT != '' }}
+        if: needs.preflight.outputs.has_app_cert == 'true'
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-file-base64: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT }}
@@ -146,7 +153,7 @@ jobs:
         env:
           # SIGN_DYLIBS is set ONLY when the Application cert was imported.
           # build-pkg.sh's `if [ -n "${SIGN_DYLIBS:-}" ]` block keys on this.
-          SIGN_DYLIBS: ${{ secrets.APPLE_DEVELOPER_ID_APP_CERT != '' && '1' || '' }}
+          SIGN_DYLIBS: ${{ needs.preflight.outputs.has_app_cert == 'true' && '1' || '' }}
           APPLE_TEAM_NAME: ${{ secrets.APPLE_TEAM_NAME }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
