@@ -88,7 +88,7 @@ Plans:
 **Plans:** 5 plans
 Plans:
 - [x] 03-01-PLAN.md — FTS5 sidecar + search_messages dispatcher (--fts5-mode CLI; quote-wrap; reader/search_fts5.py with REL-05 D-24 carry) (03-01-SUMMARY.md, 2026-05-14)
-- [ ] 03-02-PLAN.md — Distribution infrastructure: signed .pkg + Homebrew custom tap (build-pkg.sh + release.yml pkg-build/tap-update jobs + docs/release-setup.md + bootstrap Formula)
+- [x] 03-02-PLAN.md — Distribution infrastructure: signed .pkg + Homebrew custom tap (build-pkg.sh + release.yml pkg-build/tap-update jobs + docs/release-setup.md + bootstrap Formula) (03-02-SUMMARY.md, 2026-05-14)
 - [ ] 03-03-PLAN.md — Hardening: tested_versions.md parser + doctor degraded warning + audit log rotation + dev reset-rate-limit subcommand + --audit-log-max-bytes
 - [ ] 03-04-PLAN.md — README install-matrix revamp (3 rows × 3 TCC permission cards × Sending Messages section)
 - [ ] 03-05-PLAN.md — Pre-release smoke suite (RUN_LIVE_WHATSAPP=1 composing Phase 1 + Phase 2 + FTS5; D-24 fixture extension)
@@ -101,7 +101,7 @@ Plans:
 | 0. Setup & Permissions Skeleton | 5/5 | ✓ Complete | 2026-05-13 |
 | 1. Read MVP (`--read-only`) | 6/6 | ✓ Complete | 2026-05-13 |
 | 2. Send (UI-automation, guardrails) | 5/5 | ✓ Complete | 2026-05-13 |
-| 3. Hardening & Distribution | 1/5 | In progress (Wave 1.1 done) | - |
+| 3. Hardening & Distribution | 2/5 | In progress (Wave 1.1 + 1.2 done) | - |
 
 ## Coverage Summary
 
