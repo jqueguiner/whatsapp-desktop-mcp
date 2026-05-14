@@ -44,7 +44,6 @@ from pathlib import Path
 
 import pytest
 
-
 _COCOA_EPOCH_OFFSET = 978_307_200
 
 
@@ -265,9 +264,7 @@ def patched_paths(
     # search_fts5 imports the resolvers by name at module-load time —
     # patch the local references too.
     if hasattr(search_fts5, "resolve_chatstorage_path"):
-        monkeypatch.setattr(
-            search_fts5, "resolve_chatstorage_path", lambda: str(fts_chatstorage)
-        )
+        monkeypatch.setattr(search_fts5, "resolve_chatstorage_path", lambda: str(fts_chatstorage))
     if hasattr(search_fts5, "resolve_media_root"):
         monkeypatch.setattr(search_fts5, "resolve_media_root", lambda: str(media_root))
     return fts_chatstorage
@@ -557,9 +554,7 @@ def test_full_rebuild_writes_no_stdout_bytes(tmp_path: Path) -> None:
         timeout=15,
         check=False,
     )
-    assert proc.returncode == 0, (
-        f"subprocess failed: stdout={proc.stdout!r} stderr={proc.stderr!r}"
-    )
+    assert proc.returncode == 0, f"subprocess failed: stdout={proc.stdout!r} stderr={proc.stderr!r}"
     assert proc.stdout == "", (
         f"D-05 / P-PHASE0-01 violation: stdout was non-empty during FTS build: "
         f"stdout={proc.stdout!r}"
