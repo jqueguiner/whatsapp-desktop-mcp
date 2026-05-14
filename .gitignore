@@ -17,3 +17,6 @@ htmlcov/
 .envrc
 *.whl
 *.tar.gz
+
+# Claude Code worktree runtime artifacts
+.claude/worktrees/
