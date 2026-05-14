@@ -29,6 +29,7 @@ structural — it locks in the contract that Phase 2 will honor.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 
 from whatsapp_desktop_mcp import __version__
@@ -76,6 +77,20 @@ def main(argv: list[str] | None = None) -> int:
             "(Phase 1 v0.1 behavior; useful when an FTS5 issue needs bypassing)."
         ),
     )
+    # Phase 3 D-25 / D-28: --audit-log-max-bytes overrides the default 10 MB
+    # rotation threshold for the JSONL audit log. Set as an env var BEFORE
+    # the lazy server.run import so the audit module's _resolve_max_bytes()
+    # observes the user's choice on the first send-attempt append.
+    parser.add_argument(
+        "--audit-log-max-bytes",
+        type=int,
+        default=10 * 1024 * 1024,
+        help=(
+            "Audit log rotation threshold in bytes (D-25 default 10 MB; rotation "
+            "keeps last 5 archives audit.log.1..audit.log.5 — older archives are "
+            "evicted on the next rotation past the cap)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     # Set the read_only_mode flag BEFORE importing server.run so that the
@@ -92,6 +107,10 @@ def main(argv: list[str] | None = None) -> int:
     # tool body re-reads `server.fts5_mode` at call time, but the assignment
     # has to land before any code path that captures the attr by value).
     server.fts5_mode = args.fts5_mode
+    # Phase 3 D-25 / D-28: ditto — the audit module reads the env var at
+    # _resolve_max_bytes() call time (lazy on first append), so the
+    # assignment has to land before any send-attempt audit append fires.
+    os.environ["WHATSAPP_DESKTOP_MCP_AUDIT_LOG_MAX_BYTES"] = str(args.audit_log_max_bytes)
 
     # Import server lazily so --version / --help exit before FastMCP loads.
     from whatsapp_desktop_mcp.server import run

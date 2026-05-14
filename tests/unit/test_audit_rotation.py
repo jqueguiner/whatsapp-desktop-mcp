@@ -98,7 +98,9 @@ def test_rotation_triggered_at_threshold(
     # Write entries until the file grows past 1024 bytes — then the NEXT
     # append should trigger rotation.
     pre_rotation_payloads: list[str] = []
-    while not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 1024:
+    while (
+        not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 1024
+    ):
         idx = len(pre_rotation_payloads)
         payload = _make_entry_json(idx)
         pre_rotation_payloads.append(payload)
@@ -144,9 +146,7 @@ def test_archive_cap_shifts_oldest_off(
             # Each rotation results in shifts; we count by checking how
             # many archive files exist.
             existing = sum(
-                1
-                for i in range(1, 8)
-                if (isolated_audit["log_dir"] / f"audit.log.{i}").exists()
+                1 for i in range(1, 8) if (isolated_audit["log_dir"] / f"audit.log.{i}").exists()
             )
             if existing > rotation_count:
                 rotation_count = existing
@@ -161,10 +161,12 @@ def test_archive_cap_shifts_oldest_off(
     for _ in range(5):
         audit._blocking_append(big_payload)
 
-    assert (isolated_audit["log_dir"] / "audit.log.5").exists(), \
+    assert (isolated_audit["log_dir"] / "audit.log.5").exists(), (
         "5-archive ceiling not reached — cap test inconclusive"
-    assert not (isolated_audit["log_dir"] / "audit.log.6").exists(), \
+    )
+    assert not (isolated_audit["log_dir"] / "audit.log.6").exists(), (
         "audit.log.6 must NEVER exist (5-archive cap)"
+    )
 
 
 def test_archive_shift_order_no_content_overwrite(
@@ -176,19 +178,25 @@ def test_archive_shift_order_no_content_overwrite(
     monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_AUDIT_LOG_MAX_BYTES", "256")
 
     # Phase A: rotate once with payload "alpha".
-    while not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256:
+    while (
+        not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256
+    ):
         audit._blocking_append('{"phase":"alpha","outcome":"sent"}')
     audit._blocking_append('{"trigger":"rot1","outcome":"sent"}')
     assert (isolated_audit["log_dir"] / "audit.log.1").exists()
 
     # Phase B: rotate again with payload "beta".
-    while not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256:
+    while (
+        not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256
+    ):
         audit._blocking_append('{"phase":"beta","outcome":"sent"}')
     audit._blocking_append('{"trigger":"rot2","outcome":"sent"}')
     assert (isolated_audit["log_dir"] / "audit.log.2").exists()
 
     # Phase C: rotate again with payload "gamma".
-    while not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256:
+    while (
+        not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256
+    ):
         audit._blocking_append('{"phase":"gamma","outcome":"sent"}')
     audit._blocking_append('{"trigger":"rot3","outcome":"sent"}')
     assert (isolated_audit["log_dir"] / "audit.log.3").exists()
@@ -213,7 +221,9 @@ def test_mode_0600_preserved_after_rotation(
 
     monkeypatch.setenv("WHATSAPP_DESKTOP_MCP_AUDIT_LOG_MAX_BYTES", "256")
 
-    while not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256:
+    while (
+        not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256
+    ):
         audit._blocking_append('{"x":"y","outcome":"sent"}')
     audit._blocking_append('{"trigger":"rot","outcome":"sent"}')
 
@@ -241,7 +251,9 @@ def test_d13_invariant_no_plaintext_body_in_archive(
     # The "secret_payload_text" string must NEVER end up in any archive
     # because no field ever ships it through the AuditEntry schema.
     body_marker = "SECRET_BODY_PLAINTEXT_DO_NOT_LEAK"
-    while not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256:
+    while (
+        not isolated_audit["log_path"].exists() or isolated_audit["log_path"].stat().st_size < 256
+    ):
         audit._blocking_append(
             json.dumps({"chat_id": 1, "body_sha256": "a" * 64, "outcome": "sent"})
         )

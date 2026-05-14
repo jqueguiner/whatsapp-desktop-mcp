@@ -78,6 +78,15 @@ from pydantic import BaseModel, Field
 _LOG_DIR = Path.home() / "Library" / "Logs" / "whatsapp-desktop-mcp"
 _LOG_PATH = _LOG_DIR / "audit.log"
 
+# Phase 3 Plan 03-03 (D-25 / D-26 / D-28) — size-based rotation.
+# 10 MB ≈ 50k JSONL entries ≈ several years of personal use; 5 archives
+# = ~50 MB worst-case disk. Threshold is overridable via env var
+# (set by cli.main from the --audit-log-max-bytes arg) so the rotation
+# can be exercised in tests with a small ceiling.
+_DEFAULT_MAX_BYTES = 10 * 1024 * 1024
+_ENV_MAX_BYTES = "WHATSAPP_DESKTOP_MCP_AUDIT_LOG_MAX_BYTES"
+_ARCHIVE_COUNT = 5
+
 Outcome = Literal[
     "sent",
     "sent_unverified",
@@ -130,6 +139,52 @@ def body_sha256(body: str) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
+def _resolve_max_bytes() -> int:
+    """Resolve the rotation threshold from env, falling back to the default.
+
+    Phase 3 Plan 03-03 (D-25 / D-28). Reads
+    ``WHATSAPP_DESKTOP_MCP_AUDIT_LOG_MAX_BYTES`` at call time so a test or
+    a runtime ``--audit-log-max-bytes`` change is observed on the next
+    append. ``ValueError``-safe: garbage input falls back to the default
+    rather than crashing the audit path (DIAG-02 spirit — the log must
+    keep accepting writes).
+    """
+    val = os.environ.get(_ENV_MAX_BYTES)
+    if not val:
+        return _DEFAULT_MAX_BYTES
+    try:
+        return max(1, int(val))
+    except ValueError:
+        return _DEFAULT_MAX_BYTES
+
+
+def _rotate_in_place(path: Path, archive_count: int) -> None:
+    """Rotate ``path`` to ``path.1``, shifting existing ``path.N`` upward.
+
+    Walks from the OLDEST archive downward to the NEWEST so no archive is
+    overwritten before its content is moved (the inversion guard from
+    Pitfall 5). The eldest archive (``path.{archive_count}``) is deleted
+    before its slot is reused — the 5-archive cap evicts the oldest
+    rotation when a 6th would land.
+
+    D-13 STRUCTURAL invariant preserved by construction: rotation moves
+    ENTIRE JSONL lines via :meth:`Path.rename`; the AuditEntry schema has
+    ``body_sha256: str`` only (no raw ``body`` field), so rotated archives
+    are byte-identical to the live log up to the rotation point and
+    cannot leak any content the live log didn't already carry.
+    """
+    eldest = path.with_suffix(path.suffix + f".{archive_count}")
+    if eldest.exists():
+        eldest.unlink()
+    for i in range(archive_count - 1, 0, -1):
+        src = path.with_suffix(path.suffix + f".{i}")
+        dst = path.with_suffix(path.suffix + f".{i + 1}")
+        if src.exists():
+            src.rename(dst)
+    if path.exists():
+        path.rename(path.with_suffix(path.suffix + ".1"))
+
+
 def _blocking_append(entry_json: str) -> None:
     """Append one JSONL line to :data:`_LOG_PATH`, line-buffered, mode 0600.
 
@@ -142,8 +197,16 @@ def _blocking_append(entry_json: str) -> None:
     buffer on every newline), so the trailing ``\\n`` flushes the
     line to disk. This is important for audit integrity if the server
     crashes mid-send (D-14).
+
+    Phase 3 Plan 03-03 (D-25 / D-26): if the live log is at or over the
+    rotation threshold, rotate BEFORE the write. Rotation makes the live
+    path non-existent so the subsequent ``is_new = not _LOG_PATH.exists()``
+    branch fires and the fresh file gets ``mode 0600`` reapplied — the
+    Phase 2 mode invariant carries through rotation automatically.
     """
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
+    if _LOG_PATH.exists() and _LOG_PATH.stat().st_size >= _resolve_max_bytes():
+        _rotate_in_place(_LOG_PATH, _ARCHIVE_COUNT)
     is_new = not _LOG_PATH.exists()
     with open(_LOG_PATH, "a", buffering=1, encoding="utf-8") as fp:
         fp.write(entry_json + "\n")
