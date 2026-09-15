@@ -86,14 +86,13 @@ _TOOLS_LIST: dict[str, object] = {
 }
 
 
-@pytest.mark.asyncio
-async def test_read_only_lists_only_read_tools() -> None:
-    """Subprocess JSON-RPC handshake — ``--read-only`` lists exactly the 8 read tools."""
+async def _list_tools(flag: str) -> list[dict[str, object]]:
+    """Spawn the server with ``flag`` and return its ``tools/list`` result."""
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
         "whatsapp_desktop_mcp",
-        "--read-only",
+        flag,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
@@ -144,6 +143,13 @@ async def test_read_only_lists_only_read_tools() -> None:
     assert isinstance(result, dict), f"tools/list reply has no result: {tools_list_response!r}"
     tools = result.get("tools")
     assert isinstance(tools, list), f"tools/list result has no tools list: {result!r}"
+    return [t for t in tools if isinstance(t, dict)]
+
+
+@pytest.mark.asyncio
+async def test_read_only_lists_only_read_tools() -> None:
+    """Subprocess JSON-RPC handshake — ``--read-only`` lists exactly the 8 read tools."""
+    tools = await _list_tools("--read-only")
 
     names = {t["name"] for t in tools if isinstance(t, dict) and "name" in t}
     assert names == _EXPECTED_TOOL_NAMES, (
@@ -160,6 +166,22 @@ async def test_read_only_lists_only_read_tools() -> None:
         assert annotations.get("readOnlyHint") is True, (
             f"tool {tool.get('name')!r} missing readOnlyHint=True: {annotations!r}"
         )
+
+
+@pytest.mark.asyncio
+async def test_no_read_only_registers_send_message() -> None:
+    """Subprocess JSON-RPC handshake — ``--no-read-only`` adds ``send_message``.
+
+    ``cli.main`` imports ``server`` before assigning ``read_only_mode``, so
+    the send-tool gate must run after that assignment (inside ``run()``).
+    A module-level gate always saw the default ``True``.
+    """
+    tools = await _list_tools("--no-read-only")
+
+    names = {t["name"] for t in tools if "name" in t}
+    assert names == _EXPECTED_TOOL_NAMES | {"send_message"}, (
+        f"tools/list returned unexpected tool set: {names!r}"
+    )
 
 
 def test_no_read_only_flag_parses_without_error() -> None:
